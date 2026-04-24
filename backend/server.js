@@ -18,10 +18,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());   // ✅ REQUIRED
 app.get("/api/jobs", (req, res) => {
-  db.query("SELECT * FROM jobs", (err, result) => {
-    if (err) return res.status(500).send(err);
-    res.json(result);
-  });
+  db.query("SELECT * FROM jobs")
+  .then(result => res.json(result.rows))
+  .catch(err => console.log(err));
 });
 app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", (req, res) => {
