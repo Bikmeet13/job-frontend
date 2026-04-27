@@ -23,6 +23,7 @@ function Jobs() {
   <div style={{ padding: "40px", background: "#f5f7fa", minHeight: "100vh" }}>
 
    {/* 🔝 Navbar */}
+{/* 🔝 Navbar */}
 <div style={{
   display: "flex",
   justifyContent: "space-between",
@@ -32,14 +33,20 @@ function Jobs() {
   borderRadius: "10px",
   boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
   marginBottom: "30px"
-}}>position: "sticky",
-top: 0,
-zIndex: 1000
+}}>
 
-  {/* 🏷️ Logo / Title */}
-  <h2 style={{ margin: 0, color: "#333" }}>
-    Marketlence Jobs
-  </h2>
+  {/* 🏷️ Logo + Title */}
+  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+    <img
+      src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+      alt="logo"
+      style={{ width: "40px", height: "40px" }}
+    />
+
+    <h2 style={{ margin: 0, color: "#333" }}>
+      Marketlence Jobs
+    </h2>
+  </div>
 
   {/* 🔗 Links */}
   <div>
@@ -66,6 +73,8 @@ zIndex: 1000
       Jobs
     </a>
   </div>
+
+</div>
 
 </div>
 
