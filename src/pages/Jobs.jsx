@@ -52,30 +52,61 @@ function Jobs() {
   </div>
 
   {/* 🔗 Links */}
-  <div>
-    <a
-      href="https://marketlence.com"
-      style={{
-        marginRight: "20px",
-        textDecoration: "none",
-        color: "#007bff",
-        fontWeight: "500"
-      }}
-    >
-      Home
-    </a>
+  <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
 
-    <a
-      href="#"
-      style={{
-        textDecoration: "none",
-        color: "#333",
-        fontWeight: "500"
-      }}
-    >
-      Jobs
-    </a>
-  </div>
+  {/* Home */}
+  <a
+    href="https://marketlence.com"
+    style={{
+      textDecoration: "none",
+      color: "#007bff",
+      fontWeight: "500"
+    }}
+  >
+    Home
+  </a>
+
+  {/* Jobs */}
+  <a
+    href="#"
+    style={{
+      textDecoration: "none",
+      color: "#333",
+      fontWeight: "500"
+    }}
+  >
+    Jobs
+  </a>
+
+  {/* Login */}
+  <button
+    style={{
+      padding: "6px 12px",
+      border: "1px solid #007bff",
+      background: "transparent",
+      color: "#007bff",
+      borderRadius: "6px",
+      cursor: "pointer"
+    }}
+  >
+    Login
+  </button>
+
+  {/* Signup */}
+  <button
+    style={{
+      padding: "6px 12px",
+      background: "#007bff",
+      color: "#fff",
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer"
+    }}
+  >
+    Signup
+  </button>
+
+</div>
 
 </div>
 
