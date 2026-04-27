@@ -1,8 +1,10 @@
+import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import ApplyForm from "../components/ApplyForm";
 import { fetchJobs } from "../services/api";
 
 function Jobs() {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
@@ -79,32 +81,34 @@ function Jobs() {
   </a>
 
   {/* Login */}
-  <button
-    style={{
-      padding: "6px 12px",
-      border: "1px solid #007bff",
-      background: "transparent",
-      color: "#007bff",
-      borderRadius: "6px",
-      cursor: "pointer"
-    }}
-  >
-    Login
-  </button>
+<button
+  onClick={() => navigate("/login")}
+  style={{
+    padding: "6px 12px",
+    border: "1px solid #007bff",
+    background: "transparent",
+    color: "#007bff",
+    borderRadius: "6px",
+    cursor: "pointer"
+  }}
+>
+  Login
+</button>
 
-  {/* Signup */}
-  <button
-    style={{
-      padding: "6px 12px",
-      background: "#007bff",
-      color: "#fff",
-      border: "none",
-      borderRadius: "6px",
-      cursor: "pointer"
-    }}
-  >
-    Signup
-  </button>
+{/* Signup */}
+<button
+  onClick={() => navigate("/signup")}
+  style={{
+    padding: "6px 12px",
+    background: "#007bff",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer"
+  }}
+>
+  Signup
+</button>
 
 </div>
 
