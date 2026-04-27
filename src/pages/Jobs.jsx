@@ -31,7 +31,7 @@ function Jobs() {
   background: "#ffffff",
   borderRadius: "10px",
   boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
-  marginBottom: "30px"
+  marginBottom: "30px",
    // ✅ sticky fix
       position: "sticky",
       top: 0,
