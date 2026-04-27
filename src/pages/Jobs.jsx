@@ -19,25 +19,55 @@ function Jobs() {
   );
 
  return (
+  
   <div style={{ padding: "40px", background: "#f5f7fa", minHeight: "100vh" }}>
 
-    {/* 🔙 Back Button */}
-    <div style={{ marginBottom: "20px" }}>
-      <a
-  href="https://marketlence.com"
-  style={{
-    display: "inline-block",
-    padding: "8px 14px",
-    background: "#eee",
-    borderRadius: "6px",
-    textDecoration: "none",
-    color: "#000",
-    fontWeight: "500"
-  }}
->
-  ← Back to Main Site
-</a>
-    </div>
+   {/* 🔝 Navbar */}
+<div style={{
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "15px 20px",
+  background: "#ffffff",
+  borderRadius: "10px",
+  boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+  marginBottom: "30px"
+}}>position: "sticky",
+top: 0,
+zIndex: 1000
+
+  {/* 🏷️ Logo / Title */}
+  <h2 style={{ margin: 0, color: "#333" }}>
+    Marketlence Jobs
+  </h2>
+
+  {/* 🔗 Links */}
+  <div>
+    <a
+      href="https://marketlence.com"
+      style={{
+        marginRight: "20px",
+        textDecoration: "none",
+        color: "#007bff",
+        fontWeight: "500"
+      }}
+    >
+      Home
+    </a>
+
+    <a
+      href="#"
+      style={{
+        textDecoration: "none",
+        color: "#333",
+        fontWeight: "500"
+      }}
+    >
+      Jobs
+    </a>
+  </div>
+
+</div>
 
     {/* 🧭 Title */}
     <h1 style={{ textAlign: "center", marginBottom: "20px" }}>
