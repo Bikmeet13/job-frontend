@@ -22,7 +22,6 @@ function Jobs() {
   
   <div style={{ padding: "40px", background: "#f5f7fa", minHeight: "100vh" }}>
 
-   {/* 🔝 Navbar */}
 {/* 🔝 Navbar */}
 <div style={{
   display: "flex",
@@ -33,6 +32,10 @@ function Jobs() {
   borderRadius: "10px",
   boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
   marginBottom: "30px"
+   // ✅ sticky fix
+      position: "sticky",
+      top: 0,
+      zIndex: 1000
 }}>
 
   {/* 🏷️ Logo + Title */}
@@ -76,8 +79,6 @@ function Jobs() {
 
 </div>
 
-</div>
-
     {/* 🧭 Title */}
     <h1 style={{ textAlign: "center", marginBottom: "20px" }}>
       🚀 Job Listings
@@ -98,7 +99,6 @@ function Jobs() {
         }}
       />
     </div>
-
       {/* 📋 Job List */}
       <div style={{ maxWidth: "800px", margin: "auto" }}>
         {filteredJobs.length === 0 ? (
