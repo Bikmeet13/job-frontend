@@ -8,7 +8,7 @@ function Admin() {
   e.preventDefault();
 
   try {
-    await axios.post("http://localhost:5000/api/jobs", {
+    await axios.post("https://job-frontend-production-84c5.up.railway.app/api/jobs", {
       title,
       company,
       location
@@ -30,19 +30,19 @@ const [company, setCompany] = useState("");
 const [location, setLocation] = useState("");
 
 useEffect(() => {
-  const isAdmin = localStorage.getItem("admin");
+  const token = localStorage.getItem("token");
 
-  if (!isAdmin) {
+  if (!token) {
     navigate("/login");
   }
-}, []);
+}, [navigate]);
 const handleLogout = () => {
-  localStorage.removeItem("admin");
+  localStorage.removeItem("token");
   navigate("/login");
 };
   const updateStatus = async (id, status) => {
   try {
-    await axios.put(`http://localhost:5000/api/applications/${id}`, { status });
+    await axios.put(`https://job-frontend-production-84c5.up.railway.app/api/applications/${id}`, { status });
 
     // Update UI instantly
     setApplications(applications.map(app =>
@@ -54,7 +54,7 @@ const handleLogout = () => {
 };
   const deleteApplication = async (id) => {
   try {
-    await axios.delete(`http://localhost:5000/api/applications/${id}`);
+    await axios.delete(`https://job-frontend-production-84c5.up.railway.app/api/applications/${id}`);
     setApplications(applications.filter(app => app.id !== id));
   } catch (err) {
     console.log(err);
@@ -62,7 +62,7 @@ const handleLogout = () => {
 };
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/applications")
+    axios.get("https://job-frontend-production-84c5.up.railway.app/api/applications")
       .then(res => setApplications(res.data))
       .catch(err => console.log(err));
   }, []);
@@ -139,7 +139,7 @@ const handleLogout = () => {
 <p><b>Resume:</b> 
   {app.resume ? (
     <a 
-      href={`http://localhost:5000/uploads/${app.resume}`} 
+      href={`https://job-frontend-production-84c5.up.railway.app/uploads/${app.resume}`} 
       target="_blank" 
       rel="noreferrer"
     >

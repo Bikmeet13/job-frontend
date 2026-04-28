@@ -27,7 +27,7 @@ app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", (req, res) => {
   const { title, company, location } = req.body;
 
-  const sql = "INSERT INTO jobs (title, company, location) VALUES (?, ?, ?)";
+  const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3, $4)";
 
   db.query(sql, [title, company, location], (err, result) => {
     if (err) {
@@ -68,8 +68,7 @@ app.post("/api/apply", upload.single("resume"), (req, res) => {
   const { name, email, jobId } = req.body;
   const resume = req.file.filename;
 
-  const sql = "INSERT INTO applications (name, email, jobId, resume) VALUES (?, ?, ?, ?)";
-
+  const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3)";
   db.query(sql, [name, email, jobId, resume], (err, result) => {
     if (err) {
       console.log(err);
@@ -79,19 +78,18 @@ app.post("/api/apply", upload.single("resume"), (req, res) => {
     res.send("Application saved with resume ✅");
   });
 });
-app.delete("/api/applications/:id", (req, res) => {
+app.delete("/api/applications/:id", async (req, res) => {
   const id = req.params.id;
 
-  const sql = "DELETE FROM applications WHERE id = ?";
-
-  db.query(sql, [id], (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send("Error deleting application");
-    }
+  try {
+    const sql = "DELETE FROM applications WHERE id = $1";
+    await db.query(sql, [id]);
 
     res.send("Application deleted ✅");
-  });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error deleting application");
+  }
 });
 const PORT = process.env.PORT || 5000;
 

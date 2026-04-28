@@ -1,48 +1,61 @@
-import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 
 function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleLogin = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
 
-    try {
-      const res = await axios.post("http://localhost:5000/api/login", {
-        username,
-        password
+    fetch("https://job-frontend-production-84c5.up.railway.app/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: email,
+        password: password
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+          navigate("/admin");
+        } else {
+          alert("Login failed ❌");
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Server error ❌");
       });
-
-      if (res.data.success) {
-        localStorage.setItem("admin", "true");
-        navigate("/admin");
-      }
-    } catch {
-      alert("Invalid credentials");
-    }
   };
 
   return (
     <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>Admin Login</h1>
+      <h2>Login</h2>
 
-      <form onSubmit={handleLogin}>
+      <form onSubmit={handleLogin} style={{ maxWidth: "400px", margin: "auto" }}>
         <input
           type="text"
           placeholder="Username"
-          onChange={(e) => setUsername(e.target.value)}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
-        /><br /><br />
+          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+        />
 
         <input
           type="password"
           placeholder="Password"
+          value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-        /><br /><br />
+          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
+        />
 
         <button type="submit">Login</button>
       </form>
