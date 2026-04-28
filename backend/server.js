@@ -24,19 +24,18 @@ app.get("/api/jobs", (req, res) => {
   .catch(err => console.log(err));
 });
 app.use("/uploads", express.static("uploads"));
-app.post("/api/jobs", (req, res) => {
+app.post("/api/jobs", async (req, res) => {
   const { title, company, location } = req.body;
 
-  const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3)";
-
-  db.query(sql, [title, company, location], (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send("Error adding job");
-    }
+  try {
+    const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3)";
+    await db.query(sql, [title, company, location]);
 
     res.send("Job added ✅");
-  });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error adding job");
+  }
 });
 
 function verifyToken(req, res, next) {
@@ -53,27 +52,20 @@ function verifyToken(req, res, next) {
   }
 }
 
-app.get("/api/applications", verifyToken, (req, res) => {
-  db.query("SELECT * FROM applications", (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send("Error fetching applications");
-    }
-
+app.get("/api/applications", verifyToken, async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM applications");
     res.json(result.rows);
-  });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching applications");
+  }
 });
 
 app.post("/api/apply", upload.single("resume"), async (req, res) => {
   const { name, email, jobId } = req.body;
   const resume = req.file.filename;
-   if (username === "admin" && password === "1234") {
-    const token = jwt.sign({ username }, "secret123");
-    return res.json({ token });
-  }
-   res.status(401).json({ error: "Invalid credentials" });
-});
-
+   
   try {
     const sql = "INSERT INTO applications (name, email, jobId, resume) VALUES ($1, $2, $3, $4)";
     await db.query(sql, [name, email, jobId, resume]);
@@ -96,6 +88,16 @@ app.delete("/api/applications/:id", async (req, res) => {
     console.log(err);
     res.status(500).send("Error deleting application");
   }
+});
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (username === "admin" && password === "1234") {
+    const token = jwt.sign({ username }, "secret123");
+    return res.json({ token });
+  }
+
+  res.status(401).json({ error: "Invalid credentials" });
 });
 const PORT = process.env.PORT || 5000;
 
