@@ -27,7 +27,7 @@ app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", (req, res) => {
   const { title, company, location } = req.body;
 
-  const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3, $4)";
+  const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3)";
 
   db.query(sql, [title, company, location], (err, result) => {
     if (err) {
@@ -60,23 +60,29 @@ app.get("/api/applications", verifyToken, (req, res) => {
       return res.status(500).send("Error fetching applications");
     }
 
-    res.json(result);
+    res.json(result.rows);
   });
 });
 
-app.post("/api/apply", upload.single("resume"), (req, res) => {
+app.post("/api/apply", upload.single("resume"), async (req, res) => {
   const { name, email, jobId } = req.body;
   const resume = req.file.filename;
+   if (username === "admin" && password === "1234") {
+    const token = jwt.sign({ username }, "secret123");
+    return res.json({ token });
+  }
+   res.status(401).json({ error: "Invalid credentials" });
+});
 
-  const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3)";
-  db.query(sql, [name, email, jobId, resume], (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send("Error saving application");
-    }
+  try {
+    const sql = "INSERT INTO applications (name, email, jobId, resume) VALUES ($1, $2, $3, $4)";
+    await db.query(sql, [name, email, jobId, resume]);
 
     res.send("Application saved with resume ✅");
-  });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error saving application");
+  }
 });
 app.delete("/api/applications/:id", async (req, res) => {
   const id = req.params.id;
