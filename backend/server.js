@@ -20,8 +20,11 @@ app.use(cors());
 app.use(express.json());   // ✅ REQUIRED
 app.get("/api/jobs", (req, res) => {
   db.query("SELECT * FROM jobs")
-  .then(result => res.json(result.rows))
-  .catch(err => console.log(err));
+    .then(result => res.json(result.rows))
+    .catch(err => {
+      console.error(err);
+      res.status(500).send("Error fetching jobs");
+    });
 });
 app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", async (req, res) => {
@@ -64,7 +67,7 @@ app.get("/api/applications", verifyToken, async (req, res) => {
 
 app.post("/api/apply", upload.single("resume"), async (req, res) => {
   const { name, email, jobId } = req.body;
-  const resume = req.file.filename;
+  const resume = req.file ? req.file.filename : null;
    
   try {
     const sql = "INSERT INTO applications (name, email, jobId, resume) VALUES ($1, $2, $3, $4)";
