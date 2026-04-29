@@ -195,6 +195,21 @@ app.post("/api/login", async (req, res) => {
     res.status(500).send("Login error");
   }
 });
+app.delete("/api/jobs/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    await db.query(
+      "DELETE FROM jobs WHERE id = $1",
+      [id]
+    );
+
+    res.send("Job deleted ✅");
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error deleting job");
+  }
+});
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
