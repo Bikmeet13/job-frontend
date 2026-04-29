@@ -1,3 +1,4 @@
+require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("./db");
@@ -18,9 +19,9 @@ const upload = multer({ storage });
 
 const app = express();
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
 app.get("/api/jobs", (req, res) => {
@@ -139,13 +140,16 @@ app.post("/api/signup", async (req, res) => {
       message: "Signup successful ✅"
     });
 
-  }catch (err) {
+  } catch (err) {
   console.error(err);
 
   res.status(500).json({
     error: "Signup error"
   });
 }
+}); // ✅ CLOSE SIGNUP ROUTE HERE
+
+
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
 
