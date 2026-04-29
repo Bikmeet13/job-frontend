@@ -17,7 +17,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 app.use(express.json());   // ✅ REQUIRED
 app.get("/api/jobs", (req, res) => {
   db.query("SELECT * FROM jobs")
