@@ -19,7 +19,11 @@ const upload = multer({ storage });
 
 const app = express();
 app.use(cors({
-  origin: "*",
+  origin: [
+  "http://localhost:5173",
+  "https://job-frontend-vert.vercel.app",
+  "https://jobs.marketlence.com"
+],
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
