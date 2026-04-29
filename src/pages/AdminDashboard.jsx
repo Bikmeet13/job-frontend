@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 function AdminDashboard() {
   const [applications, setApplications] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const addJob = async (e) => {
   e.preventDefault();
 
@@ -62,20 +63,70 @@ const handleLogout = () => {
 };
 
   useEffect(() => {
-    axios.get(
-  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
-  {
-    headers: {
-      authorization: localStorage.getItem("token")
-    }
-  }
-)
-      .then(res => setApplications(res.data))
-      .catch(err => console.log(err));
-  }, []);
 
+  // ✅ FETCH JOBS
+  axios.get(
+    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
+  )
+    .then(res => setJobs(res.data))
+    .catch(err => console.log(err));
+
+  // ✅ FETCH APPLICATIONS
+  axios.get(
+    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
+    {
+      headers: {
+        authorization: localStorage.getItem("token")
+      }
+    }
+  )
+    .then(res => setApplications(res.data))
+    .catch(err => console.log(err));
+
+}, []);
+const deleteJob = async (id) => {
+  console.log("Deleting job:", id);
+
+  try {
+    const res = await axios.delete(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${id}`
+    );
+
+    console.log(res.data);
+
+    setJobs(jobs.filter(job => job.id !== id));
+
+    alert("Job deleted ✅");
+
+  } catch (err) {
+    console.log(err);
+  }
+};
   return (
     <div style={{ padding: "40px" }}>
+    <h1>💼 Jobs</h1>
+
+{jobs.map(job => (
+  <div
+    key={job.id}
+    style={{
+      border: "1px solid #ccc",
+      padding: "10px",
+      marginBottom: "10px",
+      borderRadius: "8px"
+    }}
+  >
+    <h3>{job.title}</h3>
+
+    <p>{job.company}</p>
+
+    <p>{job.location}</p>
+
+    <button onClick={() => deleteJob(job.id)}>
+      Delete Job
+    </button>
+  </div>
+))}
       <h1>📋 Applications</h1>
       <button 
   onClick={handleLogout}

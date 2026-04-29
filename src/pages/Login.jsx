@@ -26,7 +26,7 @@ function Login() {
           localStorage.setItem("token", data.token);
           navigate("/admin");
         } else {
-          alert("Login failed ❌");
+          alert(data.error || "Login failed ❌");
         }
       })
       .catch(err => {
