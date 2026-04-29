@@ -92,6 +92,22 @@ app.delete("/api/applications/:id", async (req, res) => {
     res.status(500).send("Error deleting application");
   }
 });
+app.put("/api/applications/:id", async (req, res) => {
+  const { status } = req.body;
+  const id = req.params.id;
+
+  try {
+    await db.query(
+      "UPDATE applications SET status=$1 WHERE id=$2",
+      [status, id]
+    );
+
+    res.send("Status updated ✅");
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error updating status");
+  }
+});
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
