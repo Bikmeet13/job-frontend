@@ -135,20 +135,53 @@ app.post("/api/signup", async (req, res) => {
       message: "Signup successful ✅"
     });
 
+  }catch (err) {
+  console.error(err);
+
+  res.status(500).json({
+    error: "Signup error"
+  });
+}
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await db.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({
+        error: "Invalid email"
+      });
+    }
+
+    const validPassword = await bcrypt.compare(
+      password,
+      user.rows[0].password
+    );
+
+    if (!validPassword) {
+      return res.status(401).json({
+        error: "Invalid password"
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.rows[0].id,
+        email: user.rows[0].email
+      },
+      "secret123"
+    );
+
+    res.json({ token });
+
   } catch (err) {
     console.log(err);
-    res.status(500).send("Signup error");
+    res.status(500).send("Login error");
   }
-});
-app.post("/api/login", (req, res) => {
-  const { username, password } = req.body;
-
-  if (username === "admin" && password === "1234") {
-    const token = jwt.sign({ username }, "secret123");
-    return res.json({ token });
-  }
-
-  res.status(401).json({ error: "Invalid credentials" });
 });
 const PORT = process.env.PORT || 5000;
 
