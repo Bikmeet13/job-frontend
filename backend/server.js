@@ -1,3 +1,4 @@
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("./db");
 const express = require("express");
@@ -106,6 +107,37 @@ app.put("/api/applications/:id", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).send("Error updating status");
+  }
+});
+app.post("/api/signup", async (req, res) => {
+  const { username, email, password } = req.body;
+
+  try {
+    const existingUser = await db.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({
+        error: "User already exists"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
+      [username, email, hashedPassword]
+    );
+
+    res.json({
+      message: "Signup successful ✅"
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Signup error");
   }
 });
 app.post("/api/login", (req, res) => {
