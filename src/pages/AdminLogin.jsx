@@ -11,7 +11,7 @@ function Login() {
     e.preventDefault();
 
     try {
-      const res = await axios.post("https://job-frontend-production-84c5.up.railway.app/api/login", {
+      const res = await axios.post("https://humorous-fulfillment-production-1f5e.up.railway.app/api/login", {
         username,
         password
       });

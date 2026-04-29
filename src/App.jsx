@@ -4,18 +4,21 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import Navbar from "./components/Navbar"; // ✅ ADD THIS
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Jobs />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+    <>
+      <Navbar />   {/* ✅ ADD NAVBAR HERE */}
 
-      {/* ✅ ADD THESE */}
-      <Route path="/admin-login" element={<AdminLogin />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-    </Routes>
+      <Routes>
+        <Route path="/" element={<Jobs />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </>
   );
 }
 

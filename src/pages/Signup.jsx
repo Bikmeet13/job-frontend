@@ -1,47 +1,64 @@
 import React, { useState } from "react";
 
 function Signup() {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
 
-    console.log("Signup:", name, email, password);
+    const res = await fetch(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/signup",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          password
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    alert(data.message || data.error);
   };
 
   return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
+    <div style={{ padding: "40px" }}>
       <h2>Signup</h2>
 
-      <form onSubmit={handleSignup} style={{ maxWidth: "400px", margin: "auto" }}>
+      <form onSubmit={handleSignup}>
         <input
           type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          placeholder="Username"
+          onChange={(e) => setUsername(e.target.value)}
           required
-          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
         />
+
+        <br /><br />
 
         <input
           type="email"
           placeholder="Email"
-          value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
         />
+
+        <br /><br />
 
         <input
           type="password"
           placeholder="Password"
-          value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
         />
+
+        <br /><br />
 
         <button type="submit">Signup</button>
       </form>

@@ -10,16 +10,23 @@ function Jobs() {
   const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
-    fetchJobs().then((data) => setJobs(data));
-  }, []);
+  fetchJobs()
+    .then((data) => {
+      console.log(data);
+      setJobs(data);
+    })
+    .catch((err) => {
+      console.error("API Error:", err);
+    });
+}, []);
 
-  // ✅ Safe filter (no crash)
-  const filteredJobs = jobs.filter((job) =>
-    (job.title || "").toLowerCase().includes(search.toLowerCase()) ||
-    (job.company || "").toLowerCase().includes(search.toLowerCase()) ||
-    (job.location || "").toLowerCase().includes(search.toLowerCase())
-  );
-
+  const filteredJobs = Array.isArray(jobs)
+  ? jobs.filter((job) =>
+      (job.title || "").toLowerCase().includes(search.toLowerCase()) ||
+      (job.company || "").toLowerCase().includes(search.toLowerCase()) ||
+      (job.location || "").toLowerCase().includes(search.toLowerCase())
+    )
+  : [];
  return (
   
   <div style={{ padding: "40px", background: "#f5f7fa", minHeight: "100vh" }}>

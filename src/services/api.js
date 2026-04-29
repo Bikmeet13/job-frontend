@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://job-frontend-pbhr.onrender.com/api"
+  baseURL: "https://humorous-fulfillment-production-1f5e.up.railway.app/api"
 });
 
 export const fetchJobs = async () => {

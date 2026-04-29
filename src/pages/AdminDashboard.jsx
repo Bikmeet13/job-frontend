@@ -2,13 +2,13 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-function Admin() {
+function AdminDashboard() {
   const [applications, setApplications] = useState([]);
   const addJob = async (e) => {
   e.preventDefault();
 
   try {
-    await axios.post("https://job-frontend-production-84c5.up.railway.app/api/jobs", {
+    await axios.post("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs", {
       title,
       company,
       location
@@ -42,7 +42,7 @@ const handleLogout = () => {
 };
   const updateStatus = async (id, status) => {
   try {
-    await axios.put(`https://job-frontend-production-84c5.up.railway.app/api/applications/${id}`, { status });
+    await axios.put(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`, { status });
 
     // Update UI instantly
     setApplications(applications.map(app =>
@@ -54,7 +54,7 @@ const handleLogout = () => {
 };
   const deleteApplication = async (id) => {
   try {
-    await axios.delete(`https://job-frontend-production-84c5.up.railway.app/api/applications/${id}`);
+    await axios.delete(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`);
     setApplications(applications.filter(app => app.id !== id));
   } catch (err) {
     console.log(err);
@@ -62,7 +62,14 @@ const handleLogout = () => {
 };
 
   useEffect(() => {
-    axios.get("https://job-frontend-production-84c5.up.railway.app/api/applications")
+    axios.get(
+  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
+  {
+    headers: {
+      authorization: localStorage.getItem("token")
+    }
+  }
+)
       .then(res => setApplications(res.data))
       .catch(err => console.log(err));
   }, []);
@@ -139,7 +146,7 @@ const handleLogout = () => {
 <p><b>Resume:</b> 
   {app.resume ? (
     <a 
-      href={`https://job-frontend-production-84c5.up.railway.app/uploads/${app.resume}`} 
+      href={`https://humorous-fulfillment-production-1f5e.up.railway.app/uploads/${app.resume}`} 
       target="_blank" 
       rel="noreferrer"
     >
@@ -171,4 +178,4 @@ const handleLogout = () => {
   );
 }
 
-export default Admin;
+export default AdminDashboard;
