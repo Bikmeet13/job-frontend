@@ -21,6 +21,7 @@ const cors = require("cors");
 
 const pdfParse = require("pdf-parse");
 const fs = require("fs");
+const axios = require("axios");
 
 cloudinary.config({
 
@@ -581,8 +582,7 @@ app.post(
 
       const { jobSkills } = req.body;
 
-      const axios = require("axios");
-
+      
 const response = await axios.get(
   req.file.path,
   {
