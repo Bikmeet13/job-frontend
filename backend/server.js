@@ -553,7 +553,9 @@ const response = await axios.get(
 
 const dataBuffer = response.data;
 
-      const pdfData = await pdfParse(dataBuffer);
+      const pdfData = await pdfParse(
+  Buffer.from(dataBuffer)
+);
 
       const resumeText =
         pdfData.text.toLowerCase();
