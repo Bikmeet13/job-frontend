@@ -554,7 +554,7 @@ const response = await axios.get(
 const dataBuffer = response.data;
 
       const pdfData = await pdfParse(
-  Buffer.from(dataBuffer)
+  new Uint8Array(dataBuffer)
 );
 
       const resumeText =
@@ -585,7 +585,12 @@ const dataBuffer = response.data;
 
     } catch (err) {
 
-      console.log("RESUME MATCH ERROR:", err);
+      console.log(
+  "RESUME MATCH ERROR:",
+  err.message
+);
+
+console.log(err);
 
       res.status(500).send("Match failed");
 
