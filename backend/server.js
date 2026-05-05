@@ -126,46 +126,7 @@ await db.query(sql, [
   type,
   mode
 ]);
-try {
 
-  await transporter.sendMail({
-
-    from: process.env.EMAIL_USER,
-
-    to: email,
-
-    subject: "Application Submitted Successfully ✅",
-
-    html: `
-      <h2>Application Received ✅</h2>
-
-      <p>Hello ${name},</p>
-
-      <p>
-      Thank you for applying on Marketlence.
-      Your application has been submitted successfully.
-      </p>
-
-      <p>
-      Our team will review your profile and contact you soon.
-      </p>
-
-      <br/>
-
-      <p>
-      Best Regards,<br/>
-      Marketlence Hiring Team
-      </p>
-    `
-  });
-
-  console.log("Email sent successfully ✅");
-
-} catch (emailError) {
-
-  console.log("EMAIL ERROR:", emailError);
-
-}
 
     res.send("Job added ✅");
   } catch (err) {
@@ -622,7 +583,7 @@ const dataBuffer = response.data;
 
     } catch (err) {
 
-      console.log(err);
+      console.log("RESUME MATCH ERROR:", err);
 
       res.status(500).send("Match failed");
 
