@@ -1,18 +1,67 @@
 require("dotenv").config();
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+
+console.log("DB URL:", process.env.DATABASE_URL);
+
+const axios = require("axios");
+const cloudinary = require("cloudinary").v2;
+
+const {
+  CloudinaryStorage
+} = require("multer-storage-cloudinary");
+
+const nodemailer = require("nodemailer");
+
 const db = require("./db");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");  
+
+const multer = require("multer");
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
-const multer = require("multer");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+const pdfParse = require("pdf-parse");
+const fs = require("fs");
+
+cloudinary.config({
+
+  cloud_name: process.env.CLOUD_NAME,
+
+  api_key: process.env.CLOUD_API_KEY,
+
+  api_secret: process.env.CLOUD_API_SECRET
+
+});
+
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.hostinger.com",
+  port: 465,
+  secure: true,
+
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
+});
+
+const storage = new CloudinaryStorage({
+
+  cloudinary,
+
+  params: {
+
+    folder: "marketlence",
+
+    allowed_formats: [
+      "jpg",
+      "png",
+      "jpeg",
+      "pdf"
+    ]
+
+  }
+
 });
 
 const upload = multer({ storage });
@@ -38,11 +87,85 @@ app.get("/api/jobs", (req, res) => {
 });
 app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", async (req, res) => {
-  const { title, company, location } = req.body;
-
+  const {
+  title,
+  company,
+  location,
+  salary,
+  experience,
+  skills,
+  description,
+  type,
+  mode
+} = req.body;
   try {
-    const sql = "INSERT INTO jobs (title, company, location) VALUES ($1, $2, $3)";
-    await db.query(sql, [title, company, location]);
+    const sql = `
+INSERT INTO jobs
+(
+  title,
+  company,
+  location,
+  salary,
+  experience,
+  skills,
+  description,
+  type,
+  mode
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`;
+
+await db.query(sql, [
+  title,
+  company,
+  location,
+  salary,
+  experience,
+  skills,
+  description,
+  type,
+  mode
+]);
+try {
+
+  await transporter.sendMail({
+
+    from: process.env.EMAIL_USER,
+
+    to: email,
+
+    subject: "Application Submitted Successfully ✅",
+
+    html: `
+      <h2>Application Received ✅</h2>
+
+      <p>Hello ${name},</p>
+
+      <p>
+      Thank you for applying on Marketlence.
+      Your application has been submitted successfully.
+      </p>
+
+      <p>
+      Our team will review your profile and contact you soon.
+      </p>
+
+      <br/>
+
+      <p>
+      Best Regards,<br/>
+      Marketlence Hiring Team
+      </p>
+    `
+  });
+
+  console.log("Email sent successfully ✅");
+
+} catch (emailError) {
+
+  console.log("EMAIL ERROR:", emailError);
+
+}
 
     res.send("Job added ✅");
   } catch (err) {
@@ -76,18 +199,79 @@ app.get("/api/applications", verifyToken, async (req, res) => {
 });
 
 app.post("/api/apply", upload.single("resume"), async (req, res) => {
-  const { name, email, jobId } = req.body;
-  const resume = req.file ? req.file.filename : null;
-   
-  try {
-    const sql = "INSERT INTO applications (name, email, jobId, resume) VALUES ($1, $2, $3, $4)";
-    await db.query(sql, [name, email, jobId, resume]);
 
-    res.send("Application saved with resume ✅");
+  try {
+
+    const { name, email, jobId, description, } = req.body;
+
+    const resume = req.file ? req.file.path : null;
+
+    const sql = `
+      INSERT INTO applications
+      (name, email, jobid, resume)
+      VALUES ($1, $2, $3, $4)
+    `;
+
+    await db.query(sql, [
+      name,
+      email,
+      jobId,
+      resume
+    ]);
+    console.log("Recipient Email:", email);
+
+    // ✅ EMAIL CODE HERE
+    try {
+
+      await transporter.sendMail({
+
+        from: process.env.EMAIL_USER,
+
+        to: email,
+
+        subject: "Application Submitted Successfully ✅",
+
+        html: `
+          <h2>Application Received ✅</h2>
+
+          <p>Hello ${name},</p>
+
+          <p>
+          Thank you for applying on Marketlence.
+          Your application has been submitted successfully.
+          </p>
+
+          <p>
+          Our team will review your profile and contact you soon.
+          </p>
+
+          <br/>
+
+          <p>
+          Best Regards,<br/>
+          Marketlence Hiring Team
+          </p>
+        `
+      });
+
+      console.log("Email sent successfully ✅");
+
+    } catch (emailError) {
+
+      console.log("EMAIL ERROR:", emailError);
+
+    }
+
+    res.send("Application saved successfully ✅");
+
   } catch (err) {
-    console.log(err);
-    res.status(500).send("Error saving application");
+
+    console.log("APPLY ERROR:", err);
+
+    res.status(500).send("Application failed");
+
   }
+
 });
 app.delete("/api/applications/:id", async (req, res) => {
   const id = req.params.id;
@@ -102,6 +286,74 @@ app.delete("/api/applications/:id", async (req, res) => {
     res.status(500).send("Error deleting application");
   }
 });
+app.post("/api/save-job", async (req, res) => {
+  const { user_id, job_id } = req.body;
+
+  try {
+    await db.query(
+      "INSERT INTO saved_jobs (user_id, job_id) VALUES ($1, $2)",
+      [user_id, job_id]
+    );
+
+    res.send("Job saved ✅");
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error saving job");
+  }
+});
+app.get("/api/saved-jobs/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const result = await db.query(
+      `
+      SELECT jobs.*
+      FROM saved_jobs
+      JOIN jobs
+      ON saved_jobs.job_id = jobs.id
+      WHERE saved_jobs.user_id = $1
+      `,
+      [userId]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching saved jobs");
+  }
+});
+
+app.delete("/api/unsave-job", async (req, res) => {
+
+  try {
+
+    const { user_id, job_id } = req.body;
+
+    await db.query(
+
+      `
+      DELETE FROM saved_jobs
+      WHERE user_id = $1
+      AND job_id = $2
+      `,
+
+      [user_id, job_id]
+    );
+
+    res.send("Job removed from saved");
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).send("Error removing saved job");
+
+  }
+
+});
+
 app.put("/api/applications/:id", async (req, res) => {
   const { status } = req.body;
   const id = req.params.id;
@@ -211,6 +463,174 @@ app.delete("/api/jobs/:id", async (req, res) => {
   }
 });
 const PORT = process.env.PORT || 5000;
+
+app.post(
+  "/api/upload-resume",
+  upload.single("resume"),
+  (req, res) => {
+
+    res.json({
+      message: "Resume uploaded ✅",
+      file: req.file.path
+    });
+
+  }
+);
+app.get("/api/dashboard-stats/:userId", async (req, res) => {
+
+  const userId = req.params.userId;
+
+  try {
+
+    // ✅ Saved Jobs Count
+    const savedJobs = await db.query(
+      "SELECT COUNT(*) FROM saved_jobs WHERE user_id = $1",
+      [userId]
+    );
+
+    // ✅ Applications Count
+    const applications = await db.query(
+      "SELECT COUNT(*) FROM applications"
+    );
+
+    res.json({
+      saved: savedJobs.rows[0].count,
+      applied: applications.rows[0].count
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).send("Dashboard error");
+
+  }
+});
+app.get("/api/recent-applications", async (req, res) => {
+
+  try {
+
+    const result = await db.query(`
+      SELECT
+        applications.id,
+        applications.name,
+        applications.status,
+        jobs.title,
+        jobs.company
+      FROM applications
+      JOIN jobs
+      ON applications.jobid = jobs.id
+      ORDER BY applications.id DESC
+      LIMIT 5
+    `);
+
+    res.json(result.rows);
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).send("Error fetching applications");
+
+  }
+});
+
+app.get("/api/fix-jobs", async (req, res) => {
+
+  try {
+
+    await db.query(`
+      UPDATE jobs
+      SET
+        description = 'Build modern React applications.',
+        salary = '12 LPA',
+        experience = '2 Years',
+        skills = 'React, Tailwind',
+        mode = 'Remote'
+      WHERE id = 1
+    `);
+
+    await db.query(`
+      UPDATE jobs
+      SET
+        description = 'Analyze business data and generate insights.',
+        salary = '10 LPA',
+        experience = '1 Year',
+        skills = 'Python, SQL, Power BI',
+        mode = 'Hybrid'
+      WHERE id = 2
+    `);
+
+    res.send("Jobs updated ✅");
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).send("Error updating jobs");
+
+  }
+
+});
+
+app.post(
+  "/api/resume-match",
+  upload.single("resume"),
+  async (req, res) => {
+
+    try {
+
+      const { jobSkills } = req.body;
+
+      const axios = require("axios");
+
+const response = await axios.get(
+  req.file.path,
+  {
+    responseType: "arraybuffer"
+  }
+);
+
+const dataBuffer = response.data;
+
+      const pdfData = await pdfParse(dataBuffer);
+
+      const resumeText =
+        pdfData.text.toLowerCase();
+
+      const skillsArray =
+        jobSkills.toLowerCase().split(",");
+
+      let matchedSkills = 0;
+
+      skillsArray.forEach((skill) => {
+
+        if (
+          resumeText.includes(skill.trim())
+        ) {
+          matchedSkills++;
+        }
+
+      });
+
+      const score = Math.round(
+        (matchedSkills / skillsArray.length) * 100
+      );
+
+      res.json({
+        score
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).send("Match failed");
+
+    }
+
+  }
+);
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
