@@ -541,27 +541,40 @@ app.post(
 
     try {
 
+      if (!req.file) {
+        return res.status(400).send("No file uploaded");
+      }
+
+      console.log("FILE URL:", req.file.path);
+
       const { jobSkills } = req.body;
 
-      
-const response = await axios.get(
-  req.file.path,
-  {
-    responseType: "arraybuffer"
-  }
-);
+      // ✅ Download PDF from Cloudinary
+      const response = await axios.get(
+        req.file.path,
+        {
+          responseType: "arraybuffer"
+        }
+      );
 
-const dataBuffer = response.data;
+      console.log("PDF DOWNLOADED");
 
+      // ✅ Parse PDF
       const pdfData = await pdfParse(
-  new Uint8Array(dataBuffer)
-);
+        Buffer.from(response.data)
+      );
+
+      console.log("PDF PARSED");
 
       const resumeText =
         pdfData.text.toLowerCase();
 
+      console.log("RESUME TEXT:", resumeText);
+
       const skillsArray =
-        jobSkills.toLowerCase().split(",");
+        (jobSkills || "")
+          .toLowerCase()
+          .split(",");
 
       let matchedSkills = 0;
 
@@ -579,18 +592,17 @@ const dataBuffer = response.data;
         (matchedSkills / skillsArray.length) * 100
       );
 
-      res.json({
-        score
-      });
+      console.log("MATCH SCORE:", score);
+
+      res.json({ score });
 
     } catch (err) {
 
       console.log(
-  "RESUME MATCH ERROR:",
-  err.message
-);
+        "RESUME MATCH ERROR:"
+      );
 
-console.log(err);
+      console.log(err);
 
       res.status(500).send("Match failed");
 
