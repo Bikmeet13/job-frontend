@@ -2,7 +2,6 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
-const axios = require("axios");
 const cloudinary = require("cloudinary").v2;
 
 const {

@@ -9,11 +9,16 @@ function AdminDashboard() {
   e.preventDefault();
 
   try {
-    await axios.post("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs", {
-      title,
-      company,
-      location
-    });
+    await axios.post("API_URL", {
+  title,
+  company,
+  location,
+  salary,
+  experience,
+  skills,
+  type,
+  mode
+});
 
     alert("Job added ✅");
 
@@ -29,6 +34,12 @@ function AdminDashboard() {
   const [title, setTitle] = useState("");
 const [company, setCompany] = useState("");
 const [location, setLocation] = useState("");
+
+const [salary, setSalary] = useState("");
+const [experience, setExperience] = useState("");
+const [skills, setSkills] = useState("");
+const [type, setType] = useState("");
+const [mode, setMode] = useState("");
 
 useEffect(() => {
   const token = localStorage.getItem("token");
@@ -152,6 +163,49 @@ const deleteJob = async (id) => {
     onChange={(e) => setTitle(e.target.value)}
     required
   /><br /><br />
+
+  <input
+  type="text"
+  placeholder="Salary"
+  value={salary}
+  onChange={(e) => setSalary(e.target.value)}
+/>
+
+<br /><br />
+
+<input
+  type="text"
+  placeholder="Experience"
+  value={experience}
+  onChange={(e) => setExperience(e.target.value)}
+/>
+
+<br /><br />
+
+<input
+  type="text"
+  placeholder="Skills"
+  value={skills}
+  onChange={(e) => setSkills(e.target.value)}
+/>
+
+<br /><br />
+
+<input
+  type="text"
+  placeholder="Job Type"
+  value={type}
+  onChange={(e) => setType(e.target.value)}
+/>
+
+<br /><br />
+
+<input
+  type="text"
+  placeholder="Remote / On-site"
+  value={mode}
+  onChange={(e) => setMode(e.target.value)}
+/>
 
   <input 
     type="text"

@@ -1,24 +1,55 @@
+import AdminApplications from "./pages/AdminApplications";
+import Profile from "./pages/Profile";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Dashboard from "./pages/Dashboard";
+import SavedJobs from "./pages/SavedJobs";
+import JobDetails from "./pages/JobDetails";
 import { Routes, Route } from "react-router-dom";
+
 import Jobs from "./pages/Jobs";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
-import Navbar from "./components/Navbar"; // ✅ ADD THIS
 
 function App() {
   return (
-    <>
-      <Navbar />   {/* ✅ ADD NAVBAR HERE */}
+    <Routes>
 
-      <Routes>
-        <Route path="/" element={<Jobs />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Routes>
-    </>
+      <Route path="/" element={<Jobs />} />
+
+      <Route path="/jobs/:id" element={<JobDetails />} />
+
+      <Route path="/saved-jobs" element={<SavedJobs />} />
+
+      <Route path="/profile" element={<Profile />} />
+
+      <Route
+  path="/dashboard"
+  element={
+    <ProtectedRoute>
+      <Dashboard />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/admin-applications"
+  element={<AdminApplications />}
+/>
+
+      <Route path="/login" element={<Login />} />
+
+      <Route path="/signup" element={<Signup />} />
+
+      <Route path="/admin-login" element={<AdminLogin />} />
+
+      <Route
+        path="/admin"
+        element={<AdminDashboard />}
+      />
+
+    </Routes>
   );
 }
 
