@@ -2,6 +2,10 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
+const pdfParse = require("pdf-parse");
+const fs = require("fs");
+const axios = require("axios");
+
 const cloudinary = require("cloudinary").v2;
 
 const {
@@ -18,10 +22,6 @@ const multer = require("multer");
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
-
-const pdfParse = require("pdf-parse");
-const fs = require("fs");
-const axios = require("axios");
 
 cloudinary.config({
 
