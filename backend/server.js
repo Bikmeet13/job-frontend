@@ -49,18 +49,15 @@ const storage = new CloudinaryStorage({
 
   cloudinary,
 
-  params: {
+  params: async (req, file) => ({
 
     folder: "marketlence",
 
-    allowed_formats: [
-      "jpg",
-      "png",
-      "jpeg",
-      "pdf"
-    ]
+    resource_type: "raw",
 
-  }
+    format: "pdf"
+
+  })
 
 });
 
