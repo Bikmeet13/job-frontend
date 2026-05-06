@@ -55,7 +55,9 @@ const storage = new CloudinaryStorage({
 
     resource_type: "raw",
 
-    format: "pdf"
+    type: "upload",
+
+    access_mode: "public"
 
   })
 
@@ -556,8 +558,15 @@ if (!fileUrl) {
     .send("No file URL found");
 }
 
+const publicUrl = fileUrl.replace(
+  "/upload/",
+  "/upload/fl_attachment/"
+);
+
+console.log("PUBLIC URL:", publicUrl);
+
 const response = await axios.get(
-  fileUrl,
+  publicUrl,
   {
     responseType: "arraybuffer"
   }
