@@ -573,15 +573,16 @@ const response = await axios.get(
 
 console.log("PDF DOWNLOADED");
 
-      // ✅ Parse PDF
-      const pdfParse = require("pdf-parse");
+const pdfParse = require("pdf-parse");
+const pdfFunction =
+  pdfParse.default || pdfParse;
 
-const pdfData = await pdfParse(
+const pdfData = await pdfFunction(
   Buffer.from(response.data)
 );
+
 console.log("PDF PARSED");
 console.log(pdfData.text);
-
       console.log("PDF PARSED");
 
       const resumeText =
