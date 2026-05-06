@@ -542,12 +542,11 @@ app.post(
         return res.status(400).send("No file uploaded");
       }
 
-      const fileUrl =
-  req.file.path || req.file.secure_url;
+      console.log("FULL FILE OBJECT:", req.file);
+
+const fileUrl = req.file.secure_url;
 
 console.log("FILE URL:", fileUrl);
-
-console.log(req.file);
 
 const response = await axios.get(
   fileUrl,
@@ -556,8 +555,7 @@ const response = await axios.get(
   }
 );
 
-      console.log("PDF DOWNLOADED");
-
+console.log("PDF DOWNLOADED");
       // ✅ Parse PDF
       const pdfData = await pdfParse(
         Buffer.from(response.data)
