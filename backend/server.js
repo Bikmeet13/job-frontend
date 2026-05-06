@@ -2,7 +2,7 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
-const pdfParse = require("pdf-parse");
+const pdfParse = require("pdf-parse/lib/pdf-parse");
 const fs = require("fs");
 const axios = require("axios");
 
