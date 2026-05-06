@@ -566,29 +566,23 @@ console.log("PUBLIC URL:", publicUrl);
 
 const response = await axios.get(
   publicUrl,
-  {
-    responseType: "arraybuffer"
-  }
+  { responseType: "arraybuffer" }
 );
 
 console.log("PDF DOWNLOADED");
 
-const pdfParseLib = require("pdf-parse");
+const pdfLib = require("pdf-parse");
 
-console.log("PDF LIB:", pdfParseLib);
+const PDFParseClass = pdfLib.PDFParse;
 
-const pdfParse =
-  pdfParseLib.default || pdfParseLib;
+const parser = new PDFParseClass();
 
-console.log("PDF FUNCTION TYPE:", typeof pdfParse);
-
-const pdfData = await pdfParse(
+const pdfData = await parser.parse(
   Buffer.from(response.data)
 );
 
 console.log("PDF PARSED");
 console.log(pdfData.text);
-      console.log("PDF PARSED");
 
       const resumeText =
         pdfData.text.toLowerCase();
