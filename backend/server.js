@@ -2,7 +2,6 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
-const pdfParse = require("pdf-parse");
 const fs = require("fs");
 const axios = require("axios");
 
@@ -575,9 +574,9 @@ const response = await axios.get(
 console.log("PDF DOWNLOADED");
 
       // ✅ Parse PDF
-      const pdf = require("pdf-parse");
+      const pdfParse = require("pdf-parse");
 
-const pdfData = await pdf(
+const pdfData = await pdfParse(
   Buffer.from(response.data)
 );
 console.log("PDF PARSED");
