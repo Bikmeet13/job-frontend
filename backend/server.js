@@ -2,6 +2,8 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
+const pdfParse = require("pdf-parse");
+
 const fs = require("fs");
 const axios = require("axios");
 
@@ -539,49 +541,36 @@ app.post(
 
     try {
 
+      const { jobSkills } = req.body; // ✅ ADD THIS
+
       if (!req.file) {
         return res.status(400).send("No file uploaded");
       }
 
-      console.log("FULL FILE OBJECT:", req.file);
+      const fileUrl =
+        req.file.secure_url ||
+        req.file.path;
 
-const fileUrl =
-  req.file.secure_url ||
-  req.file.path;
+      const publicUrl = fileUrl.replace(
+        "/upload/",
+        "/upload/fl_attachment/"
+      );
 
-console.log("FILE URL:", fileUrl);
+      const response = await axios.get(
+        publicUrl,
+        { responseType: "arraybuffer" }
+      );
 
-if (!fileUrl) {
-  return res
-    .status(400)
-    .send("No file URL found");
-}
+      console.log("PDF DOWNLOADED");
 
-const publicUrl = fileUrl.replace(
-  "/upload/",
-  "/upload/fl_attachment/"
-);
+      const pdfData = await pdfParse(
+        Buffer.from(response.data)
+      );
 
-console.log("PUBLIC URL:", publicUrl);
-
-const response = await axios.get(
-  publicUrl,
-  { responseType: "arraybuffer" }
-);
-
-console.log("PDF DOWNLOADED");
-
-const pdfData = await pdfParse(
-  Buffer.from(response.data)
-);
-
-console.log("PDF PARSED");
-console.log(pdfData.text);
+      console.log("PDF PARSED");
 
       const resumeText =
         pdfData.text.toLowerCase();
-
-      console.log("RESUME TEXT:", resumeText);
 
       const skillsArray =
         (jobSkills || "")
@@ -591,33 +580,20 @@ console.log(pdfData.text);
       let matchedSkills = 0;
 
       skillsArray.forEach((skill) => {
-
-        if (
-          resumeText.includes(skill.trim())
-        ) {
+        if (resumeText.includes(skill.trim())) {
           matchedSkills++;
         }
-
       });
 
       const score = Math.round(
         (matchedSkills / skillsArray.length) * 100
       );
 
-      console.log("MATCH SCORE:", score);
-
       res.json({ score });
 
     } catch (err) {
-
-      console.log(
-        "RESUME MATCH ERROR:"
-      );
-
-      console.log(err);
-
+      console.log("RESUME MATCH ERROR:", err);
       res.status(500).send("Match failed");
-
     }
 
   }
