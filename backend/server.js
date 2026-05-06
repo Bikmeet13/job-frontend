@@ -250,6 +250,8 @@ app.delete("/api/applications/:id", async (req, res) => {
 app.post("/api/save-job", async (req, res) => {
   const { user_id, job_id } = req.body;
 
+  console.log("SAVE JOB:", user_id, job_id);
+
   try {
     await db.query(
       "INSERT INTO saved_jobs (user_id, job_id) VALUES ($1, $2)",
@@ -335,34 +337,36 @@ app.post("/api/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    const existingUser = await db.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
-    );
+  const existingUser = await db.query(
+    "SELECT * FROM users WHERE email = $1 OR username = $2",
+    [email, username]
+  );
 
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({
-        error: "User already exists"
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await db.query(
-      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
-      [username, email, hashedPassword]
-    );
-
-    res.json({
-      message: "Signup successful ✅"
+  if (existingUser.rows.length > 0) {
+    return res.status(400).json({
+      error: "Email or Username already exists"
     });
+  }
 
-  } catch (err) {
-  console.error(err);
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  res.status(500).json({
-    error: "Signup error"
-  });
+  await db.query(
+    "INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
+    [username, email, hashedPassword]
+  );
+
+  res.json({ message: "Signup successful ✅" });
+
+} catch (err) {
+
+  if (err.code === "23505") {
+    return res.status(400).json({
+      error: "Username already taken"
+    });
+  }
+
+  console.error("SIGNUP ERROR:", err);
+  res.status(500).json({ error: "Signup error" });
 }
 }); // ✅ CLOSE SIGNUP ROUTE HERE
 
@@ -440,6 +444,8 @@ app.post(
 app.get("/api/dashboard-stats/:userId", async (req, res) => {
 
   const userId = req.params.userId;
+
+  console.log("DASHBOARD USER ID:", userId);
 
   try {
 
@@ -546,6 +552,10 @@ app.post(
       if (!req.file) {
         return res.status(400).send("No file uploaded");
       }
+
+      if (req.file.size > 2 * 1024 * 1024) {
+  return res.status(400).send("File too large");
+}
 
       const fileUrl =
         req.file.secure_url ||
