@@ -542,17 +542,19 @@ app.post(
         return res.status(400).send("No file uploaded");
       }
 
-      console.log("FILE URL:", req.file.path);
+      const fileUrl =
+  req.file.path || req.file.secure_url;
 
-      const { jobSkills } = req.body;
+console.log("FILE URL:", fileUrl);
 
-      // ✅ Download PDF from Cloudinary
-      const response = await axios.get(
-        req.file.path,
-        {
-          responseType: "arraybuffer"
-        }
-      );
+console.log(req.file);
+
+const response = await axios.get(
+  fileUrl,
+  {
+    responseType: "arraybuffer"
+  }
+);
 
       console.log("PDF DOWNLOADED");
 
