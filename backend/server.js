@@ -350,10 +350,10 @@ app.post("/api/signup", async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  await db.query(
-    "INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
-    [username, email, hashedPassword]
-  );
+ await db.query(
+  "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4)",
+  [username, email, hashedPassword, "user"]
+);
 
   res.json({ message: "Signup successful ✅" });
 
@@ -398,14 +398,18 @@ app.post("/api/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      {
-        id: user.rows[0].id,
-        email: user.rows[0].email
-      },
-      "secret123"
-    );
+  {
+    id: user.rows[0].id,
+    email: user.rows[0].email,
+    role: user.rows[0].role   // ✅ ADD THIS
+  },
+  "secret123"
+);
 
-    res.json({ token });
+    res.json({
+  token,
+  role: user.rows[0].role   // ✅ send role to frontend
+});
 
   } catch (err) {
     console.log(err);
