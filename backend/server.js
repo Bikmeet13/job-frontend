@@ -571,13 +571,7 @@ const response = await axios.get(
 
 console.log("PDF DOWNLOADED");
 
-const pdfLib = require("pdf-parse");
-
-const PDFParseClass = pdfLib.PDFParse;
-
-const parser = new PDFParseClass();
-
-const pdfData = await parser.parse(
+const pdfData = await pdfParse(
   Buffer.from(response.data)
 );
 
