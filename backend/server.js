@@ -567,8 +567,10 @@ console.log("PDF DOWNLOADED");
 
       // ✅ Parse PDF
       const pdfData = await pdfParse(
-  response.data
+  Buffer.from(response.data)
 );
+console.log("PDF PARSED");
+console.log(pdfData.text);
 
       console.log("PDF PARSED");
 
