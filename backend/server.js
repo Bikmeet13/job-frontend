@@ -573,11 +573,16 @@ const response = await axios.get(
 
 console.log("PDF DOWNLOADED");
 
-const pdfParse = require("pdf-parse");
-const pdfFunction =
-  pdfParse.default || pdfParse;
+const pdfParseLib = require("pdf-parse");
 
-const pdfData = await pdfFunction(
+console.log("PDF LIB:", pdfParseLib);
+
+const pdfParse =
+  pdfParseLib.default || pdfParseLib;
+
+console.log("PDF FUNCTION TYPE:", typeof pdfParse);
+
+const pdfData = await pdfParse(
   Buffer.from(response.data)
 );
 
