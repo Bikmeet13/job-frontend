@@ -409,7 +409,8 @@ app.post("/api/login", async (req, res) => {
     res.json({
   token,
   role: user.rows[0].role,
-  userId: user.rows[0].id   // ✅ ADD THIS
+  userId: user.rows[0].id,
+ username: user.rows[0].username  // ✅ ADD THIS
 });
 
   } catch (err) {
@@ -448,9 +449,13 @@ app.post(
 );
 app.get("/api/dashboard-stats/:userId", async (req, res) => {
 
-  const userId = req.params.userId;
+  console.log("USER ID RECEIVED:", req.params.id);
+console.log("TYPE:", typeof req.params.id);
+
+  const userId = parseInt(req.params.id);
 
   console.log("DASHBOARD USER ID:", userId);
+  
 
   try {
 
