@@ -408,7 +408,8 @@ app.post("/api/login", async (req, res) => {
 
     res.json({
   token,
-  role: user.rows[0].role   // ✅ send role to frontend
+  role: user.rows[0].role,
+  userId: user.rows[0].id   // ✅ ADD THIS
 });
 
   } catch (err) {
