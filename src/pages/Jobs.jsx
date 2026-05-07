@@ -531,21 +531,23 @@ if (loading) {
   onClick={(e) => {
     e.stopPropagation();
 
-    fetch(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/save-job",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          user_id: 1,
-          job_id: job.id
-        })
-      }
-    )
-      .then(() => toast.success("Job saved ❤️"))
-      .catch((err) => console.log(err));
+    const userId = localStorage.getItem("userId");
+
+fetch(
+  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/save-job",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      user_id: userId,   // ✅ FIXED
+      job_id: job.id
+    })
+  }
+)
+  .then(() => toast.success("Job saved ❤️"))
+  .catch((err) => console.log(err));
   }}
 >
   <Heart size={18} />

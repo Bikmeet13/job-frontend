@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
 
@@ -7,33 +8,35 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e) => {
-    e.preventDefault();
+  const handleLogin = async (e) => {
+  e.preventDefault();
 
-    fetch("https://humorous-fulfillment-production-1f5e.up.railway.app/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-  email,
-  password
-})
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-          navigate("/admin");
-        } else {
-          alert(data.error || "Login failed ❌");
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Server error ❌");
-      });
-  };
+  try {
+    const res = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/login",
+      { email, password }
+    );
+
+    const { token, role, userId } = res.data;
+
+    console.log("ROLE:", role);
+    console.log("USER ID:", userId);
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", role);
+    localStorage.setItem("userId", userId); // ✅ IMPORTANT
+
+    if (role === "admin") {
+      navigate("/admin");
+    } else {
+      navigate("/dashboard");
+    }
+
+  } catch (err) {
+    console.log("LOGIN ERROR:", err);
+    alert(err.response?.data?.error || "Login failed");
+  }
+};
 
   return (
     <div style={{ padding: "40px", textAlign: "center" }}>
