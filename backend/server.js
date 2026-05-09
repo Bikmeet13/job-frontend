@@ -159,6 +159,23 @@ app.get("/api/applications", verifyToken, async (req, res) => {
   }
 });
 
+app.post("/api/jobs", async (req, res) => {
+  const { title, company, location, salary } = req.body;
+
+  try {
+    await db.query(
+      "INSERT INTO jobs (title, company, location, salary, experience, skills, type, mode) VALUES ($1, $2, $3, $4)",
+      [title, company, location, salary]
+    );
+
+    res.json({ message: "Job posted successfully ✅" });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Failed to post job" });
+  }
+});
+
 app.post("/api/apply", upload.single("resume"), async (req, res) => {
 
   try {
@@ -334,41 +351,50 @@ app.put("/api/applications/:id", async (req, res) => {
   }
 });
 app.post("/api/signup", async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, adminSecret } = req.body;
 
   try {
-  const existingUser = await db.query(
-    "SELECT * FROM users WHERE email = $1 OR username = $2",
-    [email, username]
-  );
+    const existingUser = await db.query(
+      "SELECT * FROM users WHERE email = $1 OR username = $2",
+      [email, username]
+    );
 
-  if (existingUser.rows.length > 0) {
-    return res.status(400).json({
-      error: "Email or Username already exists"
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({
+        error: "Email or Username already exists"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ ADD THIS LOGIC
+    let role = "user"; // default
+
+    if (adminSecret === "ADMIN123") {
+      role = "admin";
+    }
+
+    await db.query(
+      "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4)",
+      [username, email, hashedPassword, role]
+    );
+
+    res.json({
+      message: "Signup successful ✅",
+      role
     });
+
+  } catch (err) {
+    if (err.code === "23505") {
+      return res.status(400).json({
+        error: "Username already taken"
+      });
+    }
+
+    console.error("SIGNUP ERROR:", err);
+    res.status(500).json({ error: "Signup error" });
   }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
- await db.query(
-  "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4)",
-  [username, email, hashedPassword, "user"]
-);
-
-  res.json({ message: "Signup successful ✅" });
-
-} catch (err) {
-
-  if (err.code === "23505") {
-    return res.status(400).json({
-      error: "Username already taken"
-    });
-  }
-
-  console.error("SIGNUP ERROR:", err);
-  res.status(500).json({ error: "Signup error" });
-}
-}); // ✅ CLOSE SIGNUP ROUTE HERE
+});
 
 
 app.post("/api/login", async (req, res) => {
@@ -385,6 +411,7 @@ app.post("/api/login", async (req, res) => {
         error: "Invalid email"
       });
     }
+      console.log("USER FROM DB:", user.rows[0]); // ✅ ADD HERE
 
     const validPassword = await bcrypt.compare(
       password,
@@ -447,6 +474,57 @@ app.post(
 
   }
 );
+
+app.post("/api/shortlist", async (req, res) => {
+  const { applicationId, userId } = req.body;
+
+  try {
+    await db.query(
+      "INSERT INTO shortlisted (application_id, user_id) VALUES ($1, $2)",
+      [applicationId, userId]
+    );
+
+    res.send("Added to shortlist ✅");
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
+
+app.get("/api/shortlist/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const result = await db.query(
+      `SELECT a.* FROM applications a
+       JOIN shortlisted s ON a.id = s.application_id
+       WHERE s.user_id = $1`,
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
+
+app.delete("/api/shortlist/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    await db.query(
+      "DELETE FROM shortlisted WHERE application_id = $1",
+      [id]
+    );
+
+    res.send("Removed ❌");
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
+
 app.get("/api/dashboard-stats/:userId", async (req, res) => {
 
   console.log("USER ID RECEIVED:", req.params.id);
@@ -477,9 +555,9 @@ console.log("TYPE:", typeof req.params.id);
 
   } catch (err) {
 
-    console.log(err);
+          console.log("DASHBOARD ERROR:", err);
 
-    res.status(500).send("Dashboard error");
+    res.status(500).json({ error: "Dashboard error ❌" });
 
   }
 });
@@ -618,6 +696,22 @@ app.post(
 
   }
 );
+
+app.post("/api/shortlist", async (req, res) => {
+  const { applicationId, userId } = req.body;
+
+  try {
+    await db.query(
+      "INSERT INTO shortlisted (application_id, user_id) VALUES ($1, $2)",
+      [applicationId, userId]
+    );
+
+    res.send("Added to shortlist ✅");
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);

@@ -4,7 +4,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import SavedJobs from "./pages/SavedJobs";
 import JobDetails from "./pages/JobDetails";
-import { Routes, Route } from "react-router-dom";
 
 import Jobs from "./pages/Jobs";
 import Login from "./pages/Login";
@@ -12,8 +11,13 @@ import Signup from "./pages/Signup";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 
+import { Toaster } from "react-hot-toast";
+import { Routes, Route } from "react-router-dom";
+
 function App() {
-  return (
+  return (<>
+      <Toaster position="top-right" />
+
     <Routes>
 
       <Route path="/" element={<Jobs />} />
@@ -50,6 +54,7 @@ function App() {
       />
 
     </Routes>
+    </>
   );
 }
 

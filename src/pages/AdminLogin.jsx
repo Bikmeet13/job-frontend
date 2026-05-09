@@ -3,30 +3,39 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-
+  
   const handleLogin = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const res = await axios.post("https://humorous-fulfillment-production-1f5e.up.railway.app/api/login", {
-        username,
+  try {
+    const res = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/login",
+      {
+        email,
         password
-      });
+      }
+    );
 
-      if (res.data.token) {
-        localStorage.setItem("token", res.data.token);
+    const { token, role } = res.data; // ✅ ADD THIS
+
+    if (token) {
+      localStorage.setItem("token", token);
+
+      if (role === "admin") {
         navigate("/admin");
       } else {
-        alert("Invalid credentials ❌");
+        alert("Not an admin ❌");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Server error ❌");
     }
-  };
+
+  } catch (err) {
+    console.error(err);
+    alert("Server error ❌");
+  }
+};
 
   return (
     <div style={{ padding: "40px", textAlign: "center" }}>
@@ -34,11 +43,10 @@ function Login() {
 
       <form onSubmit={handleLogin}>
         <input
-          type="text"
-          placeholder="Username"
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        /><br /><br />
+  type="email"
+  placeholder="Email"
+  onChange={(e) => setEmail(e.target.value)}
+/><br /><br />
 
         <input
           type="password"

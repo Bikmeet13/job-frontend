@@ -13,6 +13,12 @@ import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
 function Jobs() {
+
+const role = localStorage.getItem("role");
+  const [savedJobs, setSavedJobs] = useState([]);
+  const username = localStorage.getItem("username");
+const token = localStorage.getItem("token");
+
   const navigate = useNavigate();
 
   const [jobs, setJobs] = useState([]);
@@ -44,6 +50,27 @@ const [salaryFilter, setSalaryFilter] = useState("");
 
       setLoading(false); // ✅ ALSO HERE
     });
+}, []);
+
+useEffect(() => {
+  const userId = localStorage.getItem("userId");
+
+  if (!userId) return;
+
+  fetch(
+    `https://humorous-fulfillment-production-1f5e.up.railway.app/api/saved-jobs/${userId}`
+  )
+    .then((res) => res.json())
+    .then((data) => {
+      console.log("SAVED JOBS:", data);
+
+      // ✅ store only job IDs
+      const ids = data.map((job) => job.job_id || job.id);
+
+console.log("Saved IDs:", ids);
+      setSavedJobs(ids);
+    })
+    .catch((err) => console.log(err));
 }, []);
 
   const filteredJobs = Array.isArray(jobs)
@@ -181,17 +208,6 @@ if (loading) {
     </a>
 
     <button
-      onClick={() => navigate("/dashboard")}
-      className={`font-medium transition ${
-        darkMode
-          ? "text-gray-200 hover:text-white"
-          : "text-gray-700 hover:text-black"
-      }`}
-    >
-      Dashboard
-    </button>
-
-    <button
       onClick={() => navigate("/admin-applications")}
       className={`font-medium transition ${
         darkMode
@@ -202,22 +218,42 @@ if (loading) {
       Applications
     </button>
 
-    {/* Login */}
+    {token ? (
+  <>
+    <button
+      onClick={() => navigate("/dashboard")}
+      className="font-medium"
+    >
+      Dashboard
+    </button>
+
+    <button
+      onClick={() => {
+        localStorage.clear();
+        navigate("/login");
+      }}
+      className="text-red-500"
+    >
+      Logout
+    </button>
+  </>
+) : (
+  <>
     <button
       onClick={() => navigate("/login")}
-      className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
+      className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg"
     >
       Login
     </button>
 
-    {/* Signup */}
     <button
       onClick={() => navigate("/signup")}
-      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+      className="bg-blue-600 text-white px-4 py-2 rounded-lg"
     >
       Signup
     </button>
-
+  </>
+)}
   </div>
 
   {/* 📱 Mobile Right Side */}
@@ -263,6 +299,11 @@ if (loading) {
   >
 
     <div className="flex flex-col gap-4">
+      {token && (
+  <p className="font-semibold text-blue-600">
+    👋 {username}
+  </p>
+)}
 
       <button onClick={() => navigate("/profile")}>
         Profile
@@ -272,9 +313,18 @@ if (loading) {
         Dashboard
       </button>
 
-      <button onClick={() => navigate("/admin-applications")}>
-        Applications
-      </button>
+      {role === "admin" && (
+  <button
+    onClick={() => navigate("/admin-applications")}
+    className={`font-medium transition ${
+      darkMode
+        ? "text-gray-200 hover:text-white"
+        : "text-gray-700 hover:text-black"
+    }`}
+  >
+    Applications
+  </button>
+)} 
 
       <button onClick={() => navigate("/login")}>
         Login
@@ -427,22 +477,27 @@ if (loading) {
 
           <div className="grid md:grid-cols-2 gap-8">
 
-            {filteredJobs.map((job) => (
+           {filteredJobs.map((job) => {
 
-              <motion.div
-              onClick={() => navigate(`/jobs/${job.id}`)}
-  key={job.id}
-  whileHover={{ scale: 1.03 }}
-  whileTap={{ scale: 0.98 }}
-  initial={{ opacity: 0, y: 30 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.3 }}
-  className={`rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${
-  darkMode
-    ? "bg-gray-800 text-white"
-    : "bg-white text-black"
-}`}
-  >
+  // ✅ DEBUG HERE (clean way)
+  console.log("Job ID:", job.id);
+  console.log("Is Saved:", savedJobs.includes(job.id));
+
+  return (
+    <motion.div
+      onClick={() => navigate(`/jobs/${job.id}`)}
+      key={job.id}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.98 }}
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${
+        darkMode
+          ? "bg-gray-800 text-white"
+          : "bg-white text-black"
+      }`}
+    >
 
                 {/* 🖼️ Logo + Info */}
                 <div className="flex items-center gap-4">
@@ -527,31 +582,39 @@ if (loading) {
                 </button>
                 
                 <button
-  className="mt-3 w-full border border-red-400 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-500 hover:text-white transition flex items-center justify-center gap-2"
+  className={`mt-3 w-full py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2
+    ${
+      savedJobs.includes(job.id)
+        ? "bg-red-500 text-white"
+        : "border border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
+    }`}
   onClick={(e) => {
     e.stopPropagation();
+     if (savedJobs.includes(job.id)) return;
 
     const userId = localStorage.getItem("userId");
 
-fetch(
-  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/save-job",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      user_id: userId,   // ✅ FIXED
-      job_id: job.id
+    fetch("https://humorous-fulfillment-production-1f5e.up.railway.app/api/save-job", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        job_id: job.id
+      })
     })
-  }
-)
-  .then(() => toast.success("Job saved ❤️"))
-  .catch((err) => console.log(err));
+      .then(() => {
+        toast.success("Job saved ❤️");
+
+        // ✅ update UI state
+        setSavedJobs((prev) => [...prev, job.id]);
+      })
+      .catch((err) => console.log(err));
   }}
 >
   <Heart size={18} />
-  Save Job
+  {savedJobs.includes(job.id) ? "Saved ❤️" : "Save Job"}
 </button>
 
 {/* 🤖 Resume Match */}
@@ -627,22 +690,44 @@ const data = await res.json();
 
 </div>
 
-                {/* 📄 Apply Form */}
-                {selectedJob === job.id && (
-                  <div className="mt-5">
-                    <ApplyForm jobId={job.id} />
-                  </div>
-                )}
-
+                
               </motion.div>
 
-            ))}
+);
+})}
 
           </div>
 
         )}
 
       </div>
+
+      {/* ✅ GLOBAL MODAL (CORRECT PLACE) */}
+{selectedJob && (
+  <div
+    className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 animate-fadeIn"
+    onClick={() => setSelectedJob(null)}
+  >
+    <div
+       className="bg-white p-6 rounded-xl animate-scaleIn"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Close */}
+      <button
+        className="absolute top-2 right-3 text-xl font-bold"
+        onClick={() => setSelectedJob(null)}
+      >
+        ✖
+      </button>
+
+      <h2 className="text-2xl font-bold mb-4 text-center">
+        Apply for Job
+      </h2>
+
+      <ApplyForm jobId={selectedJob} />
+    </div>
+  </div>
+)}
       
 {/* 🌙 Footer */}
 <footer className="bg-gray-900 text-white mt-20 rounded-2xl p-10">

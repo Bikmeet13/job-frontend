@@ -1,58 +1,106 @@
-import React, { useState } from "react";
+import { API } from "../services/api";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 function ApplyForm({ jobId }) {
+  const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [resume, setResume] = useState(null);
 
+ useEffect(() => {
+  const userId = localStorage.getItem("userId");
+
+  if (!userId) return;
+
+  fetch(
+    `https://humorous-fulfillment-production-1f5e.up.railway.app/api/profile/${userId}`
+  )
+    .then((res) => res.json())
+    .then((data) => {
+      console.log("PROFILE DATA:", data);
+
+      setName(data.name || "");
+      setEmail(data.email || "");
+    })
+    .catch((err) => console.log(err));
+}, []);
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-      const formData = new FormData();
+  e.preventDefault();
+
+  if (!file) {
+  alert("Please upload resume ❌");
+  return;
+}
+try {
+  const formData = new FormData();
+
   formData.append("name", name);
   formData.append("email", email);
   formData.append("jobId", jobId);
-  formData.append("resume", resume);
+  formData.append("resume", file);
 
-    try {
-      await axios.post("http://localhost:5000/api/apply",formData, {headers:{
-          "Content-Type": "multipart/form-data", },
-        name,
-        email,
-        jobId
-      });
-
-      alert("Application submitted with resume ✅");
-    } catch (err) {
-       console.log(err);   // 👈 IMPORTANT (see error)
-    alert("Error submitting application");
+  await API.post("/apply", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
     }
-  };
+  });
+
+  // ✅ SUCCESS FEEDBACK
+  alert("Application submitted successfully ✅");
+
+  // ✅ RESET FORM
+  setFile(null);
+
+} catch (err) {
+  console.log(err);
+  alert("Application failed ❌");
+}
+};
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: "10px" }}>
-      <input
-        type="text"
-        placeholder="Your Name"
-        onChange={(e) => setName(e.target.value)}
-        required
-      /><br /><br />
 
-      <input
-        type="email"
-        placeholder="Email"
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      /><br /><br />
+    <div className="bg-white p-6 rounded-2xl shadow-lg">
 
-      <input
-        type="file"
-        onChange={(e) => setResume(e.target.files[0])}
-        required
-      /><br /><br />
+  <form
+    onSubmit={handleSubmit}
+    className="flex flex-col gap-4"
+  >
 
-      <button type="submit">Submit Application</button>
-    </form>
+    <input
+  type="text"
+  placeholder="Your Name"
+  value={name}
+  onChange={(e) => setName(e.target.value)}
+  className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+/>
+
+    <input
+  type="email"
+  placeholder="Your Email"
+  value={email || ""}
+  onChange={(e) => setEmail(e.target.value)}
+  className="p-3 border rounded-lg"
+/>
+
+    <input
+      type="file"
+      onChange={(e) => setFile(e.target.files[0])}
+      className="p-2 border rounded-lg bg-gray-50"
+    />
+
+    <button
+  type="submit"
+  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
+>
+  Submit Application
+</button>
+
+  </form>
+
+</div>
   );
 }
 
