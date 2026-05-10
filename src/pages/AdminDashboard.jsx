@@ -18,6 +18,8 @@ const [type, setType] = useState("");
 const [mode, setMode] = useState("");
 const [filterStatus, setFilterStatus] = useState("all");
 const [filterType, setFilterType] = useState("all"); // all / shortlisted
+const [chatData, setChatData] = useState([]);
+const [activeChatId, setActiveChatId] = useState(null);
 
 const navigate = useNavigate();
 
@@ -55,15 +57,20 @@ const deleteAllApplications = async () => {
 
   try {
     await axios.delete(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications"
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
+      {
+        headers: {
+          authorization: localStorage.getItem("token"),
+        },
+      }
     );
 
     setApplications([]); // clear UI
-
     toast.success("All applications deleted ✅");
+
   } catch (err) {
     console.log(err);
-    toast.error("Failed to delete ❌");
+    toast.error("Unauthorized or failed ❌");
   }
 };
 
@@ -133,6 +140,19 @@ const handleLogout = () => {
   try {
     await axios.delete(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`);
     setApplications(applications.filter(app => app.id !== id));
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const fetchChat = async (id) => {
+  try {
+    const res = await axios.get(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${id}`
+    );
+
+    setChatData(res.data);
+    setActiveChatId(id); // track which card is open
   } catch (err) {
     console.log(err);
   }
@@ -446,6 +466,27 @@ const filteredApplications = applications.filter(app => {
   >
     Reject
   </button>
+
+  <button
+  onClick={() => {
+    console.log("Clicked", app.id);   // 👈 ADD THIS
+    fetchChat(app.id);
+  }}
+>
+  💬 View Answers
+</button>
+
+{activeChatId === app.id && chatData.length > 0 && (
+  <div className="mt-3 bg-gray-100 p-3 rounded">
+    {chatData.map((item, i) => (
+      <div key={i} className="mb-2">
+        <p><b>Q:</b> {item.question}</p>
+        <p><b>A:</b> {item.answer}</p>
+      </div>
+    ))}
+  </div>
+)}
+
 </div>
             <div className="mt-3 flex gap-3 flex-wrap">
 

@@ -629,10 +629,59 @@ app.get("/api/fix-jobs", async (req, res) => {
 });
 
 app.delete("/api/applications", async (req, res) => {
+  if (!req.headers.authorization) {
+    return res.status(401).send("Unauthorized ❌");
+  }
+
   try {
     await db.query("DELETE FROM applications");
     res.send("All deleted");
   } catch (err) {
+    res.status(500).send("Error");
+  }
+});
+
+app.post("/api/chatbot-response", async (req, res) => {
+  const { applicationId, question, answer } = req.body;
+
+  try {
+    await db.query(
+      "INSERT INTO chatbot_responses (application_id, question, answer) VALUES ($1, $2, $3)",
+      [applicationId, question, answer]
+    );
+      console.log("API DATA:", res.data);
+
+    res.send("Saved ✅");
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
+
+app.get("/api/chatbot-response/:id", async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM chatbot_responses WHERE application_id = $1",
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
+
+app.get("/api/chatbot-response/:id", async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM chatbot_responses WHERE application_id = $1",
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
     res.status(500).send("Error");
   }
 });

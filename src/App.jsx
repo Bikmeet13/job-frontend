@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import SavedJobs from "./pages/SavedJobs";
 import JobDetails from "./pages/JobDetails";
+import ChatbotForm from "./components/ChatbotForm";
 
 import Jobs from "./pages/Jobs";
 import Login from "./pages/Login";
@@ -36,6 +37,8 @@ function App() {
     </ProtectedRoute>
   }
 />
+
+<Route path="/chatbot" element={<ChatbotForm />} />
 
 <Route
   path="/admin-applications"
