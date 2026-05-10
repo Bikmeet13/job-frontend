@@ -628,6 +628,15 @@ app.get("/api/fix-jobs", async (req, res) => {
 
 });
 
+app.delete("/api/applications", async (req, res) => {
+  try {
+    await db.query("DELETE FROM applications");
+    res.send("All deleted");
+  } catch (err) {
+    res.status(500).send("Error");
+  }
+});
+
 app.post(
   "/api/resume-match",
   upload.single("resume"),

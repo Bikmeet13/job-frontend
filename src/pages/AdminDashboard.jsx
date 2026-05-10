@@ -5,7 +5,6 @@ import toast from "react-hot-toast";
 
 function AdminDashboard() {
 
-const [filter, setFilter] = useState("all");
   const [shortlisted, setShortlisted] = useState([]);
     const [applications, setApplications] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -17,8 +16,22 @@ const [experience, setExperience] = useState("");
 const [skills, setSkills] = useState("");
 const [type, setType] = useState("");
 const [mode, setMode] = useState("");
+const [filterStatus, setFilterStatus] = useState("all");
+const [filterType, setFilterType] = useState("all"); // all / shortlisted
 
 const navigate = useNavigate();
+
+const handleDelete = (id) => {
+  if (window.confirm("Are you sure you want to delete this application?")) {
+    deleteApplication(id);
+  }
+};
+
+const handleJobDelete = (id) => {
+  if (window.confirm("Are you sure you want to delete this job?")) {
+    deleteJob(id);
+  }
+};
 
 const addToShortlist = async (app) => {
   try {
@@ -34,6 +47,23 @@ const addToShortlist = async (app) => {
 
   } catch (err) {
     console.log(err);
+  }
+};
+
+const deleteAllApplications = async () => {
+  if (!window.confirm("Are you sure you want to delete ALL applications?")) return;
+
+  try {
+    await axios.delete(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications"
+    );
+
+    setApplications([]); // clear UI
+
+    toast.success("All applications deleted ✅");
+  } catch (err) {
+    console.log(err);
+    toast.error("Failed to delete ❌");
   }
 };
 
@@ -142,13 +172,15 @@ const removeFromShortlist = async (id) => {
     .then(res => setApplications(res.data))
     .catch(err => console.log(err));
 
-}, []);
-
-// ✅ FETCH SHORTLIST
-axios
+    axios
   .get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/1")
   .then(res => setShortlisted(res.data))
   .catch(err => console.log(err));
+
+}, []);
+
+// ✅ FETCH SHORTLIST
+
 
 const deleteJob = async (id) => {
   console.log("Deleting job:", id);
@@ -168,6 +200,24 @@ const deleteJob = async (id) => {
     console.log(err);
   }
 };
+
+
+const filteredApplications = applications.filter(app => {
+
+  // ✅ STATUS FILTER
+  if (filterStatus !== "all") {
+    if ((app.status || "Pending") !== filterStatus) return false;
+  }
+
+  // ✅ SHORTLIST FILTER
+  if (filterType === "shortlisted") {
+    if (!shortlisted.find(item => item.id === app.id)) return false;
+  }
+
+  return true;
+});
+
+
   return (
   <div className="p-10 bg-gray-100 min-h-screen">
 
@@ -186,11 +236,12 @@ const deleteJob = async (id) => {
           <p>{job.location}</p>
 
           <button
-            onClick={() => deleteJob(job.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-          >
-            Delete
-          </button>
+  onClick={() => handleJobDelete(job.id)}
+  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+>
+  Delete
+</button>
+
         </div>
       ))}
 
@@ -274,44 +325,66 @@ const deleteJob = async (id) => {
 
       {/* 🔹 APPLICATIONS SECTION */}
       <h1 className="text-2xl font-bold mb-4 mt-10">
-  📋 Applications (
-  {
-    applications.filter(app => {
-      if (filter === "all") return true;
-      if (filter === "shortlisted") {
-        return shortlisted.find(item => item.id === app.id);
-      }
-      return true;
-    }).length
-  }
-  )
+  
+  📋 Applications ({filteredApplications.length})
+  
+  
 </h1>
 
-<div className="flex gap-3 mb-4">
+<div className="flex flex-wrap gap-3 mb-4">
 
-  <button
-    onClick={() => setFilter("all")}
-    className={`px-4 py-1 rounded ${
-      filter === "all"
-        ? "bg-blue-600 text-white"
-        : "bg-gray-200"
-    }`}
-  >
+  {/* STATUS FILTER */}
+  <div className="flex gap-2 items-center">
+  <span className="text-sm font-semibold">Status:</span>
+
+  <button onClick={() => setFilterStatus("all")}
+    className={`px-3 py-1 rounded ${filterStatus==="all"?"bg-blue-600 text-white":"bg-gray-200"}`}>
     All
   </button>
 
-  <button
-    onClick={() => setFilter("shortlisted")}
-    className={`px-4 py-1 rounded ${
-      filter === "shortlisted"
-        ? "bg-blue-600 text-white"
-        : "bg-gray-200"
-    }`}
-  >
-    Shortlisted
+  <button onClick={() => setFilterStatus("Approved")}
+    className={`px-3 py-1 rounded ${filterStatus==="Approved"?"bg-green-600 text-white":"bg-gray-200"}`}>
+    Approved
   </button>
 
+  <button onClick={() => setFilterStatus("Rejected")}
+    className={`px-3 py-1 rounded ${filterStatus==="Rejected"?"bg-red-600 text-white":"bg-gray-200"}`}>
+    Rejected
+  </button>
+
+  <button onClick={() => setFilterStatus("Pending")}
+    className={`px-3 py-1 rounded ${filterStatus==="Pending"?"bg-yellow-500 text-white":"bg-gray-200"}`}>
+    Pending
+  </button>
+
+  </div>
+
+
+  {/* SHORTLIST FILTER */}
+  <div className="flex gap-2 items-center mt-2">
+  <span className="text-sm font-semibold">Type:</span>
+
+  <button onClick={() => setFilterType("shortlisted")}
+    className={`px-3 py-1 rounded ${filterType==="shortlisted"?"bg-purple-600 text-white":"bg-gray-200"}`}>
+    ⭐ Shortlisted
+  </button>
+
+  </div>
+  
+
+  <button
+  onClick={() => {
+    setFilterStatus("all");
+    setFilterType("all");
+  }}
+  className="px-3 py-1 rounded bg-blue-600 text-white"
+>
+  Reset
+</button>
+
+  
 </div>
+
       <button
         onClick={handleLogout}
         className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 mb-6"
@@ -319,18 +392,17 @@ const deleteJob = async (id) => {
         Logout
       </button>
 
+      <button
+  onClick={deleteAllApplications}
+  className="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-800 ml-2"
+>
+  🗑 Delete All
+</button>
+
       {applications.length === 0 ? (
         <p>No applications yet</p>
       ) : (
-        applications
-  .filter(app => {
-    if (filter === "all") return true;
-    if (filter === "shortlisted") {
-      return shortlisted.find(item => item.id === app.id);
-    }
-    return true;
-  })
-  .map(app => (
+       filteredApplications.map(app => (
 
           <div
             key={app.id}
@@ -375,26 +447,30 @@ const deleteJob = async (id) => {
     Reject
   </button>
 </div>
-            <p>
-              <b>Resume:</b>{" "}
-              {app.resume ? (
-                <a
-                  href={`https://humorous-fulfillment-production-1f5e.up.railway.app/uploads/${app.resume}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View Resume
-                </a>
-              ) : (
-                "No Resume"
-              )}
-            </p>
+            <div className="mt-3 flex gap-3 flex-wrap">
+
+{app.resume ? (
+  <a
+    href={
+  app.resume.startsWith("http")
+    ? app.resume
+    : `https://humorous-fulfillment-production-1f5e.up.railway.app/uploads/${app.resume}`
+}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg shadow hover:scale-105 transition"
+  >
+    📄 View Resume
+  </a>
+) : (
+  <span className="text-gray-400 mt-2 inline-block">
+    No Resume ❌
+  </span>
+)}
 
             <button
-
-            
-  onClick={() => deleteApplication(app.id)}
-  className="mt-3 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+  onClick={() => handleDelete(app.id)}
+  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
 >
   Delete
 </button>
@@ -409,9 +485,10 @@ const deleteJob = async (id) => {
   }`}
 >
   {shortlisted.find(item => item.id === app.id)
-    ? "✔ Added"
+    ? "✔ Shortlisted"
     : "⭐ Shortlist"}
 </button>
+          </div>
           </div>
           
         ))
@@ -448,7 +525,7 @@ const deleteJob = async (id) => {
 
       <button
         onClick={() => removeFromShortlist(app.id)}
-        
+
         className="mt-2 px-3 py-1 bg-red-500 text-white rounded"
       >
         Remove ❌
