@@ -487,6 +487,13 @@ const filteredApplications = applications.filter(app => {
   </div>
 )}
 
+<button
+  onClick={() => navigate(`/chatbot?applicationId=${app.id}`)}
+  className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+>
+  🤖 Start Chatbot
+</button>
+
 </div>
             <div className="mt-3 flex gap-3 flex-wrap">
 

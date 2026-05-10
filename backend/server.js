@@ -530,9 +530,9 @@ app.get("/api/dashboard-stats/:userId", async (req, res) => {
   console.log("USER ID RECEIVED:", req.params.id);
 console.log("TYPE:", typeof req.params.id);
 
-  const userId = parseInt(req.params.id);
+  const userId = parseInt(req.params.userId);
 
-  console.log("DASHBOARD USER ID:", userId);
+ console.log("USER ID RECEIVED:", req.params.userId);
   
 
   try {
@@ -649,7 +649,7 @@ app.post("/api/chatbot-response", async (req, res) => {
       "INSERT INTO chatbot_responses (application_id, question, answer) VALUES ($1, $2, $3)",
       [applicationId, question, answer]
     );
-      console.log("API DATA:", res.data);
+      console.log("Saved chatbot response:", applicationId, question);
 
     res.send("Saved ✅");
   } catch (err) {
@@ -658,26 +658,16 @@ app.post("/api/chatbot-response", async (req, res) => {
   }
 });
 
+
 app.get("/api/chatbot-response/:id", async (req, res) => {
+  console.log("Fetching chatbot for ID:", req.params.id); // 👈 ADD
   try {
     const result = await db.query(
       "SELECT * FROM chatbot_responses WHERE application_id = $1",
       [req.params.id]
     );
 
-    res.json(result.rows);
-  } catch (err) {
-    console.log(err);
-    res.status(500).send("Error");
-  }
-});
-
-app.get("/api/chatbot-response/:id", async (req, res) => {
-  try {
-    const result = await db.query(
-      "SELECT * FROM chatbot_responses WHERE application_id = $1",
-      [req.params.id]
-    );
+      console.log("DB RESULT:", result.rows); // 👈 ADD
 
     res.json(result.rows);
   } catch (err) {

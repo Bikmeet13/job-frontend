@@ -25,6 +25,8 @@ function Dashboard() {
   };
 
   fetchStats();
+   fetchApplications(); // ✅ ADD THIS
+
 }, []);
 
   return (
@@ -110,6 +112,21 @@ function Dashboard() {
               key={app.id}
               className="flex items-center justify-between border-b pb-4"
             >
+
+            <div className="flex items-center gap-4">
+  <div>
+    <h3 className="text-xl font-semibold">{app.title}</h3>
+    <p className="text-gray-500">{app.company}</p>
+  </div>
+
+  <button
+    onClick={() => navigate(`/chatbot?applicationId=${app.id}`)}
+    className="px-3 py-1 bg-indigo-600 text-white rounded"
+  >
+    🤖 Start Interview
+  </button>
+</div>
+
               <div>
                 <h3 className="text-xl font-semibold">{app.title}</h3>
                 <p className="text-gray-500">{app.company}</p>

@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-function ChatbotForm({ applicationId = 1 }) {
+function ChatbotForm() {
+
+  // ✅ GET applicationId from URL
+  const params = new URLSearchParams(window.location.search);
+  const applicationId = params.get("applicationId");
+
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [input, setInput] = useState("");
