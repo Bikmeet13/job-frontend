@@ -20,6 +20,10 @@ const [filterStatus, setFilterStatus] = useState("all");
 const [filterType, setFilterType] = useState("all"); // all / shortlisted
 const [chatData, setChatData] = useState([]);
 const [activeChatId, setActiveChatId] = useState(null);
+const [answersMap, setAnswersMap] = useState({});
+const [loadingMap, setLoadingMap] = useState({});
+const [countMap, setCountMap] = useState({});
+const [questions, setQuestions] = useState([""]);
 
 const navigate = useNavigate();
 
@@ -47,6 +51,18 @@ const addToShortlist = async (app) => {
 
     setShortlisted([...shortlisted, app]);
 
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const removeFromShortlist = async (id) => {
+  try {
+    await axios.delete(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/${id}`
+    );
+
+    setShortlisted(shortlisted.filter(item => item.id !== id));
   } catch (err) {
     console.log(err);
   }
@@ -88,7 +104,11 @@ const deleteAllApplications = async () => {
     experience,
     skills,
     type,
-    mode
+    mode,
+    chatbotQuestions: [   // ✅ ADD HERE
+      "Tell me about yourself",
+      "Why should we hire you?",
+      "What are your strengths?"]
   }
 );
 
@@ -105,6 +125,7 @@ const deleteAllApplications = async () => {
     setSkills("");
     setType("");
     setMode("");
+    
   
   } catch (err) {
     console.log(err);
@@ -145,30 +166,23 @@ const handleLogout = () => {
   }
 };
 
+
 const fetchChat = async (id) => {
+  setLoadingMap(prev => ({ ...prev, [id]: true }));
+
   try {
     const res = await axios.get(
       `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${id}`
     );
 
     setChatData(res.data);
-    setActiveChatId(id); // track which card is open
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-const removeFromShortlist = async (id) => {
-  try {
-    await axios.delete(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/${id}`
-    );
-
-    setShortlisted(shortlisted.filter(item => item.id !== id));
+    setActiveChatId(id);
 
   } catch (err) {
     console.log(err);
   }
+
+  setLoadingMap(prev => ({ ...prev, [id]: false }));
 };
 
   useEffect(() => {
@@ -189,7 +203,33 @@ const removeFromShortlist = async (id) => {
       }
     }
   )
-    .then(res => setApplications(res.data))
+.then(async res => {
+  setApplications(res.data);
+
+  // 🔥 check answers for each app
+  res.data.forEach(async (app) => {
+  try {
+    const r = await axios.get(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${app.id}`
+    );
+
+    // ✅ store true/false
+    setAnswersMap(prev => ({
+      ...prev,
+      [app.id]: r.data.length > 0
+    }));
+
+    // ✅ store COUNT
+    setCountMap(prev => ({
+      ...prev,
+      [app.id]: r.data.length
+    }));
+
+  } catch (err) {
+    console.log(err);
+  }
+});
+})
     .catch(err => console.log(err));
 
     axios
@@ -255,6 +295,7 @@ const filteredApplications = applications.filter(app => {
           <p>{job.company}</p>
           <p>{job.location}</p>
 
+          
           <button
   onClick={() => handleJobDelete(job.id)}
   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
@@ -262,8 +303,12 @@ const filteredApplications = applications.filter(app => {
   Delete
 </button>
 
+
         </div>
+        
       ))}
+
+      
 
       {/* 🔹 ADD JOB CARD */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
@@ -333,6 +378,31 @@ const filteredApplications = applications.filter(app => {
             onChange={(e) => setLocation(e.target.value)}
             className="border p-2 rounded w-full mb-3"
           />
+
+          <h3 className="font-semibold mb-2">Chatbot Questions</h3>
+
+{questions.map((q, index) => (
+  <input
+    key={index}
+    type="text"
+    placeholder={`Question ${index + 1}`}
+    value={q}
+    onChange={(e) => {
+      const newQ = [...questions];
+      newQ[index] = e.target.value;
+      setQuestions(newQ);
+    }}
+    className="border p-2 rounded w-full mb-2"
+  />
+))}
+
+<button
+  type="button"
+  onClick={() => setQuestions([...questions, ""])}
+  className="bg-gray-300 px-3 py-1 rounded mb-3"
+>
+  + Add Question
+</button>
 
           <button
             type="submit"
@@ -420,14 +490,18 @@ const filteredApplications = applications.filter(app => {
 </button>
 
       {applications.length === 0 ? (
-        <p>No applications yet</p>
-      ) : (
-       filteredApplications.map(app => (
+  <p>No applications yet</p>
+) : (
+  <>
+    {filteredApplications.map(app => {
+      const hasAnswers = answersMap[app.id];
 
-          <div
-            key={app.id}
-            className="bg-white shadow-md rounded-lg p-5 mb-4 border"
-          >
+
+  return (
+    <div
+      key={app.id}
+      className="bg-white shadow-md rounded-lg p-5 mb-4 border"
+    >
             <p><b>Name:</b> {app.name}</p>
             {shortlisted.find(item => item.id === app.id) && (
   <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
@@ -467,17 +541,46 @@ const filteredApplications = applications.filter(app => {
     Reject
   </button>
 
-  <button
-  onClick={() => {
-    console.log("Clicked", app.id);   // 👈 ADD THIS
-    fetchChat(app.id);
-  }}
->
-  💬 View Answers
-</button>
+  
 
-{activeChatId === app.id && chatData.length > 0 && (
-  <div className="mt-3 bg-gray-100 p-3 rounded">
+<button
+  title={
+    !hasAnswers
+      ? "No answers yet"
+      : loadingMap[app.id]
+      ? "Loading..."
+      : "View answers"
+  }
+  onClick={() => {
+    if (activeChatId === app.id) {
+      setActiveChatId(null); // close
+    } else {
+      setActiveChatId(app.id); // open
+      fetchChat(app.id); // load data
+    }
+  }}
+  disabled={!hasAnswers || loadingMap[app.id]}
+  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200
+    ${
+      hasAnswers
+        ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:scale-105 shadow-md"
+        : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+    }
+  `}
+>
+  {loadingMap[app.id] ? "⏳ Loading..." : "📊 View Answers"}
+
+  {/* 🔥 COUNT BADGE */}
+  {hasAnswers && !loadingMap[app.id] && (
+    <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow">
+      {countMap[app.id] > 0 ? `${countMap[app.id]} Answers` : "No answers"}
+    </span>
+  )}
+</button>
+</div>
+
+{activeChatId === app.id && (
+  <div className="mt-4 bg-gray-100 p-4 rounded-lg w-full transition-all duration-300 animate-fadeIn">
     {chatData.map((item, i) => (
       <div key={i} className="mb-2">
         <p><b>Q:</b> {item.question}</p>
@@ -487,14 +590,7 @@ const filteredApplications = applications.filter(app => {
   </div>
 )}
 
-<button
-  onClick={() => navigate(`/chatbot?applicationId=${app.id}`)}
-  className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
->
-  🤖 Start Chatbot
-</button>
 
-</div>
             <div className="mt-3 flex gap-3 flex-wrap">
 
 {app.resume ? (
@@ -538,9 +634,10 @@ const filteredApplications = applications.filter(app => {
 </button>
           </div>
           </div>
-          
-        ))
-      )}
+        );
+    })}
+  </>
+)}
       
 
 <h1 className="text-2xl font-bold mt-10 mb-4">
@@ -581,16 +678,20 @@ const filteredApplications = applications.filter(app => {
 
       
     </div>
+    
 
     
   ))
 )}
 
+
     </div>
 
   </div>
+  
 );
 }
+
 
 
 export default AdminDashboard;

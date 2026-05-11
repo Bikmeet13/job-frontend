@@ -23,7 +23,18 @@ function Dashboard() {
       console.log("DASHBOARD ERROR:", err);
     }
   };
-
+ // ✅ DEFINE THIS FUNCTION
+  const fetchApplications = async () => {
+    try {
+      const res = await axios.get(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/recent-applications"
+      );
+      setApplications(res.data);
+    } catch (err) {
+      console.log("APPLICATION ERROR:", err);
+    }
+  };
+  
   fetchStats();
    fetchApplications(); // ✅ ADD THIS
 

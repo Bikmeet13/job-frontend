@@ -77,13 +77,20 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
-app.get("/api/jobs", (req, res) => {
-  db.query("SELECT * FROM jobs")
-    .then(result => res.json(result.rows))
-    .catch(err => {
-      console.error(err);
-      res.status(500).send("Error fetching jobs");
-    });
+app.get("/api/jobs", async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM jobs");
+
+    const jobs = result.rows.map(job => ({
+      ...job,
+      chatbotQuestions: JSON.parse(job.chatbot_questions || "[]") // 👈 ADD HERE
+    }));
+
+    res.json(jobs);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching jobs");
+  }
 });
 app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", async (req, res) => {
@@ -96,7 +103,8 @@ app.post("/api/jobs", async (req, res) => {
   skills,
   description,
   type,
-  mode
+  mode,
+  chatbotQuestions
 } = req.body;
   try {
     const sql = `
@@ -110,7 +118,8 @@ INSERT INTO jobs
   skills,
   description,
   type,
-  mode
+  mode,
+  chatbotQuestions
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `;
@@ -124,7 +133,8 @@ await db.query(sql, [
   skills,
   description,
   type,
-  mode
+  mode,
+  chatbotQuestions
 ]);
 
 
@@ -159,57 +169,45 @@ app.get("/api/applications", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/api/jobs", async (req, res) => {
-  const { title, company, location, salary } = req.body;
-
-  try {
-    await db.query(
-      "INSERT INTO jobs (title, company, location, salary, experience, skills, type, mode) VALUES ($1, $2, $3, $4)",
-      [title, company, location, salary]
-    );
-
-    res.json({ message: "Job posted successfully ✅" });
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: "Failed to post job" });
-  }
-});
 
 app.post("/api/apply", upload.single("resume"), async (req, res) => {
 
   try {
 
+     console.log("jobId type:", typeof req.body.jobId);
+    console.log("jobId value:", req.body.jobId);
+
     const { name, email, jobId, description, } = req.body;
 
     const resume = req.file ? req.file.path : null;
 
-    const sql = `
-      INSERT INTO applications
-      (name, email, jobid, resume)
-      VALUES ($1, $2, $3, $4)
-    `;
+   // ✅ INSERT + RETURN ID
+    const result = await db.query(
+      `INSERT INTO applications (name, email, jobid, resume)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [name, email, jobId, resume]
+    );
 
-    await db.query(sql, [
-      name,
-      email,
-      jobId,
-      resume
-    ]);
-    console.log("Recipient Email:", email);
+   const applicationId = result.rows[0].id;
 
-    // ✅ EMAIL CODE HERE
-    try {
+    console.log("Application saved:", applicationId);
 
-      await transporter.sendMail({
+    // ✅ SEND RESPONSE IMMEDIATELY (FAST ⚡)
+    res.json({
+      message: "Application saved ✅",
+      applicationId
+    });
 
-        from: process.env.EMAIL_USER,
-
-        to: email,
-
-        subject: "Application Submitted Successfully ✅",
-
-        html: `
+    // 🔥 RUN EMAIL IN BACKGROUND (NO WAIT)
+    (async () => {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: "Application Submitted Successfully ✅",
+          
+          html: `
           <h2>Application Received ✅</h2>
 
           <p>Hello ${name},</p>
@@ -230,27 +228,19 @@ app.post("/api/apply", upload.single("resume"), async (req, res) => {
           Marketlence Hiring Team
           </p>
         `
-      });
+        });
 
-      console.log("Email sent successfully ✅");
-
-    } catch (emailError) {
-
-      console.log("EMAIL ERROR:", emailError);
-
-    }
-
-    res.send("Application saved successfully ✅");
+          } catch (err) {
+        console.log("EMAIL ERROR:", err);
+      }
+    })();
 
   } catch (err) {
-
     console.log("APPLY ERROR:", err);
-
     res.status(500).send("Application failed");
-
   }
-
 });
+
 app.delete("/api/applications/:id", async (req, res) => {
   const id = req.params.id;
 
@@ -475,21 +465,6 @@ app.post(
   }
 );
 
-app.post("/api/shortlist", async (req, res) => {
-  const { applicationId, userId } = req.body;
-
-  try {
-    await db.query(
-      "INSERT INTO shortlisted (application_id, user_id) VALUES ($1, $2)",
-      [applicationId, userId]
-    );
-
-    res.send("Added to shortlist ✅");
-  } catch (err) {
-    console.log(err);
-    res.status(500).send("Error");
-  }
-});
 
 app.get("/api/shortlist/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -527,7 +502,7 @@ app.delete("/api/shortlist/:id", async (req, res) => {
 
 app.get("/api/dashboard-stats/:userId", async (req, res) => {
 
-  console.log("USER ID RECEIVED:", req.params.id);
+  console.log("USER ID RECEIVED:", req.params.userId);
 console.log("TYPE:", typeof req.params.id);
 
   const userId = parseInt(req.params.userId);
@@ -626,6 +601,22 @@ app.get("/api/fix-jobs", async (req, res) => {
 
   }
 
+});
+
+app.get("/api/applications/check", async (req, res) => {
+  const { jobId, email } = req.query;
+
+  try {
+    const result = await db.query(
+      "SELECT * FROM applications WHERE jobid = $1 AND email = $2",
+      [jobId, email]
+    );
+
+    res.json({ applied: result.rows.length > 0 });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error checking application");
+  }
 });
 
 app.delete("/api/applications", async (req, res) => {

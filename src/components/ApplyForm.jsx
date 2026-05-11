@@ -7,8 +7,7 @@ function ApplyForm({ jobId }) {
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [resume, setResume] = useState(null);
-
+  
  useEffect(() => {
   const userId = localStorage.getItem("userId");
 
@@ -34,22 +33,30 @@ function ApplyForm({ jobId }) {
   alert("Please upload resume ❌");
   return;
 }
+
+  setLoading(true);
+
 try {
   const formData = new FormData();
-
   formData.append("name", name);
   formData.append("email", email);
   formData.append("jobId", jobId);
   formData.append("resume", file);
 
-  await API.post("/apply", formData, {
+ await axios.post(
+  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/apply",
+  formData,
+  {
     headers: {
       "Content-Type": "multipart/form-data"
     }
-  });
+  }
+);
 
   // ✅ SUCCESS FEEDBACK
   alert("Application submitted successfully ✅");
+
+  const jobId = formData.get("jobId");
 
   // ✅ RESET FORM
   setFile(null);
@@ -57,6 +64,8 @@ try {
 } catch (err) {
   console.log(err);
   alert("Application failed ❌");
+   } finally {
+      setLoading(false);
 }
 };
 
@@ -95,8 +104,8 @@ try {
   type="submit"
   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
 >
-  Submit Application
-</button>
+  {loading ? "Submitting..." : "Submit Application"}
+        </button>
 
   </form>
 

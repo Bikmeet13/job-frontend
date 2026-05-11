@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 function ChatbotForm() {
@@ -10,12 +10,7 @@ function ChatbotForm() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [input, setInput] = useState("");
-
-  const questions = [
-    "Tell me about yourself",
-    "What are your skills?",
-    "Why should we hire you?"
-  ];
+  const [questions, setQuestions] = useState([]);
 
   const handleAnswer = async (answer) => {
     if (!answer) return;
@@ -35,6 +30,37 @@ function ChatbotForm() {
     setStep(step + 1);
     setInput("");
   };
+
+  useEffect(() => {
+  const fetchQuestions = async () => {
+    
+    try {
+      // 1. get application details
+      const appRes = await axios.get(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${applicationId}`
+      );
+
+      const jobId = appRes.data.jobId;
+
+      // 2. get job details
+      const jobRes = await axios.get(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${jobId}`
+      );
+
+      // 3. parse questions
+      const qs = jobRes.data.chatbot_questions
+        ? JSON.parse(jobRes.data.chatbot_questions)
+        : [];
+
+      setQuestions(qs);
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  fetchQuestions();
+}, [applicationId]);
 
   return (
     <div className="bg-white p-4 rounded shadow max-w-md mx-auto mt-10">

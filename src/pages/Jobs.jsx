@@ -35,6 +35,7 @@ const [salaryFilter, setSalaryFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [appliedMap, setAppliedMap] = useState({});
 
   useEffect(() => {
   fetchJobs()
@@ -109,6 +110,49 @@ console.log("Saved IDs:", ids);
       : true
   )
     : [];
+
+    useEffect(() => {
+  const checkAppliedJobs = async () => {
+    const email = localStorage.getItem("email"); // 👈 make sure email exists
+
+    if (!email || jobs.length === 0) return;
+
+    for (let job of jobs) {
+      try {
+        const res = await axios.get(
+          "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/check",
+          {
+            params: {
+              jobId: job.id,
+              email: email
+            }
+          }
+        );
+
+        setAppliedMap(prev => ({
+          ...prev,
+          [job.id]: res.data.applied
+        }));
+
+      } catch (err) {
+        console.log(err);
+      }
+    }
+  };
+
+  checkAppliedJobs();
+}, [jobs]);
+
+useEffect(() => {
+  const appliedJobs = JSON.parse(localStorage.getItem("appliedJobs") || "[]");
+
+  const map = {};
+  appliedJobs.forEach(id => {
+    map[id] = true;
+  });
+
+  setAppliedMap(map);
+}, []);
 
 if (loading) {
   return (
@@ -572,14 +616,22 @@ if (loading) {
 
                 {/* 🔘 Apply Button */}
                 <button
-                  className="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedJob(job.id);
-                  }}
-                >
-                  Apply Now
-                </button>
+  disabled={appliedMap[job.id]}
+  className={`mt-5 w-full py-3 rounded-xl font-semibold transition ${
+    appliedMap[job.id]
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-blue-600 hover:bg-blue-700 text-white"
+  }`}
+  onClick={(e) => {
+    e.stopPropagation();
+
+    if (appliedMap[job.id]) return; // 👈 extra safety
+
+    setSelectedJob(job.id);
+  }}
+>
+  {appliedMap[job.id] ? "✅ Applied" : "Apply Now"}
+</button>
                 
                 <button
   className={`mt-3 w-full py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2
@@ -643,6 +695,8 @@ if (loading) {
       "jobSkills",
       job.skills || ""
     );
+
+    formData.append("jobId", jobId);
 
     try {
 
