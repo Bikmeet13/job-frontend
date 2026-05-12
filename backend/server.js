@@ -83,7 +83,7 @@ app.get("/api/jobs", async (req, res) => {
 
     const jobs = result.rows.map(job => ({
       ...job,
-      chatbotQuestions: JSON.parse(job.chatbot_questions || "[]") // 👈 ADD HERE
+      chatbot_questions: JSON.parse(job.chatbot_questions || "[]") // 👈 ADD HERE
     }));
 
     res.json(jobs);
@@ -177,7 +177,9 @@ app.post("/api/apply", upload.single("resume"), async (req, res) => {
      console.log("jobId type:", typeof req.body.jobId);
     console.log("jobId value:", req.body.jobId);
 
-    const { name, email, jobId, description, } = req.body;
+    const name = req.body.name;
+const email = req.body.email;
+const jobId = parseInt(req.body.jobId); // 🔥 FIX
 
     const resume = req.file ? req.file.path : null;
 
@@ -237,7 +239,7 @@ app.post("/api/apply", upload.single("resume"), async (req, res) => {
 
   } catch (err) {
     console.log("APPLY ERROR:", err);
-    res.status(500).send("Application failed");
+    res.status(500).json({ error: "Application failed" });
   }
 });
 
