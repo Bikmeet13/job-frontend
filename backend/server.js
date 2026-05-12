@@ -543,18 +543,18 @@ app.get("/api/recent-applications", async (req, res) => {
   try {
 
     const result = await db.query(`
-      SELECT
-        applications.id,
-        applications.name,
-        applications.status,
-        jobs.title,
-        jobs.company
-      FROM applications
-      JOIN jobs
-      ON applications.jobid = jobs.id
-      ORDER BY applications.id DESC
-      LIMIT 5
-    `);
+  SELECT
+    applications.id,
+    applications.name,
+    applications.status,
+    COALESCE(jobs.title, 'No Title') AS title,
+    COALESCE(jobs.company, 'Unknown') AS company
+  FROM applications
+  LEFT JOIN jobs
+  ON applications.jobid = jobs.id
+  ORDER BY applications.id DESC
+  LIMIT 5
+`);
 
     res.json(result.rows);
 

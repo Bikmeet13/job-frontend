@@ -9,21 +9,11 @@ function ApplyForm({ jobId }) {
   const [email, setEmail] = useState("");
   
  useEffect(() => {
-  const userId = localStorage.getItem("userId");
+  const name = localStorage.getItem("username");
+  const email = localStorage.getItem("email");
 
-  if (!userId) return;
-
-  fetch(
-    `https://humorous-fulfillment-production-1f5e.up.railway.app/api/profile/${userId}`
-  )
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("PROFILE DATA:", data);
-
-      setName(data.name || "");
-      setEmail(data.email || "");
-    })
-    .catch((err) => console.log(err));
+  setName(name || "");
+  setEmail(email || "");
 }, []);
 
   const handleSubmit = async (e) => {
@@ -33,6 +23,11 @@ function ApplyForm({ jobId }) {
   alert("Please upload resume ❌");
   return;
 }
+
+if (!file) {
+    alert("Please upload resume ❌");
+    return;
+  }
 
   setLoading(true);
 
@@ -56,8 +51,7 @@ try {
   // ✅ SUCCESS FEEDBACK
   alert("Application submitted successfully ✅");
 
-  const jobId = formData.get("jobId");
-
+ 
   // ✅ RESET FORM
   setFile(null);
 
