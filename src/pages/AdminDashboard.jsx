@@ -24,6 +24,7 @@ const [answersMap, setAnswersMap] = useState({});
 const [loadingMap, setLoadingMap] = useState({});
 const [countMap, setCountMap] = useState({});
 const [questions, setQuestions] = useState([""]);
+const [description, setDescription] = useState("");
 
 const navigate = useNavigate();
 
@@ -103,18 +104,18 @@ const deleteAllApplications = async () => {
     salary,
     experience,
     skills,
+    description,
     type,
     mode,
-    chatbotQuestions: [   // ✅ ADD HERE
-      "Tell me about yourself",
-      "Why should we hire you?",
-      "What are your strengths?"]
+    chatbotQuestions: questions.filter(q => q.trim() !== "")
   }
 );
 
     toast.success("Job added successfully 🚀");
 
-    setJobs([{ title, company, location, salary }, ...jobs]);
+    // refetch jobs instead
+axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs")
+  .then(res => setJobs(res.data));
   
      // clear form
     setTitle("");
@@ -378,6 +379,14 @@ const filteredApplications = applications.filter(app => {
             onChange={(e) => setLocation(e.target.value)}
             className="border p-2 rounded w-full mb-3"
           />
+
+          <input
+  type="text"
+  placeholder="Job Description"
+  value={description}
+  onChange={(e) => setDescription(e.target.value)}
+  className="border p-2 rounded w-full mb-3"
+/>
 
           <h3 className="font-semibold mb-2">Chatbot Questions</h3>
 

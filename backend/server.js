@@ -94,54 +94,58 @@ app.get("/api/jobs", async (req, res) => {
 });
 app.use("/uploads", express.static("uploads"));
 app.post("/api/jobs", async (req, res) => {
+   console.log("HIT /api/jobs");
+  console.log("BODY RECEIVED:", req.body);
+
   const {
-  title,
-  company,
-  location,
-  salary,
-  experience,
-  skills,
-  description,
-  type,
-  mode,
-  chatbotQuestions
-} = req.body;
+    title,
+    company,
+    location,
+    salary,
+    experience,
+    skills,
+    description,
+    type,
+    mode,
+    chatbotQuestions
+  } = req.body;
+
   try {
     const sql = `
-INSERT INTO jobs
-(
-  title,
-  company,
-  location,
-  salary,
-  experience,
-  skills,
-  description,
-  type,
-  mode,
-  chatbot_questions
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-`;
+      INSERT INTO jobs
+      (
+        title,
+        company,
+        location,
+        salary,
+        experience,
+        skills,
+        description,
+        type,
+        mode,
+        chatbot_questions
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `;
 
-await db.query(sql, [
-  title,
-  company,
-  location,
-  salary,
-  experience,
-  skills,
-  description,
-  type,
-  mode,
-  JSON.stringify(chatbotQuestions)
-]);
+    await db.query(sql, [
+      title,
+      company,
+      location,
+      salary,
+      experience,
+      skills,
+      description,
+      type,
+      mode,
+      JSON.stringify(chatbotQuestions || [])
+    ]);
 
+    res.json({ message: "Job added ✅" });
 
-    res.send("Job added ✅");
   } catch (err) {
-    console.log(err);
-    res.status(500).send("Error adding job");
+    console.log("🔥 FULL ERROR:", err); // 👈 IMPORTANT
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -638,15 +642,26 @@ app.post("/api/chatbot-response", async (req, res) => {
   const { applicationId, question, answer } = req.body;
 
   try {
+    console.log("BODY:", req.body);
+
+    const appId = parseInt(applicationId);
+
+    if (!appId || !question || !answer) {
+      return res.status(400).send("Invalid data ❌");
+    }
+
     await db.query(
-      "INSERT INTO chatbot_responses (application_id, question, answer) VALUES ($1, $2, $3)",
-      [applicationId, question, answer]
+      `
+      INSERT INTO chatbot_responses (application_id, question, answer)
+      VALUES ($1, $2, $3)
+      `,
+      [appId, question, answer]
     );
-      console.log("Saved chatbot response:", applicationId, question);
 
     res.send("Saved ✅");
+
   } catch (err) {
-    console.log(err);
+    console.log("CHATBOT ERROR:", err.message);
     res.status(500).send("Error");
   }
 });
@@ -655,9 +670,12 @@ app.post("/api/chatbot-response", async (req, res) => {
 app.get("/api/chatbot-response/:id", async (req, res) => {
   console.log("Fetching chatbot for ID:", req.params.id); // 👈 ADD
   try {
+
+    const appId = parseInt(req.params.id)
+    
     const result = await db.query(
-      "SELECT * FROM chatbot_responses WHERE application_id = $1",
-      [req.params.id]
+  "SELECT * FROM chatbot_responses WHERE application_id = $1",
+  [appId]
     );
 
       console.log("DB RESULT:", result.rows); // 👈 ADD
