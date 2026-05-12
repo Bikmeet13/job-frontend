@@ -83,7 +83,10 @@ app.get("/api/jobs", async (req, res) => {
 
     const jobs = result.rows.map(job => ({
       ...job,
-      chatbot_questions: JSON.parse(job.chatbot_questions || "[]") // 👈 ADD HERE
+      chatbot_questions:
+  Array.isArray(job.chatbot_questions)
+    ? job.chatbot_questions
+    : JSON.parse(job.chatbot_questions || "[]") // 👈 ADD HERE
     }));
 
     res.json(jobs);
