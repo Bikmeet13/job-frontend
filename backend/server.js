@@ -186,7 +186,12 @@ app.post("/api/apply", upload.single("resume"), async (req, res) => {
 
     const name = req.body.name;
 const email = req.body.email;
-const jobId = parseInt(req.body.jobId); // 🔥 FIX
+const jobId = appRes.data.jobid;
+
+if (!jobId) {
+  console.log("Job ID missing ❌");
+  return;
+} // 🔥 FIX
 
     const resume = req.file ? req.file.path : null;
 
@@ -511,23 +516,18 @@ app.delete("/api/shortlist/:id", async (req, res) => {
 
 app.get("/api/dashboard-stats/:userId", async (req, res) => {
 
-  console.log("USER ID RECEIVED:", req.params.userId);
-console.log("TYPE:", typeof req.params.id);
-
+  // ✅ correct way
   const userId = parseInt(req.params.userId);
 
- console.log("USER ID RECEIVED:", req.params.userId);
-  
+  console.log("USER ID:", userId);
+  console.log("TYPE:", typeof userId);
 
   try {
-
-    // ✅ Saved Jobs Count
     const savedJobs = await db.query(
       "SELECT COUNT(*) FROM saved_jobs WHERE user_id = $1",
       [userId]
     );
 
-    // ✅ Applications Count
     const applications = await db.query(
       "SELECT COUNT(*) FROM applications"
     );
@@ -538,13 +538,12 @@ console.log("TYPE:", typeof req.params.id);
     });
 
   } catch (err) {
-
-          console.log("DASHBOARD ERROR:", err);
-
+    console.log("DASHBOARD ERROR:", err);
     res.status(500).json({ error: "Dashboard error ❌" });
-
   }
 });
+
+
 app.get("/api/recent-applications", async (req, res) => {
 
   try {
