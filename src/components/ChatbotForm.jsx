@@ -48,9 +48,9 @@ function ChatbotForm() {
       );
 
       // 3. parse questions
-      const qs = jobRes.data.chatbot_questions
-        ? JSON.parse(jobRes.data.chatbot_questions)
-        : [];
+      const qs = jobRes.data.chatbot_questions || [];   
+      
+      console.log("QUESTIONS:", jobRes.data.chatbot_questions);
 
       setQuestions(qs);
 

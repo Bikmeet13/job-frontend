@@ -775,6 +775,27 @@ app.post("/api/shortlist", async (req, res) => {
   }
 });
 
+app.get("/api/applications/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const result = await db.query(
+      "SELECT * FROM applications WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    res.json(result.rows[0]);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching application");
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
