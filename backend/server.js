@@ -795,6 +795,30 @@ app.get("/api/applications/:id", async (req, res) => {
   }
 });
 
+app.get("/api/jobs/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  try {
+    const result = await db.query(
+      "SELECT * FROM jobs WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).send("Job not found ❌");
+    }
+
+    res.json({
+      ...result.rows[0],
+      chatbot_questions: JSON.parse(result.rows[0].chatbot_questions || "[]")
+    });
+
+  } catch (err) {
+    console.log("GET JOB ERROR:", err);
+    res.status(500).send("Error fetching job");
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -41,7 +41,12 @@ function ChatbotForm() {
       );
       console.log("FULL APPLICATION RESPONSE:", appRes.data);
 
-      const jobId = appRes.data.jobId;
+      const jobId = appRes.data.jobid;
+
+      if (!jobId) {
+  console.log("❌ jobId missing", appRes.data);
+  return;
+}
 
       // 2. get job details
       const jobRes = await axios.get(
