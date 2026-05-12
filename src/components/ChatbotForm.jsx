@@ -39,6 +39,7 @@ function ChatbotForm() {
       const appRes = await axios.get(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${applicationId}`
       );
+      console.log("FULL APPLICATION RESPONSE:", appRes.data);
 
       const jobId = appRes.data.jobId;
 

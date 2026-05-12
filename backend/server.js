@@ -186,7 +186,7 @@ app.post("/api/apply", upload.single("resume"), async (req, res) => {
 
     const name = req.body.name;
 const email = req.body.email;
-const jobId = appRes.data.jobid;
+const jobId = parseInt(req.body.jobId);
 
 if (!jobId) {
   console.log("Job ID missing ❌");
