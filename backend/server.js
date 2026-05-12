@@ -138,7 +138,7 @@ app.post("/api/jobs", async (req, res) => {
       description,
       type,
       mode,
-      JSON.stringify(chatbotQuestions || [])
+      chatbotQuestions ?? []
     ]);
 
     res.json({ message: "Job added ✅" });
