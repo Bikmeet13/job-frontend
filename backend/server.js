@@ -808,9 +808,27 @@ app.get("/api/jobs/:id", async (req, res) => {
       return res.status(404).send("Job not found ❌");
     }
 
+    const job = result.rows[0];
+
+    let questions = [];
+
+    // 🔥 SAFE PARSE
+    try {
+      if (typeof job.chatbot_questions === "string") {
+        questions = JSON.parse(job.chatbot_questions);
+      } else if (Array.isArray(job.chatbot_questions)) {
+        questions = job.chatbot_questions;
+      } else {
+        questions = [];
+      }
+    } catch (err) {
+      console.log("PARSE ERROR:", err);
+      questions = [];
+    }
+
     res.json({
-      ...result.rows[0],
-      chatbot_questions: JSON.parse(result.rows[0].chatbot_questions || "[]")
+      ...job,
+      chatbot_questions: questions
     });
 
   } catch (err) {
