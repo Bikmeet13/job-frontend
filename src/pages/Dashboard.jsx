@@ -16,27 +16,37 @@ function Dashboard() {
       const res = await axios.get(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/dashboard-stats/${userId}`
       );
-
       setStats(res.data);
-
     } catch (err) {
       console.log("DASHBOARD ERROR:", err);
     }
   };
- // ✅ DEFINE THIS FUNCTION
+
   const fetchApplications = async () => {
     try {
-      const res = await axios.get(
-        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/recent-applications"
-      );
-      setApplications(res.data);
+      const token = localStorage.getItem("token");
+
+if (!token) return;
+
+const res = await axios.get(
+  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
+  {
+    headers: {
+      authorization: token
+    }
+  }
+);
+
+      setApplications(res.data); // ✅ IMPORTANT
+
     } catch (err) {
       console.log("APPLICATION ERROR:", err);
     }
   };
-  
+
+  // ✅ CALL BOTH ONCE
   fetchStats();
-   fetchApplications(); // ✅ ADD THIS
+  fetchApplications();
 
 }, []);
 
@@ -138,11 +148,7 @@ function Dashboard() {
   </button>
 </div>
 
-              <div>
-                <h3 className="text-xl font-semibold">{app.title}</h3>
-                <p className="text-gray-500">{app.company}</p>
-              </div>
-
+              
               <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold">
                 {app.status || "Applied"}
               </span>

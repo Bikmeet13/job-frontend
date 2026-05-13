@@ -157,28 +157,6 @@ useEffect(() => {
   setAppliedMap(map);
 }, []);
 
-useEffect(() => {
-  const checkAppliedJobs = async () => {
-    try {
-      const email = localStorage.getItem("email");
-
-      const res = await axios.get(
-        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications`
-      );
-
-      const applied = res.data
-        .filter(app => app.email === email)
-        .map(app => app.jobid);
-
-      setAppliedJobs(applied);
-
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  checkAppliedJobs();
-}, []);
 
 if (loading) {
   return (
@@ -727,7 +705,7 @@ if (loading) {
       job.skills || ""
     );
 
-    formData.append("jobId", jobId);
+    formData.append("jobId", job.id);
 
     try {
 
