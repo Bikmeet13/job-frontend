@@ -33,31 +33,33 @@ function ChatbotForm() {
 
   useEffect(() => {
   const fetchQuestions = async () => {
-    
     try {
-      // 1. get application details
+      // ✅ 0. CHECK IF ALREADY ANSWERED
+      const res = await axios.get(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${applicationId}`
+      );
+
+      if (res.data.length > 0) {
+        setStep(999); // ✅ skip to completed
+        return;       // 🚨 STOP here
+      }
+
+      // ✅ 1. get application
       const appRes = await axios.get(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${applicationId}`
       );
-      console.log("FULL APPLICATION RESPONSE:", appRes.data);
 
       const jobId = appRes.data.jobid;
 
-      if (!jobId) {
-  console.log("❌ jobId missing", appRes.data);
-  return;
-}
+      if (!jobId) return;
 
-      // 2. get job details
+      // ✅ 2. get job
       const jobRes = await axios.get(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${jobId}`
       );
 
-      // 3. parse questions
-      const qs = jobRes.data.chatbot_questions || [];   
-      
-      console.log("QUESTIONS:", jobRes.data.chatbot_questions);
-
+      // ✅ 3. set questions
+      const qs = jobRes.data.chatbot_questions || [];
       setQuestions(qs);
 
     } catch (err) {

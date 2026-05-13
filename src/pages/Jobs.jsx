@@ -31,6 +31,8 @@ const [modeFilter, setModeFilter] = useState("");
 const [experienceFilter, setExperienceFilter] = useState("");
 
 const [salaryFilter, setSalaryFilter] = useState("");
+
+const [appliedJobs, setAppliedJobs] = useState([]);
   
   const [selectedJob, setSelectedJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -153,6 +155,29 @@ useEffect(() => {
   });
 
   setAppliedMap(map);
+}, []);
+
+useEffect(() => {
+  const checkAppliedJobs = async () => {
+    try {
+      const email = localStorage.getItem("email");
+
+      const res = await axios.get(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications`
+      );
+
+      const applied = res.data
+        .filter(app => app.email === email)
+        .map(app => app.jobid);
+
+      setAppliedJobs(applied);
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  checkAppliedJobs();
 }, []);
 
 if (loading) {
@@ -523,6 +548,7 @@ if (loading) {
           <div className="grid md:grid-cols-2 gap-8">
 
            {filteredJobs.map((job) => {
+            const appId = localStorage.getItem(`app_${job.id}`);
 
   // ✅ DEBUG HERE (clean way)
   console.log("Job ID:", job.id);
@@ -616,23 +642,27 @@ if (loading) {
                 </div>
 
                 {/* 🔘 Apply Button */}
-                <button
-  disabled={appliedMap[job.id]}
-  className={`mt-5 w-full py-3 rounded-xl font-semibold transition ${
-    appliedMap[job.id]
-      ? "bg-gray-400 cursor-not-allowed"
-      : "bg-blue-600 hover:bg-blue-700 text-white"
-  }`}
-  onClick={(e) => {
-    e.stopPropagation();
-
-    if (appliedMap[job.id]) return; // 👈 extra safety
-
-    setSelectedJob(job.id);
-  }}
->
-  {appliedMap[job.id] ? "✅ Applied" : "Apply Now"}
-</button>
+                {appId ? (
+  <button
+    onClick={(e) => {
+      e.stopPropagation(); // ✅ important (prevents card click)
+      navigate(`/chatbot?applicationId=${appId}`);
+    }}
+    className="bg-green-600 text-white px-4 py-2 rounded"
+  >
+    Start Interview 🚀
+  </button>
+) : (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      navigate(`/apply/${job.id}`);
+    }}
+    className="bg-blue-600 text-white px-4 py-2 rounded"
+  >
+    Apply
+  </button>
+)}
                 
                 <button
   className={`mt-3 w-full py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2

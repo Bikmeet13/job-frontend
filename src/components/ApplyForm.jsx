@@ -38,7 +38,7 @@ try {
   formData.append("jobId", jobId);
   formData.append("resume", file);
 
- await axios.post(
+ const res = await axios.post(
   "https://humorous-fulfillment-production-1f5e.up.railway.app/api/apply",
   formData,
   {
@@ -47,6 +47,8 @@ try {
     }
   }
 );
+
+localStorage.setItem(`app_${jobId}`, res.data.applicationId);
 
   // ✅ SUCCESS FEEDBACK
   alert("Application submitted successfully ✅");
