@@ -38,16 +38,6 @@ cloudinary.config({
 });
 
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.hostinger.com",
-  port: 587,          // 👈 change port
-  secure: false,      // 👈 important
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
 const storage = new CloudinaryStorage({
 
   cloudinary,
@@ -160,7 +150,7 @@ function verifyToken(req, res, next) {
   if (!token) return res.status(403).json({ error: "No token" });
 
   try {
-    const decoded = jwt.verify(token, "secret123");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch {
@@ -216,40 +206,25 @@ if (!jobId) {
     });
 
     // 🔥 RUN EMAIL IN BACKGROUND (NO WAIT)
-    (async () => {
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: "Application Submitted Successfully ✅",
-          
-          html: `
-          <h2>Application Received ✅</h2>
-
-          <p>Hello ${name},</p>
-
-          <p>
-          Thank you for applying on Marketlence.
-          Your application has been submitted successfully.
-          </p>
-
-          <p>
-          Our team will review your profile and contact you soon.
-          </p>
-
-          <br/>
-
-          <p>
-          Best Regards,<br/>
-          Marketlence Hiring Team
-          </p>
-        `
-        });
-
-          } catch (err) {
-        console.log("EMAIL ERROR:", err);
-      }
-    })();
+   (async () => {
+  try {
+    await resend.emails.send({
+      from: "Marketlence <onboarding@resend.dev>",
+      to: email,
+      subject: "Application Submitted Successfully ✅",
+      html: `
+        <h2>Application Received ✅</h2>
+        <p>Hello ${name},</p>
+        <p>Your application has been submitted successfully.</p>
+        <p>We will contact you soon.</p>
+        <br/>
+        <p>Marketlence Team</p>
+      `
+    });
+  } catch (err) {
+    console.log("RESEND ERROR:", err);
+  }
+})();
 
   } catch (err) {
     console.log("APPLY ERROR:", err);
@@ -835,12 +810,17 @@ if (record.otp != otp) {
   return res.status(400).json({ error: "Invalid OTP ❌" });
 }
 
+if (!record) {
+  return res.status(400).json({ error: "OTP not found ❌" });
+}
+
+if (record.otp != otp) {
+  return res.status(400).json({ error: "Invalid OTP ❌" });
+}
+
 if (Date.now() > record.expires) {
   return res.status(400).json({ error: "OTP expired ⏳" });
 }
- {
-    return res.status(400).json({ error: "Invalid OTP ❌" });
-  }
 
   try {
     // ✅ check existing user
