@@ -3,12 +3,6 @@ require("dotenv").config();
 console.log("DB URL:", process.env.DATABASE_URL);
 
 const otpStore = {};
-const twilio = require("twilio");
-
-const client = twilio(
-  process.env.TWILIO_SID,
-  process.env.TWILIO_AUTH
-);
 const pdfParse = require("pdf-parse");
 
 const fs = require("fs");
@@ -359,51 +353,6 @@ app.put("/api/applications/:id", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).send("Error updating status");
-  }
-});
-app.post("/api/signup", async (req, res) => {
-  const { username, email, password, adminSecret } = req.body;
-
-  try {
-    const existingUser = await db.query(
-      "SELECT * FROM users WHERE email = $1 OR username = $2",
-      [email, username]
-    );
-
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({
-        error: "Email or Username already exists"
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // ✅ ADD THIS LOGIC
-    let role = "user"; // default
-
-    if (adminSecret === "ADMIN123") {
-      role = "admin";
-    }
-
-    await db.query(
-      "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4)",
-      [username, email, hashedPassword, role]
-    );
-
-    res.json({
-      message: "Signup successful ✅",
-      role
-    });
-
-  } catch (err) {
-    if (err.code === "23505") {
-      return res.status(400).json({
-        error: "Username already taken"
-      });
-    }
-
-    console.error("SIGNUP ERROR:", err);
-    res.status(500).json({ error: "Signup error" });
   }
 });
 
@@ -844,26 +793,84 @@ app.get("/api/jobs/:id", async (req, res) => {
   }
 });
 
-app.post("/api/send-otp", async (req, res) => {
-  const { mobile } = req.body;
+
+app.post("/api/send-email-otp", async (req, res) => {
+  const { email } = req.body;
 
   const otp = Math.floor(100000 + Math.random() * 900000);
 
-  // ✅ STORE OTP
-  otpStore[mobile] = otp;
-
   try {
-    await client.messages.create({
-      body: `Your OTP is ${otp}`,
-      from: process.env.TWILIO_PHONE, // 👈 YOUR TWILIO NUMBER
-      to: `+91${mobile}`              // 👈 USER NUMBER
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Your OTP Code 🔐",
+      html: `
+        <h2>Your OTP is: ${otp}</h2>
+        <p>This OTP is valid for 5 minutes.</p>
+      `
     });
 
-    res.json({ message: "OTP sent ✅" });
+    otpStore[email] = {
+  otp,
+  expires: Date.now() + 5 * 60 * 1000 // 5 minutes
+};
+
+    res.json({ message: "OTP sent to email ✅" });
+
+  } catch (err) {
+    console.log("EMAIL OTP ERROR:", err);
+    res.status(500).send("Failed to send OTP ❌");
+  }
+});
+
+app.post("/api/verify-email-otp", async (req, res) => {
+  const { username, email, password, otp } = req.body;
+
+ const record = otpStore[email];
+
+if (!record) {
+  return res.status(400).json({ error: "OTP not found ❌" });
+}
+
+if (record.otp != otp) {
+  return res.status(400).json({ error: "Invalid OTP ❌" });
+}
+
+if (Date.now() > record.expires) {
+  return res.status(400).json({ error: "OTP expired ⏳" });
+}
+ {
+    return res.status(400).json({ error: "Invalid OTP ❌" });
+  }
+
+  try {
+    // ✅ check existing user
+    const existingUser = await db.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: "User already exists ❌" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.query(
+      "INSERT INTO users (username, email, password) VALUES ($1,$2,$3)",
+      [username, email, hashedPassword]
+    );
+
+    delete otpStore[email];
+
+    res.json({
+  message: "Signup successful ✅",
+  user: { username, email }
+});
 
   } catch (err) {
     console.log(err);
-    res.status(500).send("OTP failed ❌");
+    res.status(500).send("Signup error");
   }
 });
 

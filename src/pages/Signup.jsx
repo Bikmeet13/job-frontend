@@ -14,44 +14,32 @@ function Signup() {
 
   const navigate = useNavigate();
 
-  // ✅ SEND OTP
   const sendOtp = async () => {
-    try {
-      await axios.post(
-        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/send-otp",
-        { mobile }
-      );
+  await axios.post(
+    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/send-email-otp",
+    { email }
+  );
 
-      toast.success("OTP sent 📱");
-      setOtpSent(true);
+  setOtpSent(true);
+  toast.success("OTP sent to email 📩");
+};
 
-    } catch (err) {
-      toast.error("Failed to send OTP ❌");
-    }
-  };
-
-  // ✅ VERIFY OTP + SIGNUP
   const verifyOtp = async () => {
-    try {
-      await axios.post(
-        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/verify-otp",
-        {
-          username,
-          email,
-          password,
-          mobile,
-          otp
-        }
-      );
-
-      toast.success("Signup successful 🎉");
-
-      setTimeout(() => navigate("/login"), 1500);
-
-    } catch (err) {
-      toast.error("Invalid OTP ❌");
+  const res = await axios.post(
+    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/verify-email-otp",
+    {
+      username,
+      email,
+      password,
+      otp
     }
-  };
+  );
+
+  if (res.data) {
+    toast.success("Signup successful 🎉");
+    navigate("/login");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-200">
