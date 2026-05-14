@@ -806,20 +806,12 @@ if (!record) {
   return res.status(400).json({ error: "OTP not found ❌" });
 }
 
-if (record.otp != otp) {
-  return res.status(400).json({ error: "Invalid OTP ❌" });
-}
-
-if (!record) {
-  return res.status(400).json({ error: "OTP not found ❌" });
-}
-
-if (record.otp != otp) {
-  return res.status(400).json({ error: "Invalid OTP ❌" });
-}
-
 if (Date.now() > record.expires) {
   return res.status(400).json({ error: "OTP expired ⏳" });
+}
+
+if (record.otp != otp) {
+  return res.status(400).json({ error: "Invalid OTP ❌" });
 }
 
   try {
