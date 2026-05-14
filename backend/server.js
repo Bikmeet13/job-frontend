@@ -2,6 +2,13 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
+const otpStore = {};
+const twilio = require("twilio");
+
+const client = twilio(
+  process.env.TWILIO_SID,
+  process.env.TWILIO_AUTH
+);
 const pdfParse = require("pdf-parse");
 
 const fs = require("fs");
@@ -812,7 +819,7 @@ app.get("/api/jobs/:id", async (req, res) => {
 
     let questions = [];
 
-    // 🔥 SAFE PARSE
+        // 🔥 SAFE PARSE
     try {
       if (typeof job.chatbot_questions === "string") {
         questions = JSON.parse(job.chatbot_questions);
@@ -834,6 +841,29 @@ app.get("/api/jobs/:id", async (req, res) => {
   } catch (err) {
     console.log("GET JOB ERROR:", err);
     res.status(500).send("Error fetching job");
+  }
+});
+
+app.post("/api/send-otp", async (req, res) => {
+  const { mobile } = req.body;
+
+  const otp = Math.floor(100000 + Math.random() * 900000);
+
+  // ✅ STORE OTP
+  otpStore[mobile] = otp;
+
+  try {
+    await client.messages.create({
+      body: `Your OTP is ${otp}`,
+      from: process.env.TWILIO_PHONE, // 👈 YOUR TWILIO NUMBER
+      to: `+91${mobile}`              // 👈 USER NUMBER
+    });
+
+    res.json({ message: "OTP sent ✅" });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("OTP failed ❌");
   }
 });
 

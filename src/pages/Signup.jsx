@@ -1,130 +1,139 @@
 import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast"; 
+import toast from "react-hot-toast";
+import axios from "axios";
 import React, { useState } from "react";
 
 function Signup() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminSecret, setAdminSecret] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+
   const navigate = useNavigate();
 
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    
+  // ✅ SEND OTP
+  const sendOtp = async () => {
+    try {
+      await axios.post(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/send-otp",
+        { mobile }
+      );
 
-    const res = await fetch(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/signup",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-      username,
-      email,
-      password,
-      adminSecret   // ✅ IMPORTANT
-        })
-      }
-    );
+      toast.success("OTP sent 📱");
+      setOtpSent(true);
 
-    const data = await res.json();
-if (res.ok) {
-  toast.success("Signup successful 🎉");
+    } catch (err) {
+      toast.error("Failed to send OTP ❌");
+    }
+  };
 
-  setTimeout(() => {
-    navigate("/login");
-  }, 1500); // small delay so user sees toast
-}
+  // ✅ VERIFY OTP + SIGNUP
+  const verifyOtp = async () => {
+    try {
+      await axios.post(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/verify-otp",
+        {
+          username,
+          email,
+          password,
+          mobile,
+          otp
+        }
+      );
+
+      toast.success("Signup successful 🎉");
+
+      setTimeout(() => navigate("/login"), 1500);
+
+    } catch (err) {
+      toast.error("Invalid OTP ❌");
+    }
   };
 
   return (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-200">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-200">
 
-    <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
 
-      <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
-        Create Account 🚀
-      </h2>
+        <h2 className="text-3xl font-bold text-center mb-6">
+          Create Account 🚀
+        </h2>
 
-      <form onSubmit={handleSignup} className="space-y-4">
-
+        {/* USER INPUTS */}
         <input
           type="text"
           placeholder="Username"
-          value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          required
+          className="w-full p-3 border rounded-lg mb-3"
         />
 
         <input
           type="email"
           placeholder="Email"
-          value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          required
+          className="w-full p-3 border rounded-lg mb-3"
         />
 
         <input
           type="password"
           placeholder="Password"
-          value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          required
+          className="w-full p-3 border rounded-lg mb-3"
         />
 
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            checked={isAdmin}
-            onChange={() => setIsAdmin(!isAdmin)}
-          />
-          Signup as Admin (Post Jobs)
-        </label>
+        <input
+          type="text"
+          placeholder="Mobile Number"
+          onChange={(e) => setMobile(e.target.value)}
+          className="w-full p-3 border rounded-lg mb-3"
+        />
 
-        {isAdmin && (
-          <input
-            type="text"
-            placeholder="Enter Admin Secret"
-            value={adminSecret}
-            onChange={(e) => setAdminSecret(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-          />
+        {/* SEND OTP */}
+        {!otpSent && (
+          <button
+            onClick={sendOtp}
+            className="w-full bg-blue-600 text-white py-3 rounded-xl"
+          >
+            Send OTP
+          </button>
         )}
 
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
-        >
-          Signup
-        </button>
+        {/* VERIFY */}
+        {otpSent && (
+          <>
+            <input
+              type="text"
+              placeholder="Enter OTP"
+              onChange={(e) => setOtp(e.target.value)}
+              className="w-full p-3 border rounded-lg mt-3"
+            />
 
-      </form>
+            <button
+              onClick={verifyOtp}
+              className="w-full bg-green-600 text-white py-3 rounded-xl mt-3"
+            >
+              Verify & Signup
+            </button>
+          </>
+        )}
 
-      <form onSubmit={handleSignup} className="space-y-4">
-  ...
-</form>
+        {/* LOGIN */}
+        <p className="text-sm text-center mt-4">
+          Already have an account?
+          <span
+            onClick={() => navigate("/login")}
+            className="text-blue-600 cursor-pointer ml-1"
+          >
+            Login
+          </span>
+        </p>
 
-{/* ✅ ADD HERE */}
-<p className="text-sm text-center text-gray-500 mt-4">
-  Already have an account?
-  <span
-    onClick={() => navigate("/login")}
-    className="text-blue-600 cursor-pointer ml-1 hover:underline font-medium"
-  >
-    Login
-  </span>
-</p>
-
+      </div>
     </div>
-
-  </div>
-);
+  );
 }
 
 export default Signup;

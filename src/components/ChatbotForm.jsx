@@ -11,6 +11,7 @@ function ChatbotForm() {
   const [answers, setAnswers] = useState([]);
   const [input, setInput] = useState("");
   const [questions, setQuestions] = useState([]);
+  const jobId = params.get("jobId");
 
   const handleAnswer = async (answer) => {
     if (!answer) return;
@@ -27,7 +28,14 @@ function ChatbotForm() {
     );
 
     setAnswers([...answers, { question, answer }]);
-    setStep(step + 1);
+    const nextStep = step + 1;
+
+setStep(nextStep);
+
+// ✅ if last question → mark completed
+if (nextStep >= questions.length) {
+  localStorage.setItem(`done_${jobId}`, "true");
+}
     setInput("");
   };
 
@@ -40,23 +48,23 @@ function ChatbotForm() {
       );
 
       if (res.data.length > 0) {
-        setStep(999); // ✅ skip to completed
-        return;       // 🚨 STOP here
-      }
-
+  localStorage.setItem(`done_${jobId}`, "true"); // ✅ ADD THIS
+  setStep(999);
+  return;
+}
       // ✅ 1. get application
       const appRes = await axios.get(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${applicationId}`
       );
 
-      const jobId = appRes.data.jobid;
+     const fetchedJobId = appRes.data.jobid || appRes.data.jobId;
 
       if (!jobId) return;
 
       // ✅ 2. get job
       const jobRes = await axios.get(
-        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${jobId}`
-      );
+  `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${fetchedJobId}`
+);
 
       // ✅ 3. set questions
       const qs = jobRes.data.chatbot_questions || [];

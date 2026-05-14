@@ -1,3 +1,4 @@
+import ApplyForm from "./components/ApplyForm";
 import AdminApplications from "./pages/AdminApplications";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -20,6 +21,8 @@ function App() {
       <Toaster position="top-right" />
 
     <Routes>
+
+      <Route path="/apply/:jobId" element={<ApplyForm />} />
 
       <Route path="/" element={<Jobs />} />
 

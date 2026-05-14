@@ -5,6 +5,8 @@ function Profile() {
   const [profileImage, setProfileImage] = useState(null);
 const [uploadedImage, setUploadedImage] = useState("");
   const [uploadedResume, setUploadedResume] = useState("");
+  const username = localStorage.getItem("username");
+const email = localStorage.getItem("email");
   return (
     <div className="min-h-screen bg-gray-100 p-10">
 
@@ -18,27 +20,24 @@ const [uploadedImage, setUploadedImage] = useState("");
   src={
     uploadedImage
       ? `http://localhost:5000/uploads/${uploadedImage}`
-      : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+      : `https://ui-avatars.com/api/?name=${username}`
   }
-            alt="profile"
-            className="w-32 h-32 rounded-full border-4 border-blue-500"
-          />
+  alt="profile"
+  className="w-32 h-32 rounded-full border-4 border-blue-500"
+/>
 
           {/* User Info */}
           <div>
 
-            <h1 className="text-4xl font-bold text-gray-800">
-              Bikramjeet Singh
+            <h1 className="text-3xl font-bold">
+  {username || "User"}
             </h1>
 
-            <p className="text-gray-500 mt-2">
-              Full Stack Developer
+            <p className="text-blue-600">
+  {email || "No email"}
             </p>
 
-            <p className="text-blue-600 mt-2">
-              bikram@example.com
-            </p>
-
+            
           </div>
 
         </div>
@@ -76,10 +75,10 @@ const [uploadedImage, setUploadedImage] = useState("");
 
       const formData = new FormData();
 
-      formData.append("resume", profileImage);
+      formData.append("image", profileImage);
 
       const response = await fetch(
-        "http://localhost:5000/api/upload-resume",
+        "http://localhost:5000/api/upload-image",
         {
           method: "POST",
           body: formData

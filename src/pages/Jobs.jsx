@@ -209,6 +209,12 @@ if (loading) {
   {/* 💻 Desktop Links */}
   <div className="hidden md:flex items-center gap-4">
 
+    {username && (
+  <p className="font-semibold text-blue-600">
+    👋 {username}
+  </p>
+)}
+
     {/* Dark Mode */}
     <button
       onClick={() => setDarkMode(!darkMode)}
@@ -532,6 +538,8 @@ if (loading) {
   console.log("Job ID:", job.id);
   console.log("Is Saved:", savedJobs.includes(job.id));
 
+  const completed = localStorage.getItem(`done_${job.id}`);
+
   return (
     <motion.div
       onClick={() => navigate(`/jobs/${job.id}`)}
@@ -620,11 +628,18 @@ if (loading) {
                 </div>
 
                 {/* 🔘 Apply Button */}
-                {appId ? (
+               
+{completed ? (
+  <button
+    className="bg-gray-500 text-white px-4 py-2 rounded cursor-not-allowed"
+  >
+    Application Completed ✅
+  </button>
+) : appId ? (
   <button
     onClick={(e) => {
-      e.stopPropagation(); // ✅ important (prevents card click)
-      navigate(`/chatbot?applicationId=${appId}`);
+      e.stopPropagation();
+      navigate(`/chatbot?applicationId=${appId}&jobId=${job.id}`);
     }}
     className="bg-green-600 text-white px-4 py-2 rounded"
   >
