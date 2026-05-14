@@ -72,13 +72,7 @@ function Signup() {
           className="w-full p-3 border rounded-lg mb-3"
         />
 
-        <input
-          type="text"
-          placeholder="Mobile Number"
-          onChange={(e) => setMobile(e.target.value)}
-          className="w-full p-3 border rounded-lg mb-3"
-        />
-
+        
         {/* SEND OTP */}
         {!otpSent && (
           <button
