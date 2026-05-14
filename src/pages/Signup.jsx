@@ -15,29 +15,28 @@ function Signup() {
   const navigate = useNavigate();
 
   const sendOtp = async () => {
-  await axios.post(
-    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/send-email-otp",
-    { email }
-  );
+  console.log("CLICKED");
+  console.log("EMAIL:", email);
 
-  setOtpSent(true);
-  toast.success("OTP sent to email 📩");
-};
+  if (!email) {
+    toast.error("Please enter email first ❌");
+    return;
+  }
 
-  const verifyOtp = async () => {
-  const res = await axios.post(
-    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/verify-email-otp",
-    {
-      username,
-      email,
-      password,
-      otp
-    }
-  );
+  try {
+    const res = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/send-email-otp",
+      { email }
+    );
 
-  if (res.data) {
-    toast.success("Signup successful 🎉");
-    navigate("/login");
+    console.log("RESPONSE:", res.data);
+
+    setOtpSent(true);
+    toast.success("OTP sent to email 📩");
+
+  } catch (err) {
+  console.log("FULL ERROR:", err.response?.data || err.message);
+  toast.error("Failed to send OTP ❌");
   }
 };
 
@@ -59,47 +58,44 @@ function Signup() {
         />
 
         <input
-          type="email"
-          placeholder="Email"
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 border rounded-lg mb-3"
-        />
-
+  type="email"
+  placeholder="Email"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  className="w-full p-3 border rounded-lg mb-3"
+/>
         <input
           type="password"
           placeholder="Password"
           onChange={(e) => setPassword(e.target.value)}
           className="w-full p-3 border rounded-lg mb-3"
         />
-
         
         {/* SEND OTP */}
         {!otpSent && (
           <button
-            onClick={sendOtp}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl"
-          >
-            Send OTP
-          </button>
+  type="button"
+  onClick={sendOtp}
+  disabled={!email}
+  className="w-full bg-blue-600 text-white py-3 rounded-xl disabled:bg-gray-400"
+>
+  Send OTP
+</button>
+
         )}
 
         {/* VERIFY */}
         {otpSent && (
-          <>
-            <input
-              type="text"
-              placeholder="Enter OTP"
-              onChange={(e) => setOtp(e.target.value)}
-              className="w-full p-3 border rounded-lg mt-3"
-            />
+           <>
+    <input
+      placeholder="Enter OTP"
+      onChange={(e) => setOtp(e.target.value)} 
+    />
 
-            <button
-              onClick={verifyOtp}
-              className="w-full bg-green-600 text-white py-3 rounded-xl mt-3"
-            >
-              Verify & Signup
-            </button>
-          </>
+             <button type="button" onClick={verifyOtp}>
+      Verify & Signup
+    </button>
+  </>
         )}
 
         {/* LOGIN */}

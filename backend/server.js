@@ -38,9 +38,8 @@ cloudinary.config({
 
 const transporter = nodemailer.createTransport({
   host: "smtp.hostinger.com",
-  port: 465,
-  secure: true,
-
+  port: 587,          // 👈 change port
+  secure: false,      // 👈 important
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -818,8 +817,8 @@ app.post("/api/send-email-otp", async (req, res) => {
     res.json({ message: "OTP sent to email ✅" });
 
   } catch (err) {
-    console.log("EMAIL OTP ERROR:", err);
-    res.status(500).send("Failed to send OTP ❌");
+  console.log("EMAIL OTP ERROR:", err); // 👈 already there
+  res.status(500).send("Failed to send OTP ❌");
   }
 });
 
