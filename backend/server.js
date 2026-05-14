@@ -14,7 +14,9 @@ const {
   CloudinaryStorage
 } = require("multer-storage-cloudinary");
 
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const db = require("./db");
 const bcrypt = require("bcryptjs");
@@ -389,7 +391,7 @@ app.post("/api/login", async (req, res) => {
     email: user.rows[0].email,
     role: user.rows[0].role   // ✅ ADD THIS
   },
-  "secret123"
+   process.env.JWT_SECRET
 );
 
     res.json({
@@ -799,26 +801,24 @@ app.post("/api/send-email-otp", async (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000);
 
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: "Marketlence <onboarding@resend.dev>", // temp sender
       to: email,
       subject: "Your OTP Code 🔐",
-      html: `
-        <h2>Your OTP is: ${otp}</h2>
-        <p>This OTP is valid for 5 minutes.</p>
-      `
+      html: `<h2>Your OTP is: ${otp}</h2>
+             <p>This OTP is valid for 5 minutes.</p>`
     });
 
     otpStore[email] = {
-  otp,
-  expires: Date.now() + 5 * 60 * 1000 // 5 minutes
-};
+      otp,
+      expires: Date.now() + 5 * 60 * 1000
+    };
 
-    res.json({ message: "OTP sent to email ✅" });
+    res.json({ message: "OTP sent ✅" });
 
   } catch (err) {
-  console.log("EMAIL OTP ERROR:", err); // 👈 already there
-  res.status(500).send("Failed to send OTP ❌");
+    console.log("RESEND ERROR:", err);
+    res.status(500).send("Failed to send OTP ❌");
   }
 });
 
