@@ -789,7 +789,7 @@ app.post("/api/send-email-otp", async (req, res) => {
 
   try {
     await resend.emails.send({
-      from: "Marketlence <onboarding@resend.dev>", // temp sender
+      from: "Marketlence <care@marketlence.com>", // temp sender
       to: email,
       subject: "Your OTP Code 🔐",
       html: `<h2>Your OTP is: ${otp}</h2>

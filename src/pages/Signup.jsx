@@ -7,7 +7,7 @@ function Signup() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
+  const [isAdmin, setIsAdmin] = useState(false);
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -47,7 +47,8 @@ const verifyOtp = async () => {
         username,
         email,
         password,
-        otp
+        otp,
+         isAdmin
       }
     );
 
@@ -70,6 +71,16 @@ const verifyOtp = async () => {
         <h2 className="text-3xl font-bold text-center mb-6">
           Create Account 🚀
         </h2>
+
+        <label>
+  <input
+    type="checkbox"
+    checked={isAdmin}
+    onChange={() => setIsAdmin(!isAdmin)}
+  />
+  Signup as Admin
+</label>
+
 
         {/* USER INPUTS */}
         <input
