@@ -19,7 +19,7 @@ function Signup() {
   console.log("EMAIL:", email);
 
   if (!email) {
-    toast.error("Please enter email first ❌");
+    alert("Please enter email");
     return;
   }
 
@@ -29,14 +29,36 @@ function Signup() {
       { email }
     );
 
-    console.log("RESPONSE:", res.data);
-
+    console.log("SUCCESS:", res.data);
     setOtpSent(true);
-    toast.success("OTP sent to email 📩");
+    toast.success("OTP sent 📩");
 
   } catch (err) {
-  console.log("FULL ERROR:", err.response?.data || err.message);
-  toast.error("Failed to send OTP ❌");
+    console.log("ERROR:", err);
+    toast.error("Failed ❌");
+  }
+};
+
+const verifyOtp = async () => {
+  try {
+    const res = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/verify-email-otp",
+      {
+        username,
+        email,
+        password,
+        otp
+      }
+    );
+
+    console.log("VERIFY RESPONSE:", res.data);
+
+    toast.success("Signup successful 🎉");
+    navigate("/login");
+
+  } catch (err) {
+    console.log("VERIFY ERROR:", err);
+    toast.error("Invalid OTP ❌");
   }
 };
 

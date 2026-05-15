@@ -157,6 +157,12 @@ function verifyToken(req, res, next) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
+function isAdmin(req, res, next) {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied ❌");
+  }
+  next();
+}
 
 app.get("/api/applications", verifyToken, async (req, res) => {
   try {
@@ -359,6 +365,12 @@ app.post("/api/login", async (req, res) => {
         error: "Invalid password"
       });
     }
+
+    if (user.rows[0].role === "admin" && !user.rows[0].is_approved) {
+  return res.status(403).json({
+    error: "Admin approval pending ⏳"
+  });
+}
 
     const token = jwt.sign(
   {
@@ -798,24 +810,31 @@ app.post("/api/send-email-otp", async (req, res) => {
 });
 
 app.post("/api/verify-email-otp", async (req, res) => {
-  const { username, email, password, otp } = req.body;
+  const { username, email, password, otp, isAdmin } = req.body;
 
- const record = otpStore[email];
+  const record = otpStore[email]; // ✅ FIX
 
-if (!record) {
-  return res.status(400).json({ error: "OTP not found ❌" });
-}
+  let role = "user";
+  let isApproved = true;
 
-if (Date.now() > record.expires) {
-  return res.status(400).json({ error: "OTP expired ⏳" });
-}
+  if (isAdmin) {
+    role = "admin";
+    isApproved = false; // wait for approval
+  }
 
-if (record.otp != otp) {
-  return res.status(400).json({ error: "Invalid OTP ❌" });
-}
+  if (!record) {
+    return res.status(400).json({ error: "OTP not found ❌" });
+  }
+
+  if (Date.now() > record.expires) {
+    return res.status(400).json({ error: "OTP expired ⏳" });
+  }
+
+  if (record.otp != otp) {
+    return res.status(400).json({ error: "Invalid OTP ❌" });
+  }
 
   try {
-    // ✅ check existing user
     const existingUser = await db.query(
       "SELECT * FROM users WHERE email = $1",
       [email]
@@ -828,22 +847,52 @@ if (record.otp != otp) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.query(
-      "INSERT INTO users (username, email, password) VALUES ($1,$2,$3)",
-      [username, email, hashedPassword]
+      "INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,$4,$5)",
+      [username, email, hashedPassword, role, isApproved]
     );
 
     delete otpStore[email];
 
-    res.json({
-  message: "Signup successful ✅",
-  user: { username, email }
-});
+    res.json({ message: "Signup successful ✅" });
 
   } catch (err) {
     console.log(err);
     res.status(500).send("Signup error");
   }
 });
+
+app.get("/api/admin-requests",verifyToken, isAdmin, async (req, res) => {
+  const result = await db.query(
+    "SELECT * FROM users WHERE role = 'admin' AND is_approved = false"
+  );
+
+  res.json(result.rows);
+});
+
+app.put("/api/approve-admin/:id",verifyToken, isAdmin, async (req, res) => {
+  const id = req.params.id;
+
+  await db.query(
+    "UPDATE users SET is_approved = true WHERE id = $1",
+    [id]
+  );
+
+  res.send("Approved ✅");
+});
+
+app.delete("/api/reject-admin/:id",verifyToken, isAdmin, async (req, res) => {
+  const id = req.params.id;
+
+  await db.query(
+    "DELETE FROM users WHERE id = $1",
+    [id]
+  );
+
+  res.send("Rejected ❌");
+});
+
+
+
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);

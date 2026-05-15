@@ -25,6 +25,7 @@ const [loadingMap, setLoadingMap] = useState({});
 const [countMap, setCountMap] = useState({});
 const [questions, setQuestions] = useState([""]);
 const [description, setDescription] = useState("");
+const [adminRequests, setAdminRequests] = useState([]);
 
 const navigate = useNavigate();
 
@@ -131,6 +132,24 @@ axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
   } catch (err) {
     console.log(err);
     toast.error("Failed to add job ❌");
+  }
+};
+
+const fetchAdminRequests = async () => {
+  try {
+    const res = await axios.get(
+     "https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-requests",
+      {
+        headers: {
+          Authorization: localStorage.getItem("token")
+        }
+      }
+    );
+
+    setAdminRequests(res.data);
+
+  } catch (err) {
+    console.log(err);
   }
 };
 
@@ -262,6 +281,45 @@ const deleteJob = async (id) => {
   }
 };
 
+const approveAdmin = async (id) => {
+  try {
+    await axios.post(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-approve/${id}`,
+      {},
+      {
+        headers: {
+          Authorization: localStorage.getItem("token")
+        }
+      }
+    );
+
+    toast.success("Approved ✅");
+    fetchAdminRequests();
+
+  } catch (err) {
+    console.log(err);
+    toast.error("Failed ❌");
+  }
+};
+
+const rejectAdmin = async (id) => {
+  try {
+    await axios.delete(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-request/${id}`,
+      {
+        headers: {
+          Authorization: localStorage.getItem("token")
+        }
+      }
+    );
+
+    toast.success("Rejected ❌");
+    fetchAdminRequests();
+
+  } catch (err) {
+    console.log(err);
+  }
+};
 
 const filteredApplications = applications.filter(app => {
 
@@ -275,14 +333,50 @@ const filteredApplications = applications.filter(app => {
     if (!shortlisted.find(item => item.id === app.id)) return false;
   }
 
-  return true;
+    return true;
 });
+
+useEffect(() => {
+  fetchAdminRequests();
+}, []);
 
 
   return (
   <div className="p-10 bg-gray-100 min-h-screen">
 
     <div className="max-w-5xl mx-auto">
+
+      <h1 className="text-2xl font-bold mb-4">🛡 Admin Requests</h1>
+
+{adminRequests.length === 0 ? (
+  <p>No pending admin requests</p>
+) : (
+  adminRequests.map(req => (
+    <div
+      key={req.id}
+      className="bg-white p-4 rounded-lg shadow mb-3 border"
+    >
+      <p><b>Name:</b> {req.username}</p>
+      <p><b>Email:</b> {req.email}</p>
+
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => approveAdmin(req.id)}
+          className="bg-green-500 text-white px-3 py-1 rounded"
+        >
+          Approve
+        </button>
+
+        <button
+          onClick={() => rejectAdmin(req.id)}
+          className="bg-red-500 text-white px-3 py-1 rounded"
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+  ))
+)}
 
       {/* 🔹 JOBS SECTION */}
       <h1 className="text-2xl font-bold mb-4">💼 Jobs Section</h1>
