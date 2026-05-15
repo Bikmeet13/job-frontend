@@ -830,7 +830,7 @@ app.post("/api/verify-email-otp", async (req, res) => {
     return res.status(400).json({ error: "OTP expired ⏳" });
   }
 
-  if (record.otp != otp) {
+  if (String(record.otp) !== String(otp)) {
     return res.status(400).json({ error: "Invalid OTP ❌" });
   }
 

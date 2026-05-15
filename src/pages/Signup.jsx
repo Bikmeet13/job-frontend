@@ -34,9 +34,9 @@ function Signup() {
     toast.success("OTP sent 📩");
 
   } catch (err) {
-    console.log("ERROR:", err);
-    toast.error("Failed ❌");
-  }
+  console.log("FULL ERROR:", err.response?.data); // 🔥 IMPORTANT
+  toast.error(err.response?.data?.error || "Something failed ❌");
+}
 };
 
 const verifyOtp = async () => {
@@ -56,11 +56,12 @@ const verifyOtp = async () => {
 
     toast.success("Signup successful 🎉");
     navigate("/login");
-
-  } catch (err) {
-    console.log("VERIFY ERROR:", err);
-    toast.error("Invalid OTP ❌");
-  }
+    
+  } 
+  catch (err) {
+  console.log("FULL ERROR:", err.response?.data); // 🔥 ADD THIS
+  toast.error(err.response?.data?.error || "Invalid OTP ❌");
+}
 };
 
   return (
@@ -94,6 +95,7 @@ const verifyOtp = async () => {
   type="email"
   placeholder="Email"
   value={email}
+   disabled={otpSent}
   onChange={(e) => setEmail(e.target.value)}
   className="w-full p-3 border rounded-lg mb-3"
 />
