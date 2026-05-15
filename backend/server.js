@@ -785,21 +785,24 @@ app.get("/api/jobs/:id", async (req, res) => {
 app.post("/api/send-email-otp", async (req, res) => {
   const { email } = req.body;
 
+  const cleanEmail = email.toLowerCase().trim();
   const otp = Math.floor(100000 + Math.random() * 900000);
 
   try {
     await resend.emails.send({
-      from: "Marketlence <care@marketlence.com>", // temp sender
-      to: email,
+      from: "Marketlence <care@marketlence.com>",
+      to: cleanEmail,
       subject: "Your OTP Code 🔐",
       html: `<h2>Your OTP is: ${otp}</h2>
              <p>This OTP is valid for 5 minutes.</p>`
     });
 
-    otpStore[email] = {
-      otp,
-      expires: Date.now() + 5 * 60 * 1000
-    };
+    await db.query(
+  "INSERT INTO otps (email, otp, expires) VALUES ($1,$2,$3) ON CONFLICT (email) DO UPDATE SET otp=$2, expires=$3",
+  [cleanEmail, otp, Date.now() + 5 * 60 * 1000]
+);
+
+    console.log("OTP STORED:", otpStore[cleanEmail]);
 
     res.json({ message: "OTP sent ✅" });
 
@@ -812,14 +815,24 @@ app.post("/api/send-email-otp", async (req, res) => {
 app.post("/api/verify-email-otp", async (req, res) => {
   const { username, email, password, otp, isAdmin } = req.body;
 
-  const record = otpStore[email]; // ✅ FIX
+  const cleanEmail = email.toLowerCase().trim();
+  const result = await db.query(
+  "SELECT * FROM otps WHERE email = $1",
+  [cleanEmail]
+);
+
+const record = result.rows[0];
+
+  console.log("EMAIL:", cleanEmail);
+  console.log("STORED:", record);
+  console.log("ENTERED OTP:", otp);
 
   let role = "user";
   let isApproved = true;
 
   if (isAdmin) {
     role = "admin";
-    isApproved = false; // wait for approval
+    isApproved = false;
   }
 
   if (!record) {
@@ -837,7 +850,7 @@ app.post("/api/verify-email-otp", async (req, res) => {
   try {
     const existingUser = await db.query(
       "SELECT * FROM users WHERE email = $1",
-      [email]
+      [cleanEmail]
     );
 
     if (existingUser.rows.length > 0) {
@@ -848,25 +861,17 @@ app.post("/api/verify-email-otp", async (req, res) => {
 
     await db.query(
       "INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,$4,$5)",
-      [username, email, hashedPassword, role, isApproved]
+      [username, cleanEmail, hashedPassword, role, isApproved]
     );
 
-    delete otpStore[email];
-
+   await db.query("DELETE FROM otps WHERE email = $1", [cleanEmail]);
+   
     res.json({ message: "Signup successful ✅" });
 
   } catch (err) {
     console.log(err);
     res.status(500).send("Signup error");
   }
-});
-
-app.get("/api/admin-requests",verifyToken, isAdmin, async (req, res) => {
-  const result = await db.query(
-    "SELECT * FROM users WHERE role = 'admin' AND is_approved = false"
-  );
-
-  res.json(result.rows);
 });
 
 app.put("/api/approve-admin/:id",verifyToken, isAdmin, async (req, res) => {
