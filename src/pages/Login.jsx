@@ -33,7 +33,9 @@ function Login() {
     console.log("USER ID:", userId);
     console.log("FULL RESPONSE:", res.data);
 
-        localStorage.setItem("userId", userId);
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", role);
+    localStorage.setItem("userId", userId);
     
      toast.success("Login successful 🚀");
      

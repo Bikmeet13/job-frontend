@@ -22,7 +22,9 @@ function Login() {
     const { token, role } = res.data; // ✅ ADD THIS
 
     if (token) {
-      
+      localStorage.setItem("token", token);
+       localStorage.setItem("role", role);
+
       if (role === "superadmin") {
   navigate("/admin"); // approval panel
 } 
