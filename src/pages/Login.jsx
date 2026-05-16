@@ -33,18 +33,16 @@ function Login() {
     console.log("USER ID:", userId);
     console.log("FULL RESPONSE:", res.data);
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("role", role);
-    localStorage.setItem("userId", userId);
+        localStorage.setItem("userId", userId);
     
      toast.success("Login successful 🚀");
      
     setTimeout(() => {
-      if (role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      if (role === "user") {
+  navigate("/");
+} else {
+  alert("Use admin login ❌");
+}
     }, 1000);
 
  } catch (err) {
@@ -92,6 +90,13 @@ function Login() {
 
         <br /><br />
 
+        <p
+  onClick={() => navigate("/forgot-password")}
+  style={{ cursor: "pointer", color: "blue", marginBottom: "10px" }}
+>
+  Forgot Password?
+</p>
+
         <button
   type="submit"
   disabled={loading}
@@ -103,6 +108,15 @@ function Login() {
 >
   {loading ? "Logging in..." : "Login"}
 </button>
+
+
+<p
+  onClick={() => navigate("/admin-login")}
+  style={{ cursor: "pointer", color: "green", marginTop: "10px" }}
+>
+  Login as Admin
+</p>
+
       </form>
 
       <button

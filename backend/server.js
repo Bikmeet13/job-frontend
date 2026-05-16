@@ -2,6 +2,7 @@ require("dotenv").config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
+const lastRequest = {};
 const otpStore = {};
 const pdfParse = require("pdf-parse");
 
@@ -164,9 +165,18 @@ function isAdmin(req, res, next) {
   next();
 }
 
-app.get("/api/applications", verifyToken, async (req, res) => {
+function isSuperAdmin(req, res, next) {
+  if (req.user.role !== "superadmin") {
+    return res.status(403).json({
+      error: "Only super admin can perform this action ❌"
+    });
+  }
+  next();
+}
+
+app.get("/api/admin-requests", verifyToken, isSuperAdmin, async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM applications");
+    const result = await db.query("SELECT * FROM users WHERE role = 'admin' AND is_approved = false");
     res.json(result.rows);
   } catch (err) {
     console.log(err);
@@ -786,6 +796,23 @@ app.post("/api/send-email-otp", async (req, res) => {
   const { email } = req.body;
 
   const cleanEmail = email.toLowerCase().trim();
+
+  // 🚫 RATE LIMIT CHECK
+  if (
+    lastRequest[cleanEmail] &&
+    Date.now() - lastRequest[cleanEmail] < 60000
+  ) {
+    return res.status(429).json({
+      error: "Wait before requesting again ⏳"
+    });
+  }
+
+  // ✅ SAVE REQUEST TIME
+  lastRequest[cleanEmail] = Date.now();
+
+  const otp = Math.floor(100000 + Math.random() * 900000);
+
+  const cleanEmail = email.toLowerCase().trim();
   const otp = Math.floor(100000 + Math.random() * 900000);
 
   try {
@@ -802,8 +829,7 @@ app.post("/api/send-email-otp", async (req, res) => {
   [cleanEmail, otp, Date.now() + 5 * 60 * 1000]
 );
 
-    console.log("OTP STORED:", otpStore[cleanEmail]);
-
+   
     res.json({ message: "OTP sent ✅" });
 
   } catch (err) {
@@ -823,9 +849,11 @@ app.post("/api/verify-email-otp", async (req, res) => {
 
 const record = result.rows[0];
 
-  console.log("EMAIL:", cleanEmail);
-  console.log("STORED:", record);
-  console.log("ENTERED OTP:", otp);
+
+console.log("EMAIL:", cleanEmail);
+console.log("STORED:", record);
+console.log("ENTERED OTP:", otp);
+console.log("COMPARE:", String(record.otp), String(otp));
 
   let role = "user";
   let isApproved = true;
@@ -839,7 +867,7 @@ const record = result.rows[0];
     return res.status(400).json({ error: "OTP not found ❌" });
   }
 
-  if (Date.now() > record.expires) {
+  if (Date.now() > Number(record.expires)) {
     return res.status(400).json({ error: "OTP expired ⏳" });
   }
 
@@ -857,6 +885,15 @@ const record = result.rows[0];
       return res.status(400).json({ error: "User already exists ❌" });
     }
 
+    const userCheck = await db.query(
+  "SELECT * FROM users WHERE email = $1",
+  [cleanEmail]
+);
+
+if (userCheck.rows.length === 0) {
+  return res.status(400).json({ error: "User not found ❌" });
+}
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.query(
@@ -865,7 +902,7 @@ const record = result.rows[0];
     );
 
    await db.query("DELETE FROM otps WHERE email = $1", [cleanEmail]);
-   
+
     res.json({ message: "Signup successful ✅" });
 
   } catch (err) {
@@ -874,7 +911,7 @@ const record = result.rows[0];
   }
 });
 
-app.put("/api/approve-admin/:id",verifyToken, isAdmin, async (req, res) => {
+app.put("/api/approve-admin/:id", verifyToken, isSuperAdmin, async (req, res) => {
   const id = req.params.id;
 
   await db.query(
@@ -885,7 +922,7 @@ app.put("/api/approve-admin/:id",verifyToken, isAdmin, async (req, res) => {
   res.send("Approved ✅");
 });
 
-app.delete("/api/reject-admin/:id",verifyToken, isAdmin, async (req, res) => {
+app.delete("/api/reject-admin/:id", verifyToken, isSuperAdmin, async (req, res) => {
   const id = req.params.id;
 
   await db.query(
@@ -894,6 +931,57 @@ app.delete("/api/reject-admin/:id",verifyToken, isAdmin, async (req, res) => {
   );
 
   res.send("Rejected ❌");
+});
+
+app.post("/api/reset-password", async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  const cleanEmail = email.toLowerCase().trim();
+
+  try {
+    const result = await db.query(
+      "SELECT * FROM otps WHERE email = $1",
+      [cleanEmail]
+    );
+
+    const record = result.rows[0];
+
+    if (!record) {
+      return res.status(400).json({ error: "OTP not found ❌" });
+    }
+
+    if (Date.now() > Number(record.expires)) {
+      return res.status(400).json({ error: "OTP expired ⏳" });
+    }
+
+    if (String(record.otp) !== String(otp)) {
+      return res.status(400).json({ error: "Invalid OTP ❌" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const userCheck = await db.query(
+  "SELECT * FROM users WHERE email = $1",
+  [cleanEmail]
+);
+
+if (userCheck.rows.length === 0) {
+  return res.status(400).json({ error: "User not found ❌" });
+}
+
+    await db.query(
+      "UPDATE users SET password = $1 WHERE email = $2",
+      [hashedPassword, cleanEmail]
+    );
+
+    await db.query("DELETE FROM otps WHERE email = $1", [cleanEmail]);
+
+    res.json({ message: "Password reset successful ✅" });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Reset failed");
+  }
 });
 
 

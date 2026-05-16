@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import SavedJobs from "./pages/SavedJobs";
 import JobDetails from "./pages/JobDetails";
 import ChatbotForm from "./components/ChatbotForm";
+import ForgotPassword from "./pages/ForgotPassword";
 
 import Jobs from "./pages/Jobs";
 import Login from "./pages/Login";
@@ -31,6 +32,8 @@ function App() {
       <Route path="/saved-jobs" element={<SavedJobs />} />
 
       <Route path="/profile" element={<Profile />} />
+
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route
   path="/dashboard"

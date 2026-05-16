@@ -22,14 +22,16 @@ function Login() {
     const { token, role } = res.data; // ✅ ADD THIS
 
     if (token) {
-      localStorage.setItem("token", token);
-       localStorage.setItem("role", role);
-
-      if (role === "admin") {
-        navigate("/admin");
-      } else {
-        alert("Not an admin ❌");
-      }
+      
+      if (role === "superadmin") {
+  navigate("/admin"); // approval panel
+} 
+else if (role === "admin") {
+  navigate("/admin-home"); // normal admin dashboard
+} 
+else {
+  alert("Not authorized ❌");
+}
     }
 
   } catch (err) {
@@ -55,6 +57,13 @@ function Login() {
           onChange={(e) => setPassword(e.target.value)}
           required
         /><br /><br />
+
+        <p
+    onClick={() => navigate("/forgot-password")}
+    style={{ cursor: "pointer", color: "blue", marginBottom: "10px" }}
+  >
+    Forgot Password?
+  </p>
 
         <button type="submit">Login</button>
       </form>

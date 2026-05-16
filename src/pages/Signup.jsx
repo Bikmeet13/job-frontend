@@ -64,6 +64,14 @@ const verifyOtp = async () => {
 }
 };
 
+const role = localStorage.getItem("role");
+
+if (role === "superadmin") {
+  navigate("/admin"); // approval dashboard
+} else if (role === "admin") {
+  navigate("/admin-home"); // normal admin dashboard
+}
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-200">
 
