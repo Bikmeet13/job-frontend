@@ -812,8 +812,7 @@ app.post("/api/send-email-otp", async (req, res) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000);
 
-  const cleanEmail = email.toLowerCase().trim();
-  const otp = Math.floor(100000 + Math.random() * 900000);
+   const otp = Math.floor(100000 + Math.random() * 900000);
 
   try {
     await resend.emails.send({
