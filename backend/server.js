@@ -986,6 +986,16 @@ if (userCheck.rows.length === 0) {
   }
 });
 
+app.get("/api/applications", verifyToken, async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM applications");
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching applications");
+  }
+});
+
 
 
 
