@@ -146,7 +146,7 @@ app.post("/api/jobs", async (req, res) => {
 });
 
 function verifyToken(req, res, next) {
-  const token = req.headers["authorization"];
+  const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) return res.status(403).json({ error: "No token" });
 
@@ -176,11 +176,15 @@ function isSuperAdmin(req, res, next) {
 
 app.get("/api/admin-requests", verifyToken, isSuperAdmin, async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM users WHERE role = 'admin' AND is_approved = false");
+    const result = await db.query(
+      "SELECT * FROM users WHERE role = 'admin' AND is_approved = false"
+    );
+
     res.json(result.rows);
+
   } catch (err) {
     console.log(err);
-    res.status(500).send("Error fetching applications");
+    res.status(500).send("Error fetching admin requests");
   }
 });
 

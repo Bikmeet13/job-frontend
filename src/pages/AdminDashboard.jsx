@@ -308,7 +308,7 @@ const rejectAdmin = async (id) => {
       `https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-request/${id}`,
       {
         headers: {
-          Authorization: localStorage.getItem("token")
+          Authorization: `Bearer ${localStorage.getItem("token")}`
         }
       }
     );
