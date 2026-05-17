@@ -571,7 +571,6 @@ app.get("/api/fix-jobs", async (req, res) => {
 
 app.get("/api/applications/check", async (req, res) => {
   const { jobId, email } = req.query;
-
   try {
     const result = await db.query(
       "SELECT * FROM applications WHERE jobid = $1 AND email = $2",
@@ -732,6 +731,16 @@ app.post("/api/shortlist", async (req, res) => {
   }
 });
 
+app.get("/api/applications", verifyToken, async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM applications");
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error fetching applications");
+  }
+});
+
 app.get("/api/applications/:id", async (req, res) => {
   const id = req.params.id;
 
@@ -886,15 +895,7 @@ console.log("COMPARE:", String(record.otp), String(otp));
       return res.status(400).json({ error: "User already exists ❌" });
     }
 
-    const userCheck = await db.query(
-  "SELECT * FROM users WHERE email = $1",
-  [cleanEmail]
-);
-
-if (userCheck.rows.length === 0) {
-  return res.status(400).json({ error: "User not found ❌" });
-}
-
+   
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await db.query(

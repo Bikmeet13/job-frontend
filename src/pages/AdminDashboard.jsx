@@ -78,7 +78,7 @@ const deleteAllApplications = async () => {
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
       {
         headers: {
-          authorization: localStorage.getItem("token"),
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       }
     );
@@ -141,7 +141,7 @@ const fetchAdminRequests = async () => {
      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-requests",
       {
         headers: {
-          Authorization: localStorage.getItem("token")
+          Authorization: `Bearer ${localStorage.getItem("token")}`
         }
       }
     );
@@ -219,7 +219,7 @@ const fetchChat = async (id) => {
     "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
     {
       headers: {
-        authorization: localStorage.getItem("token")
+        Authorization: `Bearer ${localStorage.getItem("token")}`
       }
     }
   )
