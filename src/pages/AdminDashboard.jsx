@@ -29,13 +29,24 @@ const [adminRequests, setAdminRequests] = useState([]);
 
 const navigate = useNavigate();
 
+const [role, setRole] = useState(null);
+
+useEffect(() => {
+  const storedRole = localStorage.getItem("role");
+  setRole(storedRole);
+}, []);
+
 const handleDelete = (id) => {
+  const token = localStorage.getItem("token");
+if (!token) return;
   if (window.confirm("Are you sure you want to delete this application?")) {
     deleteApplication(id);
   }
 };
 
 const handleJobDelete = (id) => {
+  const token = localStorage.getItem("token");
+if (!token) return;
   if (window.confirm("Are you sure you want to delete this job?")) {
     deleteJob(id);
   }
@@ -71,6 +82,9 @@ const removeFromShortlist = async (id) => {
 };
 
 const deleteAllApplications = async () => {
+
+  const token = localStorage.getItem("token");
+if (!token) return;
   if (!window.confirm("Are you sure you want to delete ALL applications?")) return;
 
   try {
@@ -160,7 +174,8 @@ useEffect(() => {
   if (!token) {
     navigate("/login");
   }
-}, [navigate]);
+}, []);
+
 const handleLogout = () => {
   localStorage.removeItem("token");
   navigate("/login");
@@ -215,11 +230,14 @@ const fetchChat = async (id) => {
     .catch(err => console.log(err));
 
   // ✅ FETCH APPLICATIONS
+  const token = localStorage.getItem("token");
+if (!token) return;
+
   axios.get(
     "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`
+       Authorization: `Bearer ${token}`
       }
     }
   )
@@ -321,7 +339,7 @@ const rejectAdmin = async (id) => {
   }
 };
 
-const filteredApplications = applications.filter(app => {
+const filteredApplications = (applications || []).filter(app => {
 
   // ✅ STATUS FILTER
   if (filterStatus !== "all") {
@@ -337,8 +355,14 @@ const filteredApplications = applications.filter(app => {
 });
 
 useEffect(() => {
-  fetchAdminRequests();
-}, []);
+  if (role === "superadmin") {
+    fetchAdminRequests();
+  }
+}, [role]);
+
+if (role === null) {
+  return <div>Loading...</div>;
+}
 
 
   return (
@@ -346,42 +370,46 @@ useEffect(() => {
 
     <div className="max-w-5xl mx-auto">
 
-      <h1 className="text-2xl font-bold mb-4">🛡 Admin Requests</h1>
+      {role === "superadmin" && (
+  <>
+    <h1 className="text-2xl font-bold mb-4">🛡 Admin Requests</h1>
 
-{adminRequests.length === 0 ? (
-  <p>No pending admin requests</p>
-) : (
-  adminRequests.map(req => (
-    <div
-      key={req.id}
-      className="bg-white p-4 rounded-lg shadow mb-3 border"
-    >
-      <p><b>Name:</b> {req.username}</p>
-      <p><b>Email:</b> {req.email}</p>
-
-      <div className="flex gap-2 mt-2">
-        <button
-          onClick={() => approveAdmin(req.id)}
-          className="bg-green-500 text-white px-3 py-1 rounded"
+    {adminRequests.length === 0 ? (
+      <p>No pending admin requests</p>
+    ) : (
+      adminRequests.map(req => (
+        <div
+          key={req.id}
+          className="bg-white p-4 rounded-lg shadow mb-3 border"
         >
-          Approve
-        </button>
+          <p><b>Name:</b> {req.username}</p>
+          <p><b>Email:</b> {req.email}</p>
 
-        <button
-          onClick={() => rejectAdmin(req.id)}
-          className="bg-red-500 text-white px-3 py-1 rounded"
-        >
-          Reject
-        </button>
-      </div>
-    </div>
-  ))
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => approveAdmin(req.id)}
+              className="bg-green-500 text-white px-3 py-1 rounded"
+            >
+              Approve
+            </button>
+
+            <button
+              onClick={() => rejectAdmin(req.id)}
+              className="bg-red-500 text-white px-3 py-1 rounded"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </>
 )}
 
       {/* 🔹 JOBS SECTION */}
       <h1 className="text-2xl font-bold mb-4">💼 Jobs Section</h1>
 
-      {jobs.map(job => (
+      {jobs?.map(job => (
         <div
           key={job.id}
           className="bg-white shadow-md rounded-lg p-4 mb-4 border"

@@ -601,7 +601,7 @@ app.post("/api/chatbot-response", async (req, res) => {
   const { applicationId, question, answer } = req.body;
 
   try {
-    console.log("BODY:", req.body);
+   console.log("Request received");
 
     const appId = parseInt(applicationId);
 
@@ -731,15 +731,6 @@ app.post("/api/shortlist", async (req, res) => {
   }
 });
 
-app.get("/api/applications", verifyToken, async (req, res) => {
-  try {
-    const result = await db.query("SELECT * FROM applications");
-    res.json(result.rows);
-  } catch (err) {
-    console.log(err);
-    res.status(500).send("Error fetching applications");
-  }
-});
 
 app.get("/api/applications/:id", async (req, res) => {
   const id = req.params.id;
