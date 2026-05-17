@@ -283,12 +283,12 @@ const deleteJob = async (id) => {
 
 const approveAdmin = async (id) => {
   try {
-    await axios.post(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-approve/${id}`,
+    await axios.put(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/approve-admin/${id}`,
       {},
       {
         headers: {
-          Authorization: localStorage.getItem("token")
+          Authorization: `Bearer ${localStorage.getItem("token")}`
         }
       }
     );
@@ -305,7 +305,7 @@ const approveAdmin = async (id) => {
 const rejectAdmin = async (id) => {
   try {
     await axios.delete(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin-request/${id}`,
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/reject-admin/${id}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
