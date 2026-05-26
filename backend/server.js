@@ -40,21 +40,17 @@ cloudinary.config({
 
 
 const storage = new CloudinaryStorage({
-
   cloudinary,
+  params: async (req, file) => {
+    const isImage = file.mimetype.startsWith("image");
 
-  params: async (req, file) => ({
-
-    folder: "marketlence",
-
-     resource_type: isImage ? "image" : "raw",
-
-    type: "upload",
-
-    access_mode: "public"
-
-  })
-
+    return {
+      folder: "marketlence",
+      resource_type: isImage ? "image" : "raw",
+      type: "upload",
+      access_mode: "public"
+    };
+  }
 });
 
 const upload = multer({ storage });
@@ -431,7 +427,7 @@ app.post(
 
     res.json({
       message: "Resume uploaded ✅",
-      file: req.file.path
+      file: req.file.secure_url
     });
 
   }
@@ -443,7 +439,7 @@ app.post(
   (req, res) => {
     res.json({
       message: "Image uploaded ✅",
-      file: req.file.path // Cloudinary URL
+      file: req.file.secure_url // Cloudinary URL
     });
   }
 );
@@ -483,10 +479,11 @@ app.delete("/api/shortlist/:id", async (req, res) => {
   }
 });
 
-app.get("/api/dashboard-stats/:userId", async (req, res) => {
+app.get("/api/dashboard-stats/:userId", verifyToken, async (req, res) => {
 
   // ✅ correct way
   const userId = parseInt(req.params.userId);
+  const userEmail = req.user.email;
 
   console.log("USER ID:", userId);
   console.log("TYPE:", typeof userId);
@@ -991,10 +988,13 @@ if (userCheck.rows.length === 0) {
 
 app.get("/api/applications", verifyToken, async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM applications");
+    const result = await db.query(
+      "SELECT * FROM applications WHERE email = $1",
+      [req.user.email]
+    );
+
     res.json(result.rows);
   } catch (err) {
-    console.log(err);
     res.status(500).send("Error fetching applications");
   }
 });
