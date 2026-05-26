@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { API } from "../services/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
@@ -6,6 +7,7 @@ import axios from "axios";
 function ApplyForm() {
   const { jobId } = useParams();
   
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
@@ -67,13 +69,21 @@ try {
     }
   }
 );
+localStorage.setItem(`app_${jobId}`, res.data.applicationId);
+
+// redirect to home
+navigate("/");
 
 localStorage.setItem(`app_${jobId}`, res.data.applicationId);
 
   // ✅ SUCCESS FEEDBACK
   alert("Application submitted successfully ✅");
 
- 
+  // ✅ REDIRECT AFTER SHORT DELAY
+  setTimeout(() => {
+    navigate("/");
+  }, 1000);
+
   // ✅ RESET FORM
   setFile(null);
 

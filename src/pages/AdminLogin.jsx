@@ -29,7 +29,7 @@ function Login() {
   navigate("/admin"); // approval panel
 } 
 else if (role === "admin") {
-  navigate("/admin-home"); // normal admin dashboard
+ navigate("/admin"); // normal admin dashboard
 } 
 else {
   alert("Not authorized ❌");

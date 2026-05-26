@@ -47,7 +47,7 @@ const storage = new CloudinaryStorage({
 
     folder: "marketlence",
 
-    resource_type: "raw",
+     resource_type: isImage ? "image" : "raw",
 
     type: "upload",
 
@@ -201,9 +201,9 @@ const email = req.body.email;
 const jobId = parseInt(req.body.jobId);
 
 if (!jobId) {
-  console.log("Job ID missing ❌");
-  return;
-} // 🔥 FIX
+  return res.status(400).json({ error: "Job ID missing ❌" });
+}
+ // 🔥 FIX
 
     const resume = req.file ? req.file.path : null;
 
@@ -252,8 +252,8 @@ if (!jobId) {
   }
 });
 
-app.delete("/api/applications/:id", async (req, res) => {
-  const id = req.params.id;
+app.delete("/api/applications/:id", verifyToken, async (req, res) => {
+ const id = parseInt(req.params.id);
 
   try {
     const sql = "DELETE FROM applications WHERE id = $1";
@@ -437,6 +437,17 @@ app.post(
   }
 );
 
+app.post(
+  "/api/upload-image",
+  upload.single("image"),
+  (req, res) => {
+    res.json({
+      message: "Image uploaded ✅",
+      file: req.file.path // Cloudinary URL
+    });
+  }
+);
+
 
 app.get("/api/shortlist/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -487,8 +498,9 @@ app.get("/api/dashboard-stats/:userId", async (req, res) => {
     );
 
     const applications = await db.query(
-      "SELECT COUNT(*) FROM applications"
-    );
+  "SELECT COUNT(*) FROM applications WHERE email = $1",
+  [req.user.email]
+);
 
     res.json({
       saved: savedJobs.rows[0].count,

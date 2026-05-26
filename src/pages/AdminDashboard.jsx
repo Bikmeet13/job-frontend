@@ -29,12 +29,7 @@ const [adminRequests, setAdminRequests] = useState([]);
 
 const navigate = useNavigate();
 
-const [role, setRole] = useState(null);
-
-useEffect(() => {
-  const storedRole = localStorage.getItem("role");
-  setRole(storedRole);
-}, []);
+const role = localStorage.getItem("role");
 
 const handleDelete = (id) => {
   const token = localStorage.getItem("token");
@@ -54,11 +49,18 @@ if (!token) return;
 
 const addToShortlist = async (app) => {
   try {
+    const token = localStorage.getItem("token");
+
     await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist",
       {
         applicationId: app.id,
         userId: 1
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
     );
 
@@ -71,8 +73,15 @@ const addToShortlist = async (app) => {
 
 const removeFromShortlist = async (id) => {
   try {
+    const token = localStorage.getItem("token");
+
     await axios.delete(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/${id}`
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
     );
 
     setShortlisted(shortlisted.filter(item => item.id !== id));
@@ -123,6 +132,11 @@ if (!token) return;
     type,
     mode,
     chatbotQuestions: questions.filter(q => q.trim() !== "")
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    }
   }
 );
 
@@ -165,120 +179,7 @@ const fetchAdminRequests = async () => {
   } catch (err) {
     console.log(err);
   }
-};
-
-  
-useEffect(() => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    navigate("/login");
-  }
-}, []);
-
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  navigate("/login");
-};
-  const updateStatus = async (id, status) => {
-  try {
-    await axios.put(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`, { status });
-
-    // Update UI instantly
-    setApplications(applications.map(app =>
-      app.id === id ? { ...app, status } : app
-    ));
-  } catch (err) {
-    console.log(err);
-  }
-};
-  const deleteApplication = async (id) => {
-  try {
-    await axios.delete(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`);
-    setApplications(applications.filter(app => app.id !== id));
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-
-const fetchChat = async (id) => {
-  setLoadingMap(prev => ({ ...prev, [id]: true }));
-
-  try {
-    const res = await axios.get(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${id}`
-    );
-
-    setChatData(res.data);
-    setActiveChatId(id);
-
-  } catch (err) {
-    console.log(err);
-  }
-
-  setLoadingMap(prev => ({ ...prev, [id]: false }));
-};
-
-  useEffect(() => {
-
-  // ✅ FETCH JOBS
-  axios.get(
-    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
-  )
-    .then(res => setJobs(res.data))
-    .catch(err => console.log(err));
-
-  // ✅ FETCH APPLICATIONS
-  const token = localStorage.getItem("token");
-if (!token) return;
-
-  axios.get(
-    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
-    {
-      headers: {
-       Authorization: `Bearer ${token}`
-      }
-    }
-  )
-.then(async res => {
-  setApplications(res.data);
-
-  // 🔥 check answers for each app
-  res.data.forEach(async (app) => {
-  try {
-    const r = await axios.get(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${app.id}`
-    );
-
-    // ✅ store true/false
-    setAnswersMap(prev => ({
-      ...prev,
-      [app.id]: r.data.length > 0
-    }));
-
-    // ✅ store COUNT
-    setCountMap(prev => ({
-      ...prev,
-      [app.id]: r.data.length
-    }));
-
-  } catch (err) {
-    console.log(err);
-  }
-});
-})
-    .catch(err => console.log(err));
-
-    axios
-  .get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/1")
-  .then(res => setShortlisted(res.data))
-  .catch(err => console.log(err));
-
-}, []);
-
-// ✅ FETCH SHORTLIST
-
+}; 
 
 const deleteJob = async (id) => {
   console.log("Deleting job:", id);
@@ -320,6 +221,66 @@ const approveAdmin = async (id) => {
   }
 };
 
+const fetchChat = async (id) => {
+  setLoadingMap(prev => ({ ...prev, [id]: true }));
+
+  try {
+    const res = await axios.get(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${id}`
+    );
+
+    setChatData(res.data);
+    setActiveChatId(id);
+
+  } catch (err) {
+    console.log(err);
+  }
+
+  setLoadingMap(prev => ({ ...prev, [id]: false }));
+};
+
+const deleteApplication = async (id) => {
+  try {
+    const token = localStorage.getItem("token");
+    await axios.delete(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    setApplications(applications.filter(app => app.id !== id));
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  navigate("/login");
+};
+  const updateStatus = async (id, status) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    await axios.put(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`,
+      { status },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    // update UI
+    setApplications(applications.map(app =>
+      app.id === id ? { ...app, status } : app
+    ));
+
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const rejectAdmin = async (id) => {
   try {
     await axios.delete(
@@ -336,23 +297,99 @@ const rejectAdmin = async (id) => {
 
   } catch (err) {
     console.log(err);
+    toast.error("Failed ❌");
   }
 };
 
-const filteredApplications = (applications || []).filter(app => {
 
-  // ✅ STATUS FILTER
-  if (filterStatus !== "all") {
-    if ((app.status || "Pending") !== filterStatus) return false;
+  
+useEffect(() => {
+   const token = localStorage.getItem("token"); 
+
+  if (!token) {
+  console.log("No token → skipping API");
+  return;
+}
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      // jobs
+      const jobsRes = await axios.get(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
+      );
+      setJobs(jobsRes.data);
+
+      // applications
+      const appRes = await axios.get(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      setApplications(appRes.data);
+
+      appRes.data.forEach(async (app) => {
+  try {
+    const r = await axios.get(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response/${app.id}`
+    );
+
+    setAnswersMap(prev => ({
+      ...prev,
+      [app.id]: r.data.length > 0
+    }));
+
+    setCountMap(prev => ({
+      ...prev,
+      [app.id]: r.data.length
+    }));
+
+  } catch (err) {
+    console.log(err);
+      if (err.response?.status === 401) {
+    console.log("Unauthorized → redirecting");
+    localStorage.clear();
+    navigate("/admin-login");}    
   }
-
-  // ✅ SHORTLIST FILTER
-  if (filterType === "shortlisted") {
-    if (!shortlisted.find(item => item.id === app.id)) return false;
-  }
-
-    return true;
 });
+
+
+      // shortlist
+      const shortRes = await axios.get(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/shortlist/1",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      setShortlisted(shortRes.data);
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  fetchData();
+}, []);
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+
+  if (!token) {
+    navigate("/login");
+    return;
+  }
+
+  if (role !== "admin" && role !== "superadmin") {
+    navigate("/");
+  }
+}, []);
 
 useEffect(() => {
   if (role === "superadmin") {
@@ -360,10 +397,24 @@ useEffect(() => {
   }
 }, [role]);
 
-if (role === null) {
-  return <div>Loading...</div>;
-}
 
+
+const filteredApplications = (applications || []).filter(app => {
+
+  if (filterStatus !== "all") {
+    if ((app.status || "Pending") !== filterStatus) return false;
+  }
+
+  if (filterType === "shortlisted") {
+    if (!shortlisted.find(item => item.id === app.id)) return false;
+  }
+
+  return true;
+});
+
+
+
+ 
 
   return (
   <div className="p-10 bg-gray-100 min-h-screen">
@@ -409,7 +460,7 @@ if (role === null) {
       {/* 🔹 JOBS SECTION */}
       <h1 className="text-2xl font-bold mb-4">💼 Jobs Section</h1>
 
-      {jobs?.map(job => (
+      {(jobs || []).map(job => (
         <div
           key={job.id}
           className="bg-white shadow-md rounded-lg p-4 mb-4 border"
@@ -614,18 +665,25 @@ if (role === null) {
       </button>
 
       <button
+  onClick={() => navigate("/")}
+  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mr-2"
+>
+  🏠 Home
+</button>
+
+      <button
   onClick={deleteAllApplications}
   className="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-800 ml-2"
 >
   🗑 Delete All
 </button>
 
-      {applications.length === 0 ? (
+      {(applications || []).length === 0 ? (
   <p>No applications yet</p>
 ) : (
   <>
-    {filteredApplications.map(app => {
-      const hasAnswers = answersMap[app.id];
+    {(filteredApplications || []).map(app => {
+      const hasAnswers = answersMap?.[app.id] || false;
 
 
   return (
@@ -634,7 +692,7 @@ if (role === null) {
       className="bg-white shadow-md rounded-lg p-5 mb-4 border"
     >
             <p><b>Name:</b> {app.name}</p>
-            {shortlisted.find(item => item.id === app.id) && (
+            {(shortlisted || []).find(item => item.id === app.id) && (
   <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
   ✔ Shortlisted
 </span>
@@ -690,7 +748,7 @@ if (role === null) {
       fetchChat(app.id); // load data
     }
   }}
-  disabled={!hasAnswers || loadingMap[app.id]}
+  disabled={!hasAnswers || loadingMap?.[app.id]}
   className={`relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200
     ${
       hasAnswers
@@ -704,7 +762,9 @@ if (role === null) {
   {/* 🔥 COUNT BADGE */}
   {hasAnswers && !loadingMap[app.id] && (
     <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow">
-      {countMap[app.id] > 0 ? `${countMap[app.id]} Answers` : "No answers"}
+      {(countMap?.[app.id] || 0) > 0
+  ? `${countMap[app.id]} Answers`
+  : "No answers"}
     </span>
   )}
 </button>
@@ -752,7 +812,7 @@ if (role === null) {
 
 <button
   onClick={() => addToShortlist(app)}
-  disabled={shortlisted.find(item => item.id === app.id)}
+  disabled={(shortlisted || []).find(item => item.id === app.id)}
   className={`px-3 py-1 rounded text-white ml-2 ${
     shortlisted.find(item => item.id === app.id)
       ? "bg-gray-400 cursor-not-allowed"
@@ -791,7 +851,7 @@ if (role === null) {
       className="bg-white shadow-md rounded-lg p-4 mb-4 border"
     >
       <p><b>Name:</b> {app.name}</p>
-      {shortlisted.find(item => item.id === app.id) && (
+      {(shortlisted || []).find(item => item.id === app.id) && (
   <span className="ml-2 text-green-600 font-bold">
     ✔ Shortlisted
   </span>

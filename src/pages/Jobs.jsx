@@ -13,14 +13,17 @@ import ApplyForm from "../components/ApplyForm";
 import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
+
 function Jobs() {
 
 const role = localStorage.getItem("role");
   const [savedJobs, setSavedJobs] = useState([]);
   const username = localStorage.getItem("username");
 const token = localStorage.getItem("token");
+const profilePic = localStorage.getItem("profilePic");
 
   const navigate = useNavigate();
+  
 
   const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
@@ -39,6 +42,16 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [appliedMap, setAppliedMap] = useState({});
+  
+   useEffect(() => {
+  const role = localStorage.getItem("role");
+  const token = localStorage.getItem("token");
+
+  // ✅ Only redirect if user is ACTUALLY logged in
+  if (token && (role === "admin" || role === "superadmin")) {
+    navigate("/admin");
+  }
+}, []);
 
   useEffect(() => {
   fetchJobs()
@@ -210,9 +223,24 @@ if (loading) {
   <div className="hidden md:flex items-center gap-4">
 
     {username && (
-  <p className="font-semibold text-blue-600">
-    👋 {username}
-  </p>
+  <div
+    onClick={() => navigate("/profile")}
+    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition"
+  >
+    <img
+      src={
+        profilePic
+          ? profilePic
+          : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+      }
+      alt="profile"
+      className="w-8 h-8 rounded-full object-cover border"
+    />
+
+    <span className="font-semibold text-blue-600">
+      {username}
+    </span>
+  </div>
 )}
 
     {/* Dark Mode */}
@@ -239,16 +267,9 @@ if (loading) {
       Profile
     </button>
 
-    <a
-      href="https://marketlence.com"
-      className={`font-medium transition ${
-        darkMode
-          ? "text-gray-200 hover:text-white"
-          : "text-gray-700 hover:text-black"
-      }`}
-    >
-      Home
-    </a>
+    <button onClick={() => navigate("/")}>
+  Home
+</button>
 
     <a
       href="#"
@@ -261,16 +282,18 @@ if (loading) {
       Jobs
     </a>
 
-    <button
-      onClick={() => navigate("/admin-applications")}
-      className={`font-medium transition ${
-        darkMode
-          ? "text-gray-200 hover:text-white"
-          : "text-gray-700 hover:text-black"
-      }`}
-    >
-      Applications
-    </button>
+    {(role === "admin" || role === "superadmin") && (
+  <button
+    onClick={() => navigate("/admin-applications")}
+    className={`font-medium transition ${
+      darkMode
+        ? "text-gray-200 hover:text-white"
+        : "text-gray-700 hover:text-black"
+    }`}
+  >
+    Applications
+  </button>
+)}
 
     {token ? (
   <>
@@ -367,18 +390,11 @@ if (loading) {
         Dashboard
       </button>
 
-      {role === "admin" && (
-  <button
-    onClick={() => navigate("/admin-applications")}
-    className={`font-medium transition ${
-      darkMode
-        ? "text-gray-200 hover:text-white"
-        : "text-gray-700 hover:text-black"
-    }`}
-  >
+     {(role === "admin" || role === "superadmin") && (
+  <button onClick={() => navigate("/admin-applications")}>
     Applications
   </button>
-)} 
+)}
 
       <button onClick={() => navigate("/login")}>
         Login
@@ -630,9 +646,7 @@ if (loading) {
                 {/* 🔘 Apply Button */}
                
 {completed ? (
-  <button
-    className="bg-gray-500 text-white px-4 py-2 rounded cursor-not-allowed"
-  >
+  <button className="bg-gray-500 text-white px-4 py-2 rounded">
     Application Completed ✅
   </button>
 ) : appId ? (
@@ -646,16 +660,11 @@ if (loading) {
     Start Interview 🚀
   </button>
 ) : (
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      navigate(`/apply/${job.id}`);
-    }}
-    className="bg-blue-600 text-white px-4 py-2 rounded"
-  >
-    Apply
-  </button>
+  <span className="text-gray-400">
+    Apply from details page
+  </span>
 )}
+
                 
                 <button
   className={`mt-3 w-full py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function ChatbotForm() {
@@ -6,6 +7,7 @@ function ChatbotForm() {
   // ✅ GET applicationId from URL
   const params = new URLSearchParams(window.location.search);
   const applicationId = params.get("applicationId");
+    const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState([]);
@@ -14,31 +16,38 @@ function ChatbotForm() {
   const jobId = params.get("jobId");
 
   const handleAnswer = async (answer) => {
-    if (!answer) return;
+  if (!answer) return;
 
-    const question = questions[step];
+  const question = questions[step];
 
-    await axios.post(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response",
-      {
-        applicationId,
-        question,
-        answer
-      }
-    );
+  await axios.post(
+    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/chatbot-response",
+    {
+      applicationId,
+      question,
+      answer
+    }
+  );
 
-    setAnswers([...answers, { question, answer }]);
-    const nextStep = step + 1;
+  setAnswers([...answers, { question, answer }]);
 
-setStep(nextStep);
+  const nextStep = step + 1;
+  setStep(nextStep);
+  setInput("");
 
-// ✅ if last question → mark completed
-if (nextStep >= questions.length) {
-  localStorage.setItem(`done_${jobId}`, "true");
-}
-    setInput("");
-  };
+  // ✅ ADD THIS BLOCK HERE
+  if (nextStep >= questions.length) {
+    localStorage.setItem(`done_${jobId}`, "true");
+    localStorage.removeItem(`app_${jobId}`);
 
+    // redirect after 1 sec
+    setTimeout(() => {
+      navigate("/");
+    }, 1000);
+  }
+};
+
+  
   useEffect(() => {
   const fetchQuestions = async () => {
     try {

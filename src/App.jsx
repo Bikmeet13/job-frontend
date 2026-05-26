@@ -35,6 +35,8 @@ function App() {
 
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
+      
+
       <Route
   path="/dashboard"
   element={
@@ -48,7 +50,11 @@ function App() {
 
 <Route
   path="/admin-applications"
-  element={<AdminApplications />}
+  element={
+    <ProtectedRoute>
+      <AdminApplications />
+    </ProtectedRoute>
+  }
 />
 
       <Route path="/login" element={<Login />} />
@@ -57,12 +63,7 @@ function App() {
 
       <Route path="/admin-login" element={<AdminLogin />} />
 
-      <Route
-        path="/admin"
-        element={<AdminDashboard />}
-      />
-
-      <Route
+           <Route
   path="/admin"
   element={
     <ProtectedRoute>

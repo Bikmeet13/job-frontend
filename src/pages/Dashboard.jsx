@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
@@ -7,6 +8,36 @@ function Dashboard() {
   const [stats, setStats] = useState({ saved: 0, applied: 0 });
 
   const navigate = useNavigate();
+  
+  const deleteApplication = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.delete(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      // update UI
+      setApplications(prev => prev.filter(app => app.id !== id));
+
+      toast.success("Application deleted ✅");
+
+    } catch (err) {
+      console.log(err);
+
+       toast.error("Failed to delete ❌");
+    }
+  };
+
+  const interviewCount = applications.filter(app => {
+  const jobId = app.jobId || app.job_id || app.jobid;
+  return localStorage.getItem(`done_${jobId}`) === "true";
+}).length;
 
   useEffect(() => {
   const userId = localStorage.getItem("userId");
@@ -32,21 +63,59 @@ const res = await axios.get(
   "https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications",
   {
     headers: {
-      authorization: token
-    }
+  Authorization: `Bearer ${token}`
+}
   }
 );
 
-      setApplications(res.data); // ✅ IMPORTANT
+ // 🔥 fetch job details for each application
+    const appsWithJobs = await Promise.all(
+      res.data.map(async (app) => {
+        const jobId = app.jobId || app.job_id || app.jobid;
+
+         if (!jobId) return app;
+
+         if (isNaN(jobId)) return app;
+        try {
+          const jobRes = await axios.get(
+  `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${jobId}`,
+  {
+    validateStatus: (status) => status < 500 // 👈 THIS IS THE FIX
+  }
+);
+if (jobRes.status === 404) {
+  return null; // skip deleted job
+}
+
+          return {
+            ...app,
+            title: jobRes.data.title,
+            company: jobRes.data.company
+          };
+        } catch (err) {
+  if (err.response?.status !== 404) {
+    console.log("JOB FETCH ERROR:", err);
+  }
+  
+      return null; // ❌ skip broken job
+    }
+  })
+);
+
+// 🔥 remove null apps
+setApplications(appsWithJobs.filter(Boolean));
 
     } catch (err) {
       console.log("APPLICATION ERROR:", err);
+      console.log("APPLICATION DATA:", res.data);
     }
   };
 
   // ✅ CALL BOTH ONCE
   fetchStats();
   fetchApplications();
+
+  
 
 }, []);
 
@@ -109,11 +178,13 @@ const res = await axios.get(
           <h2 className="text-4xl font-bold text-red-500">
             {stats.saved}
           </h2>
-          <p className="text-gray-500 mt-2">Saved Jobs</p>
+          <p className="text-gray-500 mt-2">
+  Completed Interviews
+</p>
         </div>
 
         <div className="bg-white p-8 rounded-2xl shadow-lg">
-          <h2 className="text-4xl font-bold text-green-500">3</h2>
+          <h2 className="text-4xl font-bold text-green-500">{interviewCount}</h2>
           <p className="text-gray-500 mt-2">Interviews</p>
         </div>
 
@@ -128,32 +199,56 @@ const res = await axios.get(
 
         <div className="space-y-4">
 
-          {applications.map((app) => (
-            <div
-              key={app.id}
-              className="flex items-center justify-between border-b pb-4"
-            >
+          {applications.map((app) => {
+  const jobId = app.jobId || app.job_id || app.jobid;
+  const isDone = Boolean(localStorage.getItem(`done_${jobId}`));
 
-            <div className="flex items-center gap-4">
-  <div>
-    <h3 className="text-xl font-semibold">{app.title}</h3>
-    <p className="text-gray-500">{app.company}</p>
-  </div>
+  return (
+    <div
+      key={app.id}
+      className="flex items-center justify-between border-b pb-4"
+    >
 
-  <button
-    onClick={() => navigate(`/chatbot?applicationId=${app.id}`)}
-    className="px-3 py-1 bg-indigo-600 text-white rounded"
-  >
-    🤖 Start Interview
-  </button>
-</div>
+      <div className="flex items-center gap-4">
+        <div>
+          <h3 className="text-xl font-semibold">{app.title}</h3>
+          <p className="text-gray-500">{app.company}</p>
+        </div>
 
-              
-              <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold">
-                {app.status || "Applied"}
-              </span>
-            </div>
-          ))}
+        <button
+  onClick={() =>
+    navigate(`/chatbot?applicationId=${app.id}&jobId=${jobId}`)
+  }
+  disabled={isDone}
+  className={`px-3 py-1 rounded text-white ${
+    isDone
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-indigo-600 hover:bg-indigo-700"
+  }`}
+>
+  {isDone ? "✅ Interview Completed" : "🤖 Start Interview"}
+</button>
+
+        <button
+  onClick={() => {
+    if (window.confirm("Delete this application?")) {
+      deleteApplication(app.id);
+    }
+  }}
+  className="px-3 py-1 bg-red-500 text-white rounded"
+>
+  🗑 Delete
+</button>
+
+      </div>
+
+      <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold">
+        {app.status || "Applied"}
+      </span>
+
+    </div>
+  );
+})}
 
         </div>
 
