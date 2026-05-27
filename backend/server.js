@@ -433,16 +433,14 @@ app.post(
   }
 );
 
-app.post(
-  "/api/upload-image",
-  upload.single("image"),
-  (req, res) => {
-    res.json({
-      message: "Image uploaded ✅",
-      file: req.file.secure_url // Cloudinary URL
-    });
-  }
-);
+app.post("/api/upload-image", upload.single("image"), (req, res) => {
+  console.log("FILE FULL:", req.file); // 👈 add this
+
+  res.json({
+    message: "Image uploaded ✅",
+    file: req.file.path // ✅ ADD THIS LINE
+  });
+});
 
 
 app.get("/api/shortlist/:userId", async (req, res) => {

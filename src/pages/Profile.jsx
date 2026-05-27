@@ -28,17 +28,7 @@ function Profile() {
     setIsEditing(false);
   };
 
-   const handleImage = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const url = URL.createObjectURL(file);
-    setProfilePic(url);
-
-    localStorage.setItem("profilePic", url);
-  };
-
-  const [resume, setResume] = useState(null);
+     const [resume, setResume] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
 const [uploadedImage, setUploadedImage] = useState("");
   const [uploadedResume, setUploadedResume] = useState("");
@@ -46,12 +36,16 @@ const [uploadedImage, setUploadedImage] = useState("");
 const email = localStorage.getItem("email");
 
  useEffect(() => {
-    const savedImage = localStorage.getItem("profilePic");
+      const savedImage = localStorage.getItem("profilePic");
     const savedResume = localStorage.getItem("resume");
+
+  console.log("IMAGE:", uploadedImage);
+console.log("LOCAL:", localStorage.getItem("profilePic"));
 
     if (savedImage) setUploadedImage(savedImage);
     if (savedResume) setUploadedResume(savedResume);
   }, []);
+  
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
@@ -65,9 +59,11 @@ const email = localStorage.getItem("email");
           <img
   src={
     uploadedImage ||
-    localStorage.getItem("profilePic") ||
     `https://ui-avatars.com/api/?name=${user.name}`
   }
+  onError={(e) => {
+    e.target.src = `https://ui-avatars.com/api/?name=${user.name}`;
+  }}
   alt="profile"
   className="w-32 h-32 rounded-full border-4 border-blue-500 object-cover"
 />
