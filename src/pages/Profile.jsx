@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
 function Profile() {
@@ -44,6 +44,15 @@ const [uploadedImage, setUploadedImage] = useState("");
   const [uploadedResume, setUploadedResume] = useState("");
   const username = localStorage.getItem("username");
 const email = localStorage.getItem("email");
+
+ useEffect(() => {
+    const savedImage = localStorage.getItem("profilePic");
+    const savedResume = localStorage.getItem("resume");
+
+    if (savedImage) setUploadedImage(savedImage);
+    if (savedResume) setUploadedResume(savedResume);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-100 p-10">
 
@@ -55,13 +64,12 @@ const email = localStorage.getItem("email");
           {/* Profile Image */}
           <img
   src={
-  uploadedImage
-    ? `http://localhost:5000/uploads/${uploadedImage}`
-    : profilePic ||
-      `https://ui-avatars.com/api/?name=${user.name}`
-}
+    uploadedImage ||
+    localStorage.getItem("profilePic") ||
+    `https://ui-avatars.com/api/?name=${user.name}`
+  }
   alt="profile"
-  className="w-32 h-32 rounded-full border-4 border-blue-500"
+  className="w-32 h-32 rounded-full border-4 border-blue-500 object-cover"
 />
 
           {/* User Info */}
@@ -128,27 +136,52 @@ const email = localStorage.getItem("email");
     <br />
 
     <button
-      onClick={async () => {
-        const formData = new FormData();
-        formData.append("image", profileImage);
+  onClick={async () => {
+      if (!profileImage) {
+      alert("Please select an image");
+      return;
+    }
 
-        const response = await fetch(
-          "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-image",
-          {
-            method: "POST",
-            body: formData
-          }
-        );
+    try {
+      const formData = new FormData();
+      formData.append("image", profileImage);
 
-        const data = await response.json();
-        setUploadedImage(data.file);
+      const response = await fetch(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-image",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
 
-        alert("Profile image uploaded ✅");
-      }}
-      className="bg-purple-600 text-white px-6 py-3 rounded-xl"
-    >
-      Upload Photo
-    </button>
+      // ✅ check if request failed
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = await response.json();
+
+      console.log("UPLOAD RESPONSE:", data);
+      console.log("IMAGE URL:", data.file);
+
+      // ✅ save image URL
+      setUploadedImage(data.file);
+
+      // ✅ store in localStorage (important)
+      localStorage.setItem("profilePic", data.file);
+
+      alert("Profile image uploaded ✅");
+
+    } catch (err) {
+      console.log(err);
+      alert("Upload failed ❌");
+    }
+
+  }}
+  className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+>
+  Upload Photo
+</button>
 
   </div>
 )}
@@ -197,39 +230,49 @@ const email = localStorage.getItem("email");
   <br />
 
   <button
-    onClick={async () => {
-
+  onClick={async () => {
+    if (!resume) {
+  alert("Please select a resume");
+  return;
+}
+    try {
       const formData = new FormData();
-
       formData.append("resume", resume);
 
       const response = await fetch(
-  "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-resume",
-  {
-    method: "POST",
-    body: formData
-  }
-);
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-resume",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
 
-// ✅ SAFETY FIX
-if (!response.ok) {
-  throw new Error("Upload failed");
-}
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
 
-const data = await response.json();
+      const data = await response.json();
 
-setUploadedResume(data.file);
+      setUploadedResume(data.file);
 
-alert("Resume uploaded ✅");
-    }}
-    className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition"
-  >
+      // ✅ store for reuse
+      localStorage.setItem("resume", data.file);
+
+      alert("Resume uploaded ✅");
+
+    } catch (err) {
+      console.log(err);
+      alert("Upload failed ❌");
+    }
+  }}
+   className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+>
     Upload Resume
   </button>
   {uploadedResume && (
 
-  <a
-    href={`http://localhost:5000/uploads/${uploadedResume}`}
+   <a
+    href={uploadedResume}
     target="_blank"
     rel="noreferrer"
     className="block mt-5 text-blue-600 font-semibold hover:underline"

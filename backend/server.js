@@ -201,7 +201,7 @@ if (!jobId) {
 }
  // 🔥 FIX
 
-    const resume = req.file ? req.file.path : null;
+    const resume = req.file ? req.file.secure_url : null;
 
    // ✅ INSERT + RETURN ID
     const result = await db.query(
@@ -482,7 +482,7 @@ app.delete("/api/shortlist/:id", async (req, res) => {
 app.get("/api/dashboard-stats/:userId", verifyToken, async (req, res) => {
 
   // ✅ correct way
-  const userId = parseInt(req.params.userId);
+ const userId = req.user.id;
   const userEmail = req.user.email;
 
   console.log("USER ID:", userId);
