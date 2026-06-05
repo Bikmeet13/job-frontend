@@ -191,10 +191,10 @@ if (loading) {
 
        {/* 🔝 Navbar */}
 <div
-  className={`sticky top-0 z-50 backdrop-blur-lg shadow-md rounded-2xl px-4 py-4 mb-10 flex items-center justify-between ${
+  className={`sticky top-0 z-50 backdrop-blur-xl border border-white/10 shadow-lg px-6 py-4 mb-10 flex items-center justify-between rounded-2xl transition-all duration-300 ${
     darkMode
-      ? "bg-gray-900/80"
-      : "bg-white/80"
+      ? "bg-gray-900/70"
+      : "bg-white/70"
   }`}
 >
 
@@ -237,7 +237,8 @@ if (loading) {
       className="w-8 h-8 rounded-full object-cover border"
     />
 
-    <span className="font-semibold text-blue-600">
+    {/* ❌ Only hide THIS on mobile */}
+    <span className="font-semibold text-blue-600 hidden md:block">
       {username}
     </span>
   </div>
@@ -246,51 +247,40 @@ if (loading) {
     {/* Dark Mode */}
     <button
       onClick={() => setDarkMode(!darkMode)}
-      className={`font-medium transition ${
-        darkMode
-          ? "text-gray-200 hover:text-white"
-          : "text-gray-700 hover:text-black"
-      }`}
-    >
+          className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       {darkMode ? "☀️ Light" : "🌙 Dark"}
     </button>
 
     {/* Links */}
-    <button
-      onClick={() => navigate("/profile")}
-      className={`font-medium transition ${
-        darkMode
-          ? "text-gray-200 hover:text-white"
-          : "text-gray-700 hover:text-black"
-      }`}
-    >
-      Profile
-    </button>
-
-    <button onClick={() => navigate("/")}>
+    
+    <button onClick={() => navigate("/")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
   Home
 </button>
 
     <a
       href="#"
-      className={`font-medium transition ${
-        darkMode
-          ? "text-gray-200 hover:text-white"
-          : "text-gray-700 hover:text-black"
-      }`}
-    >
+      
+      className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       Jobs
     </a>
 
     {(role === "admin" || role === "superadmin") && (
   <button
     onClick={() => navigate("/admin-applications")}
-    className={`font-medium transition ${
-      darkMode
-        ? "text-gray-200 hover:text-white"
-        : "text-gray-700 hover:text-black"
-    }`}
-  >
+   
+   className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
     Applications
   </button>
 )}
@@ -299,8 +289,10 @@ if (loading) {
   <>
     <button
       onClick={() => navigate("/dashboard")}
-      className="font-medium"
-    >
+      className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       Dashboard
     </button>
 
@@ -309,7 +301,9 @@ if (loading) {
         localStorage.clear();
         navigate("/login");
       }}
-      className="text-red-500"
+      className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-red-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
     >
       Logout
     </button>
@@ -318,15 +312,19 @@ if (loading) {
   <>
     <button
       onClick={() => navigate("/login")}
-      className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg"
-    >
+          className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       Login
     </button>
 
     <button
       onClick={() => navigate("/signup")}
-      className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-    >
+           className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       Signup
     </button>
   </>
@@ -339,24 +337,20 @@ if (loading) {
     {/* Dark Mode */}
     <button
       onClick={() => setDarkMode(!darkMode)}
-      className={`font-medium ${
-        darkMode
-          ? "text-white"
-          : "text-black"
-      }`}
-    >
+          className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       {darkMode ? "☀️" : "🌙"}
     </button>
 
     {/* Hamburger */}
     <button
       onClick={() => setMenuOpen(!menuOpen)}
-      className={`${
-        darkMode
-          ? "text-white"
-          : "text-black"
-      }`}
-    >
+          className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
       <Menu size={26} />
     </button>
 
@@ -382,25 +376,44 @@ if (loading) {
   </p>
 )}
 
-      <button onClick={() => navigate("/profile")}>
-        Profile
-      </button>
+      <button
+  onClick={() => navigate("/profile")}
+  className={`px-4 py-2 rounded-xl font-medium transition-all duration-300
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]
+  ${darkMode ? "text-gray-200" : "text-gray-700"}`}
+>
+  Profile
+</button>
 
-      <button onClick={() => navigate("/dashboard")}>
+      <button onClick={() => navigate("/dashboard")}
+         className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
         Dashboard
       </button>
 
      {(role === "admin" || role === "superadmin") && (
-  <button onClick={() => navigate("/admin-applications")}>
+  <button onClick={() => navigate("/admin-applications")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
     Applications
   </button>
 )}
 
-      <button onClick={() => navigate("/login")}>
+      <button onClick={() => navigate("/login")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
         Login
       </button>
 
-      <button onClick={() => navigate("/signup")}>
+      <button onClick={() => navigate("/signup")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
         Signup
       </button>
 
@@ -431,15 +444,25 @@ if (loading) {
           behavior: "smooth"
         });
       }}
-      className="bg-white/80 backdrop-blur-lg text-blue-700 px-5 py-3 md:px-8 md:py-4 rounded-2xl font-semibold hover:bg-gray-100 hover:scale-105 transition"
-    >
+      className="border border-white px-5 py-3 md:px-8 md:py-4 rounded-2xl font-semibold hover:bg-white hover:text-blue-700 transition"
+>
       Find Jobs
     </button>
 
     <button
-      onClick={() => navigate("/admin-login")}
+      onClick={() => {
+  const role = localStorage.getItem("role");
+
+  if (!role) {
+    navigate("/signup"); // 👈 new
+  } else if (role === "admin" || role === "superadmin") {
+    navigate("/admin"); // 👈 already admin
+  } else {
+    navigate("/signup"); // 👈 normal user
+  }
+}}
       className="border border-white px-5 py-3 md:px-8 md:py-4 rounded-2xl font-semibold hover:bg-white hover:text-blue-700 transition"
-    >
+>
       Post Job
     </button>
 
@@ -646,7 +669,10 @@ if (loading) {
                 {/* 🔘 Apply Button */}
                
 {completed ? (
-  <button className="bg-gray-500 text-white px-4 py-2 rounded">
+  <button className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
     Application Completed ✅
   </button>
 ) : appId ? (
@@ -655,14 +681,18 @@ if (loading) {
       e.stopPropagation();
       navigate(`/chatbot?applicationId=${appId}&jobId=${job.id}`);
     }}
-    className="bg-green-600 text-white px-4 py-2 rounded"
-  >
+    className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
     Start Interview 🚀
   </button>
 ) : (
-  <span className="text-gray-400">
-    Apply from details page
-  </span>
+  <span className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
+  hover:bg-blue-600 hover:text-white hover:scale-105 
+  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
+    Check Details & Apply </span>
 )}
 
                 
@@ -811,7 +841,7 @@ const data = await res.json();
         Apply for Job
       </h2>
 
-      <ApplyForm jobId={selectedJob} />
+      <ApplyForm jobId={selectedJob?.id} />
     </div>
   </div>
 )}

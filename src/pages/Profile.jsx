@@ -20,6 +20,10 @@ function Profile() {
   };
 
    const handleSave = () => {
+    localStorage.setItem("projects", projects);
+    localStorage.setItem("education", education);
+localStorage.setItem("experience", experience);
+    localStorage.setItem("skills", skills);
     localStorage.setItem("username", user.name);
     localStorage.setItem("email", user.email);
     localStorage.setItem("bio", user.bio);
@@ -34,6 +38,19 @@ const [uploadedImage, setUploadedImage] = useState("");
   const [uploadedResume, setUploadedResume] = useState("");
   const username = localStorage.getItem("username");
 const email = localStorage.getItem("email");
+const [skills, setSkills] = useState(
+  localStorage.getItem("skills") || "React, Node.js, PostgreSQL, Tailwind CSS"
+);
+const [education, setEducation] = useState(
+  localStorage.getItem("education") || ""
+);
+
+const [experience, setExperience] = useState(
+  localStorage.getItem("experience") || ""
+);
+const [projects, setProjects] = useState(
+  localStorage.getItem("projects") || ""
+);
 
  useEffect(() => {
       const savedImage = localStorage.getItem("profilePic");
@@ -45,6 +62,44 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     if (savedImage) setUploadedImage(savedImage);
     if (savedResume) setUploadedResume(savedResume);
   }, []);
+
+  const handleResumeAnalysis = async () => {
+
+  if (!uploadedResume) {
+    alert("Please upload a resume first 📄");
+    return;
+  }
+
+  try {
+
+    const formData = new FormData();
+
+   formData.append("resume", resume);
+
+    const res = await fetch(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/extract-resume",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+    const data = await res.json();
+
+    console.log("AI DATA:", data);
+
+    setSkills(data.skills?.join(", ") || "");
+    setEducation(data.education || "");
+    setExperience(data.experience || "");
+    setProjects(data.projects?.join(", ") || "");
+
+    toast.success("Profile auto-filled 🤖");
+
+  } catch (err) {
+    console.log(err);
+    toast.error("Resume analysis failed ❌");
+  }
+};
   
 
   return (
@@ -184,32 +239,108 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
 
         {/* Skills */}
         <div className="mt-10">
+  <h2 className="text-2xl font-bold mb-4">
+    Skills
+  </h2>
 
-          <h2 className="text-2xl font-bold mb-4">
-            Skills
-          </h2>
+  {isEditing ? (
+    <textarea
+      value={skills}
+      onChange={(e) => setSkills(e.target.value)}
+      placeholder="React, Node.js, PostgreSQL"
+      className="w-full border p-3 rounded"
+    />
+  ) : (
+    <div className="flex flex-wrap gap-3">
+      {skills.split(",").map((skill, index) => (
+        <span
+          key={index}
+          className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
+        >
+          {skill.trim()}
+        </span>
+      ))}
+    </div>
+  )}
+</div>
 
-          <div className="flex flex-wrap gap-3">
+<div className="mt-10">
+  <h2 className="text-2xl font-bold mb-4">
+    Education
+  </h2>
 
-            <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full">
-              React
-            </span>
+  {isEditing ? (
+    <textarea
+      value={education}
+      onChange={(e) => setEducation(e.target.value)}
+      className="w-full border p-3 rounded"
+      placeholder="B.Tech Computer Science - ABC University"
+    />
+  ) : (
+    <div className="bg-white/70 backdrop-blur-lg border border-gray-200 rounded-2xl p-5 shadow-lg hover:shadow-xl transition">
+  <h3 className="font-bold text-xl mb-2 text-blue-600">
+    🎓 Education
+  </h3>
 
-            <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full">
-              Node.js
-            </span>
+  <p className="text-gray-700">
+    {education || "No education added yet"}
+  </p>
+</div>
 
-            <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full">
-              PostgreSQL
-            </span>
+  )}
+</div>
 
-            <span className="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full">
-              Tailwind CSS
-            </span>
+<div className="mt-10">
+  <h2 className="text-2xl font-bold mb-4">
+    Experience
+  </h2>
 
-          </div>
+  {isEditing ? (
+    <textarea
+      value={experience}
+      onChange={(e) => setExperience(e.target.value)}
+      className="w-full border p-3 rounded"
+      placeholder="Frontend Developer Intern at XYZ Company"
+    />
+  ) : (
+    <div className="bg-white/70 backdrop-blur-lg border border-gray-200 rounded-2xl p-5 shadow-lg hover:shadow-xl transition">
+  <h3 className="font-bold text-xl mb-2 text-green-600">
+    💼 Experience
+  </h3>
 
-        </div>
+  <p className="text-gray-700">
+    {experience || "No experience added yet"}
+  </p>
+</div>
+
+  )}
+</div>
+
+<div className="mt-10">
+  <h2 className="text-2xl font-bold mb-4">
+    Projects
+  </h2>
+
+  {isEditing ? (
+    <textarea
+      value={projects}
+      onChange={(e) => setProjects(e.target.value)}
+      className="w-full border p-3 rounded"
+      placeholder="Describe your projects..."
+    />
+  ) : (
+    <div className="bg-white/70 backdrop-blur-lg border border-gray-200 rounded-2xl p-5 shadow-lg hover:shadow-xl transition">
+      <h3 className="font-bold text-xl mb-2 text-purple-600">
+        🚀 Projects
+      </h3>
+
+      <p className="text-gray-700">
+        {projects || "No projects added yet"}
+      </p>
+    </div>
+  )}
+</div>
+
 
         <div className="mt-10">
 
@@ -267,16 +398,26 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
   </button>
   {uploadedResume && (
 
-   <a
-    href={uploadedResume}
-    target="_blank"
-    rel="noreferrer"
-    className="block mt-5 text-blue-600 font-semibold hover:underline"
-  >
-    📄 View Uploaded Resume
-  </a>
+  <>
+    <a
+      href={uploadedResume}
+      target="_blank"
+      rel="noreferrer"
+      className="block mt-5 text-blue-600 font-semibold hover:underline"
+    >
+      📄 View Uploaded Resume
+    </a>
+
+    <button
+      onClick={handleResumeAnalysis}
+      className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
+    >
+      Auto Fill Profile 🤖
+    </button>
+  </>
 
 )}
+
 
 <div className="mt-8 flex gap-4">
 

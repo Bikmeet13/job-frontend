@@ -8,8 +8,7 @@ function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [mobile, setMobile] = useState("");
-  const [otp, setOtp] = useState("");
+    const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
   const navigate = useNavigate();
@@ -124,13 +123,20 @@ const verifyOtp = async () => {
         {otpSent && (
            <>
     <input
-      placeholder="Enter OTP"
-      onChange={(e) => setOtp(e.target.value)} 
-    />
+  type="text"
+  placeholder="Enter OTP"
+  value={otp}
+  onChange={(e) => setOtp(e.target.value)}
+  className="w-full p-3 border rounded-lg mb-3"
+/>
 
-             <button type="button" onClick={verifyOtp}>
-      Verify & Signup
-    </button>
+             <button
+  type="button"
+  onClick={verifyOtp}
+  className="w-full bg-green-600 text-white py-3 rounded-xl"
+>
+  Verify & Signup
+</button>
   </>
         )}
 

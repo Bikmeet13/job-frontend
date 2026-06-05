@@ -44,9 +44,16 @@ function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get(
-        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/dashboard-stats/${userId}`
-      );
+      const token = localStorage.getItem("token");
+
+const res = await axios.get(
+  `https://humorous-fulfillment-production-1f5e.up.railway.app/api/dashboard-stats/${userId}`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }
+);
       setStats(res.data);
     } catch (err) {
       console.log("DASHBOARD ERROR:", err);

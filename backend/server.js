@@ -201,7 +201,7 @@ if (!jobId) {
 }
  // 🔥 FIX
 
-    const resume = req.file ? req.file.secure_url : null;
+    const resume = req.file ? req.file.path : null;
 
    // ✅ INSERT + RETURN ID
     const result = await db.query(
@@ -996,6 +996,36 @@ app.get("/api/applications", verifyToken, async (req, res) => {
     res.status(500).send("Error fetching applications");
   }
 });
+
+app.post(
+  "/api/extract-resume",
+  upload.single("resume"),
+  async (req, res) => {
+    try {
+      const fileUrl = req.file.path;
+
+      const response = await axios.get(fileUrl, {
+        responseType: "arraybuffer"
+      });
+
+      const pdfData = await pdfParse(
+        Buffer.from(response.data)
+      );
+
+      const text = pdfData.text;
+
+      res.json({
+        text
+      });
+
+    } catch (err) {
+      console.log(err);
+      res.status(500).send("Extraction failed");
+    }
+  }
+);
+
+
 
 
 

@@ -5,7 +5,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 function ApplyForm() {
-  const { jobId } = useParams();
+  const { id } = useParams();
+const jobId = id;
   
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -13,6 +14,8 @@ function ApplyForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [job, setJob] = useState(null);
+
+  console.log("JOB ID RECEIVED:", jobId);
 
 useEffect(() => {
   const fetchJob = async () => {
@@ -41,11 +44,7 @@ useEffect(() => {
   const handleSubmit = async (e) => {
   e.preventDefault();
 
-  if (!file) {
-  alert("Please upload resume ❌");
-  return;
-}
-
+  
 if (!file) {
     alert("Please upload resume ❌");
     return;
@@ -69,7 +68,6 @@ try {
     }
   }
 );
-localStorage.setItem(`app_${jobId}`, res.data.applicationId);
 
 // redirect to home
 navigate("/");
