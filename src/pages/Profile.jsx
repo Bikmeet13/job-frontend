@@ -88,7 +88,20 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
 
     console.log("AI DATA:", data);
 
-    setSkills(data.skills?.join(", ") || "");
+    if (data.skills) {
+  setSkills(Array.isArray(data.skills)
+    ? data.skills.join(", ")
+    : data.skills);
+}
+
+if (data.education) setEducation(data.education);
+if (data.experience) setExperience(data.experience);
+
+if (data.projects) {
+  setProjects(Array.isArray(data.projects)
+    ? data.projects.join(", ")
+    : data.projects);
+}
     setEducation(data.education || "");
     setExperience(data.experience || "");
     setProjects(data.projects?.join(", ") || "");
@@ -211,6 +224,7 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
       }
 
       const data = await response.json();
+      console.log("UPLOAD RESPONSE:", data);
 
       console.log("UPLOAD RESPONSE:", data);
       console.log("IMAGE URL:", data.file);
@@ -381,6 +395,7 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
       const data = await response.json();
 
       setUploadedResume(data.file);
+      console.log("RESUME URL:", data.file);
 
       // ✅ store for reuse
       localStorage.setItem("resume", data.file);

@@ -425,11 +425,12 @@ app.post(
   upload.single("resume"),
   (req, res) => {
 
+    console.log("RESUME FILE:", req.file);
+
     res.json({
       message: "Resume uploaded ✅",
-      file: req.file.secure_url
+      file: req.file.path || req.file.secure_url
     });
-
   }
 );
 
@@ -1015,6 +1016,10 @@ app.post(
       const text = pdfData.text;
 
       res.json({
+        skills: ["React", "Node.js"],
+        education: "Extracted Education",
+        experience: "Extracted Experience",
+        projects: ["Project 1", "Project 2"],
         text
       });
 
@@ -1024,9 +1029,6 @@ app.post(
     }
   }
 );
-
-
-
 
 
 
