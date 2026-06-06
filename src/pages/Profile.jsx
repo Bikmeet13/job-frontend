@@ -51,6 +51,7 @@ const [experience, setExperience] = useState(
 const [projects, setProjects] = useState(
   localStorage.getItem("projects") || ""
 );
+const [recommendedJobs, setRecommendedJobs] = useState([]);
 
  useEffect(() => {
       const savedImage = localStorage.getItem("profilePic");
@@ -61,7 +62,25 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
 
     if (savedImage) setUploadedImage(savedImage);
     if (savedResume) setUploadedResume(savedResume);
-  }, []);
+  },
+   []);
+   useEffect(() => {
+  const fetchRecommendations = async () => {
+    try {
+      const res = await fetch(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/recommended-jobs/${skills}`
+      );
+
+      const data = await res.json();
+
+      setRecommendedJobs(data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  fetchRecommendations();
+}, [skills]);
 
   const handleResumeAnalysis = async () => {
 
@@ -353,6 +372,31 @@ if (data.projects) {
       </p>
     </div>
   )}
+</div>
+
+<div className="mt-10">
+  <h2 className="text-2xl font-bold mb-4">
+    Recommended Jobs 🎯
+  </h2>
+
+  <div className="grid gap-4">
+    {recommendedJobs.map((job) => (
+      <div
+        key={job.id}
+        className="bg-white border rounded-xl p-4 shadow"
+      >
+        <h3 className="font-bold text-lg">
+          {job.title}
+        </h3>
+
+        <p>{job.company}</p>
+
+        <p className="text-blue-600">
+          {job.skills}
+        </p>
+      </div>
+    ))}
+  </div>
 </div>
 
 

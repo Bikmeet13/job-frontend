@@ -1030,6 +1030,28 @@ app.post(
   }
 );
 
+app.get("/api/recommended-jobs/:skills", async (req, res) => {
+  const skills = req.params.skills.toLowerCase();
+
+  try {
+    const result = await db.query(
+      "SELECT * FROM jobs"
+    );
+
+    const jobs = result.rows.filter(job =>
+      job.skills?.toLowerCase().includes(
+        skills.split(",")[0].trim()
+      )
+    );
+
+    res.json(jobs);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});console.log("RECOMMENDED SKILLS:", req.params.skills);
+
 
 
 app.listen(PORT, "0.0.0.0", () => {
