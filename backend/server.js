@@ -1050,7 +1050,7 @@ app.get("/api/recommended-jobs/:skills", async (req, res) => {
     console.log(err);
     res.status(500).send("Error");
   }
-});console.log("RECOMMENDED SKILLS:", req.params.skills);
+});
 
 
 
