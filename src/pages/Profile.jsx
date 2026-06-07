@@ -72,6 +72,7 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
       );
 
       const data = await res.json();
+      console.log("FULL AI DATA:", JSON.stringify(data, null, 2));
 
       setRecommendedJobs(data);
     } catch (err) {
@@ -88,8 +89,7 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     alert("Please upload a resume first 📄");
     return;
   }
-  console.log("EDUCATION:", data.education);
-
+  
   try {
 
     const formData = new FormData();
@@ -114,24 +114,44 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     : data.skills);
 }
 
-if (data.education) setEducation(data.education);
-if (data.experience) setExperience(data.experience);
+if (data.education) {
+  const edu = data.education;
 
-if (data.projects) {
-  setProjects(Array.isArray(data.projects)
-    ? data.projects.join(", ")
-    : data.projects);
+  setEducation(
+    `${edu.degree || ""}
+${edu.field || ""}
+${edu.institution || ""}
+${edu.location || ""}
+${edu.duration || ""}`
+  );
 }
-    setEducation(data.education || "");
-    setExperience(data.experience || "");
-    setProjects(data.projects?.join(", ") || "");
 
+if (data.experience) {
+  if (Array.isArray(data.experience)) {
+    console.log("EXPERIENCE DATA:", JSON.stringify(data.experience, null, 2));
+    setExperience(
+      data.experience
+        .map(
+          (exp) =>
+            `${exp.role || ""} at ${exp.company || ""} (${exp.duration || ""})`
+        )
+        .join("\n\n")
+    );
+  } else {
+    setExperience(
+      typeof data.experience === "object"
+        ? JSON.stringify(data.experience, null, 2)
+        : data.experience
+    );
+  }
+}
+    
     toast.success("Profile auto-filled 🤖");
 
   } catch (err) {
     console.log(err);
     toast.error("Resume analysis failed ❌");
-  }
+      }
 };
   
 
@@ -244,6 +264,7 @@ if (data.projects) {
       }
 
       const data = await response.json();
+      console.log("FULL AI DATA:", data);
       console.log("UPLOAD RESPONSE:", data);
 
       console.log("UPLOAD RESPONSE:", data);
@@ -316,9 +337,17 @@ if (data.projects) {
     🎓 Education
   </h3>
 
-  <p className="text-gray-700">
-    {education || "No education added yet"}
-  </p>
+  <p className="text-gray-700 whitespace-pre-line">
+  {typeof education === "object"
+    ? `
+${education.degree || ""}
+${education.field || ""}
+${education.institution || ""}
+${education.location || ""}
+${education.duration || ""}
+`
+    : education || "No education added yet"}
+</p>
 </div>
 
   )}
@@ -328,6 +357,7 @@ if (data.projects) {
   <h2 className="text-2xl font-bold mb-4">
     Experience
   </h2>
+  
 
   {isEditing ? (
     <textarea
