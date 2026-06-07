@@ -28,6 +28,11 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
+console.log(
+  "OPENAI KEY EXISTS:",
+  !!process.env.OPENAI_API_KEY
+);
+
 const OpenAI = require("openai");
 
 const openai = new OpenAI({
