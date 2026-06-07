@@ -88,6 +88,7 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     alert("Please upload a resume first 📄");
     return;
   }
+  console.log("EDUCATION:", data.education);
 
   try {
 
@@ -473,6 +474,7 @@ if (data.projects) {
     >
       Auto Fill Profile 🤖
     </button>
+    
   </>
 
 )}
