@@ -28,6 +28,12 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
+const OpenAI = require("openai");
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 cloudinary.config({
 
   cloud_name: process.env.CLOUD_NAME,
@@ -1015,13 +1021,38 @@ app.post(
 
       const text = pdfData.text;
 
-      res.json({
-        skills: ["React", "Node.js"],
-        education: "Extracted Education",
-        experience: "Extracted Experience",
-        projects: ["Project 1", "Project 2"],
-        text
-      });
+      const completion =
+  await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `
+Extract resume information and return ONLY valid JSON.
+
+{
+  "skills": [],
+  "education": "",
+  "experience": "",
+  "projects": []
+}
+`
+      },
+      {
+        role: "user",
+        content: text
+      }
+    ]
+  });
+
+const extracted = JSON.parse(
+  completion.choices[0].message.content
+);
+
+res.json({
+  ...extracted,
+  text
+});
 
     } catch (err) {
       console.log(err);
