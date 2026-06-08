@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 function Profile() {
    const [isEditing, setIsEditing] = useState(false);
@@ -19,18 +20,32 @@ function Profile() {
     setUser({ ...user, [e.target.name]: e.target.value });
   };
 
-   const handleSave = () => {
-    localStorage.setItem("projects", projects);
-    localStorage.setItem("education", education);
-localStorage.setItem("experience", experience);
-    localStorage.setItem("skills", skills);
-    localStorage.setItem("username", user.name);
-    localStorage.setItem("email", user.email);
-    localStorage.setItem("bio", user.bio);
+   const handleSave = async () => {
+  try {
+    const userId = localStorage.getItem("userId");
 
-    toast.success("Profile updated ✅");
+    await axios.put(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/profile",
+      {
+        userId,
+        bio: user.bio,
+        skills,
+        education,
+        experience,
+        projects,
+        profilePic: uploadedImage,
+        resume: uploadedResume
+      }
+    );
+
+    toast.success("Profile saved ✅");
     setIsEditing(false);
-  };
+
+  } catch (err) {
+    console.log(err);
+    toast.error("Save failed ❌");
+  }
+};
 
      const [resume, setResume] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
@@ -64,6 +79,33 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     if (savedResume) setUploadedResume(savedResume);
   },
    []);
+
+   useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+
+      const res = await axios.get(
+        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/profile/${userId}`
+      );
+
+      const data = res.data;
+
+      setSkills(data.skills || "");
+      setEducation(data.education || "");
+      setExperience(data.experience || "");
+      setProjects(data.projects || "");
+      setUploadedImage(data.profile_pic || "");
+      setUploadedResume(data.resume_url || "");
+
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  fetchProfile();
+}, []);
+
    useEffect(() => {
   const fetchRecommendations = async () => {
     try {

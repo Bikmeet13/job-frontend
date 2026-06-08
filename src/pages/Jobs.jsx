@@ -298,7 +298,9 @@ if (loading) {
 
     <button
       onClick={() => {
-        localStorage.clear();
+        localStorage.removeItem("token");
+localStorage.removeItem("role");
+localStorage.removeItem("userId");
         navigate("/login");
       }}
       className="px-4 py-2 rounded-xl font-medium transition-all duration-300 

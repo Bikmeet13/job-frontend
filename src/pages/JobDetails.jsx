@@ -2,12 +2,14 @@ import ApplyForm from "../components/ApplyForm";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import { useRef } from "react";
 
 function JobDetails() {
   const { id } = useParams();
 
   const [job, setJob] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const applyFormRef = useRef(null);
 
   useEffect(() => {
     axios
@@ -107,15 +109,24 @@ function JobDetails() {
 
         {/* Apply Button */}
         <button
-        
-  onClick={() => setShowForm(!showForm)}
-  className="mt-10 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl text-lg font-semibold transition"
+  onClick={() => {
+    setShowForm(true);
+
+    setTimeout(() => {
+      applyFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 100);
+  }}
+  className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-xl"
 >
-  Apply Now
+  Apply Now 🚀
 </button>
+
 {showForm && (
-  <div className="mt-8">
-    <ApplyForm jobId={job.id} />
+  <div ref={applyFormRef} className="mt-10">
+    <ApplyForm />
   </div>
 )}
 

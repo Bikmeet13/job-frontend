@@ -1088,6 +1088,66 @@ app.get("/api/recommended-jobs/:skills", async (req, res) => {
   }
 });
 
+app.put("/api/profile", async (req, res) => {
+  try {
+    const {
+      userId,
+      bio,
+      skills,
+      education,
+      experience,
+      projects,
+      profilePic,
+      resume
+    } = req.body;
+
+    await pool.query(
+      `
+      UPDATE users
+      SET
+        bio = $1,
+        skills = $2,
+        education = $3,
+        experience = $4,
+        projects = $5,
+        profile_pic = $6,
+        resume_url = $7
+      WHERE id = $8
+      `,
+      [
+        bio,
+        skills,
+        education,
+        experience,
+        projects,
+        profilePic,
+        resume,
+        userId
+      ]
+    );
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/profile/:id", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM users WHERE id = $1",
+      [req.params.id]
+    );
+
+    res.json(result.rows[0]);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
 app.listen(PORT, "0.0.0.0", () => {
