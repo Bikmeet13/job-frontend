@@ -1101,7 +1101,7 @@ app.put("/api/profile", async (req, res) => {
       resume
     } = req.body;
 
-    await pool.query(
+    await db.query(
       `
       UPDATE users
       SET
@@ -1136,7 +1136,7 @@ app.put("/api/profile", async (req, res) => {
 
 app.get("/api/profile/:id", async (req, res) => {
   try {
-    const result = await pool.query(
+    const result = await db.query(
       "SELECT * FROM users WHERE id = $1",
       [req.params.id]
     );
