@@ -20,7 +20,7 @@ function Profile() {
     setUser({ ...user, [e.target.name]: e.target.value });
   };
 
-   const handleSave = async () => {
+     const handleSave = async () => {
   try {
     const userId = localStorage.getItem("userId");
 
@@ -46,7 +46,9 @@ function Profile() {
     toast.error("Save failed ❌");
   }
 };
-
+const [uploadingResume, setUploadingResume] = useState(false);
+const [uploadingImage, setUploadingImage] = useState(false);
+const [loaderText, setLoaderText] = useState("");
      const [resume, setResume] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
 const [uploadedImage, setUploadedImage] = useState("");
@@ -108,6 +110,10 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
 
    useEffect(() => {
   const fetchRecommendations = async () => {
+     if (!skills || skills.trim() === "") {
+      setRecommendedJobs([]);
+      return;
+    }
     try {
       const res = await fetch(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/recommended-jobs/${skills}`
@@ -131,6 +137,8 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     alert("Please upload a resume first 📄");
     return;
   }
+   setUploadingResume(true);
+  setLoaderText("Analyzing your resume and building your profile...");
   
   try {
 
@@ -199,6 +207,25 @@ if (data.experience) {
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
+      {(uploadingResume || uploadingImage) && (
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
+
+    <div className="bg-white rounded-3xl p-10 shadow-2xl text-center max-w-sm">
+
+      <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+
+      <h2 className="text-2xl font-bold text-gray-800">
+        Processing...
+      </h2>
+
+      <p className="text-gray-500 mt-3">
+        {loaderText}
+      </p>
+
+    </div>
+
+  </div>
+)}
 
       {/* Profile Card */}
       <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-10">
@@ -245,7 +272,112 @@ if (data.experience) {
             
           </div>
 
-        </div>
+                  </div>
+
+                  <div className="mt-8 flex gap-4">
+  {isEditing ? (
+    <>
+      <button
+        onClick={handleSave}
+        className="bg-green-600 text-white px-6 py-2 rounded"
+      >
+        Save ✅
+      </button>
+
+      <button
+        onClick={() => setIsEditing(false)}
+        className="bg-gray-400 text-white px-6 py-2 rounded"
+      >
+        Cancel
+      </button>
+    </>
+  ) : (
+    <button
+      onClick={() => setIsEditing(true)}
+      className="bg-blue-600 text-white px-6 py-2 rounded"
+    >
+      Edit Profile ✏️
+    </button>
+  )}
+</div>
+
+ <div className="mt-10">
+
+  <h2 className="text-2xl font-bold mb-4">
+    Upload Resume
+  </h2>
+
+  <input
+    type="file"
+    onChange={(e) => setResume(e.target.files[0])}
+    className="mb-4"
+  />
+
+  <br />
+
+  <button
+  onClick={async () => {
+  if (!resume) {
+    alert("Please select a resume");
+    return;
+  }
+
+  setUploadingResume(true);
+  setLoaderText("Uploading and analyzing your resume with AI...");
+
+  try {
+    const formData = new FormData();
+    formData.append("resume", resume);
+
+    const response = await fetch(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-resume",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+    const data = await response.json();
+
+    setUploadedResume(data.file);
+
+    localStorage.setItem("resume", data.file);
+
+    toast.success("Resume uploaded ✅");
+
+  } catch (err) {
+    console.log(err);
+    toast.error("Upload failed ❌");
+  } finally {
+    setUploadingResume(false);
+  }
+}}
+   className="bg-purple-600 text-white px-6 py-3 rounded-xl"
+>
+    Upload Resume
+  </button>
+  {uploadedResume && (
+
+  <>
+    <a
+      href={uploadedResume}
+      target="_blank"
+      rel="noreferrer"
+      className="block mt-5 text-blue-600 font-semibold hover:underline"
+    >
+      📄 View Uploaded Resume
+    </a>
+
+    <button
+      onClick={handleResumeAnalysis}
+      className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
+    >
+      Auto Fill Profile 🤖
+    </button>
+    
+  </>
+
+)}
 
         {/* About */}
         <div className="mt-10">
@@ -283,49 +415,42 @@ if (data.experience) {
 
     <button
   onClick={async () => {
-      if (!profileImage) {
-      alert("Please select an image");
-      return;
-    }
+  if (!profileImage) {
+    alert("Please select an image");
+    return;
+  }
 
-    try {
-      const formData = new FormData();
-      formData.append("image", profileImage);
+  setUploadingImage(true);
+  setLoaderText("Uploading your professional profile photo...");
 
-      const response = await fetch(
-        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-image",
-        {
-          method: "POST",
-          body: formData
-        }
-      );
+  try {
+    const formData = new FormData();
 
-      // ✅ check if request failed
-      if (!response.ok) {
-        throw new Error("Upload failed");
+    formData.append("image", profileImage);
+
+    const response = await fetch(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-image",
+      {
+        method: "POST",
+        body: formData
       }
+    );
 
-      const data = await response.json();
-      console.log("FULL AI DATA:", data);
-      console.log("UPLOAD RESPONSE:", data);
+    const data = await response.json();
 
-      console.log("UPLOAD RESPONSE:", data);
-      console.log("IMAGE URL:", data.file);
+    setUploadedImage(data.file);
 
-      // ✅ save image URL
-      setUploadedImage(data.file);
+    localStorage.setItem("profilePic", data.file);
 
-      // ✅ store in localStorage (important)
-      localStorage.setItem("profilePic", data.file);
+    toast.success("Photo uploaded ✅");
 
-      alert("Profile image uploaded ✅");
-
-    } catch (err) {
-      console.log(err);
-      alert("Upload failed ❌");
-    }
-
-  }}
+  } catch (err) {
+    console.log(err);
+    toast.error("Upload failed ❌");
+  } finally {
+    setUploadingImage(false);
+  }
+}}
   className="bg-purple-600 text-white px-6 py-3 rounded-xl"
 >
   Upload Photo
@@ -473,83 +598,7 @@ ${education.duration || ""}
 </div>
 
 
-        <div className="mt-10">
-
-  <h2 className="text-2xl font-bold mb-4">
-    Upload Resume
-  </h2>
-
-  <input
-    type="file"
-    onChange={(e) => setResume(e.target.files[0])}
-    className="mb-4"
-  />
-
-  <br />
-
-  <button
-  onClick={async () => {
-    if (!resume) {
-  alert("Please select a resume");
-  return;
-}
-    try {
-      const formData = new FormData();
-      formData.append("resume", resume);
-
-      const response = await fetch(
-        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/upload-resume",
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await response.json();
-
-      setUploadedResume(data.file);
-      console.log("RESUME URL:", data.file);
-
-      // ✅ store for reuse
-      localStorage.setItem("resume", data.file);
-
-      alert("Resume uploaded ✅");
-
-    } catch (err) {
-      console.log(err);
-      alert("Upload failed ❌");
-    }
-  }}
-   className="bg-purple-600 text-white px-6 py-3 rounded-xl"
->
-    Upload Resume
-  </button>
-  {uploadedResume && (
-
-  <>
-    <a
-      href={uploadedResume}
-      target="_blank"
-      rel="noreferrer"
-      className="block mt-5 text-blue-600 font-semibold hover:underline"
-    >
-      📄 View Uploaded Resume
-    </a>
-
-    <button
-      onClick={handleResumeAnalysis}
-      className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
-    >
-      Auto Fill Profile 🤖
-    </button>
-    
-  </>
-
-)}
+       
 
 
 <div className="mt-8 flex gap-4">

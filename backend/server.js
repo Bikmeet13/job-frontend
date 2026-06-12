@@ -364,10 +364,12 @@ app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await db.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
-    );
+    const cleanEmail = email.toLowerCase().trim();
+
+const user = await db.query(
+  "SELECT * FROM users WHERE LOWER(email) = $1",
+  [cleanEmail]
+);
 
     if (user.rows.length === 0) {
       return res.status(401).json({
