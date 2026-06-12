@@ -389,9 +389,13 @@ const user = await db.query(
       });
     }
 
-    if (user.rows[0].role === "admin" && !user.rows[0].is_approved) {
+    if (
+  (user.rows[0].role === "admin" ||
+   user.rows[0].role === "superadmin") &&
+  !user.rows[0].is_approved
+) {
   return res.status(403).json({
-    error: "Admin approval pending ⏳"
+    error: "Approval pending ⏳"
   });
 }
 
