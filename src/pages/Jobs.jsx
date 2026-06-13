@@ -222,7 +222,7 @@ if (loading) {
   {/* 💻 Desktop Links */}
   <div className="hidden md:flex items-center gap-4">
 
-    {username && (
+    {token && (
   <div
     onClick={() => navigate("/profile")}
     className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition"
@@ -301,8 +301,10 @@ if (loading) {
         localStorage.removeItem("token");
 localStorage.removeItem("role");
 localStorage.removeItem("userId");
-        navigate("/login");
-      }}
+         toast.success("Logged out 👋");
+
+  window.location.href = "/login";
+}}
       className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
   hover:bg-red-600 hover:text-white hover:scale-105 
   hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
