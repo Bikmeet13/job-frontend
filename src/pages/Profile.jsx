@@ -89,9 +89,15 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
 
    useEffect(() => {
   const fetchProfile = async () => {
-    try {
-      const userId = localStorage.getItem("userId");
+    const userId = localStorage.getItem("userId");
 
+    // ✅ Prevent API call if userId doesn't exist
+    if (!userId) {
+      console.log("No userId found");
+      return;
+    }
+
+    try {
       const res = await axios.get(
         `https://humorous-fulfillment-production-1f5e.up.railway.app/api/profile/${userId}`
       );

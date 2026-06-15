@@ -30,7 +30,14 @@ function App() {
 
       <Route path="/saved-jobs" element={<SavedJobs />} />
 
-      <Route path="/profile" element={<Profile />} />
+      <Route
+  path="/profile"
+  element={
+    <ProtectedRoute>
+      <Profile />
+    </ProtectedRoute>
+  }
+/>
 
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
