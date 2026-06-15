@@ -166,7 +166,10 @@ function verifyToken(req, res, next) {
   }
 }
 function isAdmin(req, res, next) {
-  if (req.user.role !== "admin") {
+  if (
+    req.user.role !== "admin" &&
+    req.user.role !== "superadmin"
+  ) {
     return res.status(403).send("Access denied ❌");
   }
   next();
@@ -609,18 +612,19 @@ app.get("/api/applications/check", async (req, res) => {
   }
 });
 
-app.delete("/api/applications", async (req, res) => {
-  if (!req.headers.authorization) {
-    return res.status(401).send("Unauthorized ❌");
+app.delete(
+  "/api/applications",
+  verifyToken,
+  isSuperAdmin,
+  async (req, res) => {
+    try {
+      await db.query("DELETE FROM applications");
+      res.send("All deleted");
+    } catch (err) {
+      res.status(500).send("Error");
+    }
   }
-
-  try {
-    await db.query("DELETE FROM applications");
-    res.send("All deleted");
-  } catch (err) {
-    res.status(500).send("Error");
-  }
-});
+);
 
 app.post("/api/chatbot-response", async (req, res) => {
   const { applicationId, question, answer } = req.body;
