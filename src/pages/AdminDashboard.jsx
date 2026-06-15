@@ -657,6 +657,14 @@ const filteredApplications = (applications || []).filter(app => {
   
 </div>
 
+<button
+  onClick={() => navigate("/profile")}
+  className="px-4 py-2 rounded-xl font-medium transition-all duration-300
+  hover:bg-blue-600 hover:text-white hover:scale-105"
+>
+  👤 Profile
+</button>
+
       <button
         onClick={handleLogout}
         className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 mb-6"

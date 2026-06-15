@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 
 function Profile() {
+  const navigate = useNavigate();
    const [isEditing, setIsEditing] = useState(false);
+   
 
    
   const [user, setUser] = useState({
@@ -55,6 +58,8 @@ const [uploadedImage, setUploadedImage] = useState("");
   const [uploadedResume, setUploadedResume] = useState("");
   const username = localStorage.getItem("username");
 const email = localStorage.getItem("email");
+const role = localStorage.getItem("role");
+
 const [skills, setSkills] = useState(
   localStorage.getItem("skills") || "React, Node.js, PostgreSQL, Tailwind CSS"
 );
@@ -242,37 +247,80 @@ if (data.experience) {
     e.target.src = `https://ui-avatars.com/api/?name=${user.name}`;
   }}
   alt="profile"
-  className="w-32 h-32 rounded-full border-4 border-blue-500 object-cover"
+  className={`w-32 h-32 rounded-full border-4 object-cover ${
+  role === "superadmin"
+    ? "border-yellow-500"
+    : role === "admin"
+    ? "border-purple-500"
+    : "border-blue-500"
+}`}
 />
 
-          {/* User Info */}
-          <div>
+         {/* User Info */}
+<div>
 
-            <div className="flex flex-col gap-2">
+  <div className="flex flex-col gap-2">
 
-  <input
-    type="text"
-    name="name"
-    value={user.name}
-    onChange={handleChange}
-    disabled={!isEditing}
-    className="text-2xl font-bold border-b outline-none"
-  />
+    <input
+      type="text"
+      name="name"
+      value={user.name}
+      onChange={handleChange}
+      disabled={!isEditing}
+      className="text-2xl font-bold border-b outline-none"
+    />
 
-  <input
-    type="email"
-    name="email"
-    value={user.email}
-    onChange={handleChange}
-    disabled={!isEditing}
-    className="text-blue-600 border-b outline-none"
-  />
+    <input
+      type="email"
+      name="email"
+      value={user.email}
+      onChange={handleChange}
+      disabled={!isEditing}
+      className="text-blue-600 border-b outline-none"
+    />
+
+    <p
+      className={`mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold w-fit ${
+        role === "superadmin"
+          ? "bg-yellow-100 text-yellow-700"
+          : role === "admin"
+          ? "bg-purple-100 text-purple-700"
+          : "bg-blue-100 text-blue-700"
+      }`}
+    >
+      {role === "superadmin"
+        ? "🛡️ Super Admin"
+        : role === "admin"
+        ? "👨‍💼 Admin"
+        : "👤 User"}
+    </p>
+
+  </div>
 
 </div>
-            
-          </div>
 
                   </div>
+
+                  {(role === "admin" || role === "superadmin") && (
+  <div className="mt-8 bg-white/70 backdrop-blur-lg border border-blue-200 rounded-2xl p-6 shadow-lg">
+    
+    <h2 className="text-xl font-bold mb-3 text-blue-700">
+      🛠️ Admin Panel
+    </h2>
+
+    <p className="text-gray-600 mb-4">
+      Access your administrative dashboard and manage platform activities.
+    </p>
+
+    <button
+      onClick={() => navigate("/admin")}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition"
+    >
+      Go to Dashboard →
+    </button>
+
+  </div>
+)}
 
                   <div className="mt-8 flex gap-4">
   {isEditing ? (
