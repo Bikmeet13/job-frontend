@@ -1159,6 +1159,36 @@ app.get("/api/profile/:id", async (req, res) => {
   }
 });
 
+app.get("/api/google-jobs", async (req, res) => {
+  const { query = "", location = "", mode = "" } = req.query;
+
+  try {
+    const response = await axios.get(
+      "https://jsearch.p.rapidapi.com/search",
+      {
+        params: {
+          query: `${query} ${mode} jobs in ${location}`,
+          page: "1",
+          num_pages: "1",
+        },
+        headers: {
+          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+          "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+        },
+      }
+    );
+
+    res.json(response.data.data);
+
+  } catch (err) {
+    console.log(err.response?.data || err.message);
+
+    res.status(500).json({
+      error: "Failed to fetch jobs",
+    });
+  }
+});
+
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
