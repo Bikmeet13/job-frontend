@@ -21,6 +21,9 @@ const role = localStorage.getItem("role");
   const username = localStorage.getItem("username");
 const token = localStorage.getItem("token");
 const profilePic = localStorage.getItem("profilePic");
+const [externalJobs, setExternalJobs] = useState([]);
+const [googleSearch, setGoogleSearch] = useState("");
+const [googleLocation, setGoogleLocation] = useState("");
 
   const navigate = useNavigate();
   
@@ -89,6 +92,36 @@ console.log("Saved IDs:", ids);
     })
     .catch((err) => console.log(err));
 }, []);
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    if (search.trim() !== "") {
+      fetchExternalJobs();
+    }
+  }, 800);
+
+  return () => clearTimeout(timer);
+}, [search, locationFilter, modeFilter]);
+
+const fetchExternalJobs = async () => {
+  try {
+    const res = await axios.get(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-jobs",
+      {
+        params: {
+          query: search,
+          location: locationFilter,
+          mode: modeFilter,
+        }
+      }
+    );
+
+    setExternalJobs(res.data);
+
+  } catch (err) {
+    console.log(err);
+  }
+};
 
   const filteredJobs = Array.isArray(jobs)
     ? jobs
