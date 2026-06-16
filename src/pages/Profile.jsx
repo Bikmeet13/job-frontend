@@ -143,19 +143,18 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
 }, [skills]);
 
   const handleResumeAnalysis = async () => {
-
   if (!uploadedResume) {
     alert("Please upload a resume first 📄");
     return;
   }
-   setUploadingResume(true);
-  setLoaderText("Analyzing your resume and building your profile...");
-  
-  try {
 
+  setUploadingResume(true);
+  setLoaderText("Analyzing your resume and building your profile...");
+
+  try {
     const formData = new FormData();
 
-   formData.append("resume", resume);
+    formData.append("resume", resume);
 
     const res = await fetch(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/extract-resume",
@@ -170,49 +169,39 @@ console.log("LOCAL:", localStorage.getItem("profilePic"));
     console.log("AI DATA:", data);
 
     if (data.skills) {
-  setSkills(Array.isArray(data.skills)
-    ? data.skills.join(", ")
-    : data.skills);
-}
+      setSkills(
+        Array.isArray(data.skills)
+          ? data.skills.join(", ")
+          : data.skills
+      );
+    }
 
-if (data.education) {
-  const edu = data.education;
+    if (data.education) {
+      setEducation(data.education);
+    }
 
-  setEducation(
-    `${edu.degree || ""}
-${edu.field || ""}
-${edu.institution || ""}
-${edu.location || ""}
-${edu.duration || ""}`
-  );
-}
+    if (data.experience) {
+      setExperience(data.experience);
+    }
 
-if (data.experience) {
-  if (Array.isArray(data.experience)) {
-    console.log("EXPERIENCE DATA:", JSON.stringify(data.experience, null, 2));
-    setExperience(
-      data.experience
-        .map(
-          (exp) =>
-            `${exp.role || ""} at ${exp.company || ""} (${exp.duration || ""})`
-        )
-        .join("\n\n")
-    );
-  } else {
-    setExperience(
-      typeof data.experience === "object"
-        ? JSON.stringify(data.experience, null, 2)
-        : data.experience
-    );
-  }
-}
-    
+    if (data.projects) {
+      setProjects(
+        Array.isArray(data.projects)
+          ? data.projects.join("\n")
+          : data.projects
+      );
+    }
+
     toast.success("Profile auto-filled 🤖");
 
   } catch (err) {
     console.log(err);
     toast.error("Resume analysis failed ❌");
-      }
+
+  } finally {
+    // ✅ VERY IMPORTANT
+    setUploadingResume(false);
+  }
 };
   
 

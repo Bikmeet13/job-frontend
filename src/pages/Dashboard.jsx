@@ -114,8 +114,7 @@ setApplications(appsWithJobs.filter(Boolean));
 
     } catch (err) {
       console.log("APPLICATION ERROR:", err);
-      console.log("APPLICATION DATA:", res.data);
-    }
+          }
   };
 
   // ✅ CALL BOTH ONCE
