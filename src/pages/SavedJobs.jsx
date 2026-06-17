@@ -4,15 +4,18 @@ import axios from "axios";
 function SavedJobs() {
   const [jobs, setJobs] = useState([]);
 
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
+ useEffect(() => {
+  const userId = localStorage.getItem("userId");
 
-axios.get(
-  `https://humorous-fulfillment-production-1f5e.up.railway.app/api/saved-jobs/${userId}`
-)
-      .then((res) => setJobs(res.data))
-      .catch((err) => console.log(err));
-  }, []);
+  axios.get(
+    `https://humorous-fulfillment-production-1f5e.up.railway.app/api/saved-jobs/${userId}`
+  )
+    .then((res) => {
+      console.log("SAVED JOBS:", res.data);
+      setJobs(res.data);
+    })
+    .catch((err) => console.log(err));
+}, []);
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">

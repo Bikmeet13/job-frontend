@@ -314,11 +314,10 @@ app.get("/api/saved-jobs/:userId", async (req, res) => {
   try {
     const result = await db.query(
       `
-      SELECT jobs.*
+      SELECT *
       FROM saved_jobs
-      JOIN jobs
-      ON saved_jobs.job_id = jobs.id
-      WHERE saved_jobs.user_id = $1
+      WHERE user_id = $1
+      ORDER BY id DESC
       `,
       [userId]
     );
