@@ -78,6 +78,8 @@ function App() {
   }
 />
 
+<Route path="/saved-jobs" element={<SavedJobs />} />
+
     </Routes>
 
        

@@ -4,35 +4,17 @@ import { API } from "../services/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-function ApplyForm() {
-  const { id } = useParams();
-const jobId = id;
+function ApplyForm({ job }) {
+  const jobId = job?.id;
   
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [job, setJob] = useState(null);
-
+  
   console.log("JOB ID RECEIVED:", jobId);
 
-useEffect(() => {
-  const fetchJob = async () => {
-    try {
-      const res = await axios.get(
-        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${jobId}`
-      );
-      setJob(res.data);
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  fetchJob();
-}, [jobId]);
-  
-  
  useEffect(() => {
   const name = localStorage.getItem("username");
   const email = localStorage.getItem("email");
@@ -87,8 +69,16 @@ localStorage.setItem(`app_${jobId}`, res.data.applicationId);
 
 } catch (err) {
   console.log(err);
-  alert("Application failed ❌");
-   } finally {
+
+  console.log("Status:", err.response?.status);
+  console.log("Backend Error:", err.response?.data);
+
+  alert(
+    err.response?.data?.message ||
+    JSON.stringify(err.response?.data) ||
+    "Application failed ❌"
+  );
+} finally {
       setLoading(false);
 }
 };

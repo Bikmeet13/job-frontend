@@ -5,10 +5,11 @@ function SavedJobs() {
   const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
-    axios
-      .get(
-        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/saved-jobs/1"
-      )
+    const userId = localStorage.getItem("userId");
+
+axios.get(
+  `https://humorous-fulfillment-production-1f5e.up.railway.app/api/saved-jobs/${userId}`
+)
       .then((res) => setJobs(res.data))
       .catch((err) => console.log(err));
   }, []);
@@ -51,10 +52,10 @@ function SavedJobs() {
           "Content-Type": "application/json"
         },
 
-        body: JSON.stringify({
-          user_id: 1,
-          job_id: job.id
-        })
+       body: JSON.stringify({
+  user_id: userId,
+  job_id: job.id
+})
       }
     )
       .then(() => {

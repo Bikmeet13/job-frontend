@@ -144,6 +144,14 @@ setApplications(appsWithJobs.filter(Boolean));
             </p>
           </div>
 
+          <button
+  onClick={() => navigate("/saved-jobs")}
+  className="px-4 py-2 rounded-xl font-medium transition-all duration-300
+             hover:bg-red-500 hover:text-white"
+>
+  ❤️ Saved Jobs
+</button>
+
           {/* RIGHT */}
           <div className="flex gap-4">
 

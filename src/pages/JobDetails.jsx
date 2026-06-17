@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 function JobDetails() {
   const { id } = useParams();
@@ -10,34 +12,60 @@ function JobDetails() {
   const [job, setJob] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const applyFormRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+const externalJob = location.state?.job;
 
   useEffect(() => {
-    axios
-      .get(
-        `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs`
-      )
-      .then((res) => {
-        const foundJob = res.data.find(
-          (j) => j.id === Number(id)
-        );
+  axios
+    .get(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
+    )
+    .then((res) => {
+      const internalJobs = res.data;
 
-        setJob(foundJob);
-      })
-      .catch((err) => console.log(err));
-  }, [id]);
+      const externalJobs =
+        JSON.parse(localStorage.getItem("externalJobs")) || [];
+
+      const allJobs = [
+        ...internalJobs,
+        ...externalJobs,
+      ];
+
+      console.log("URL ID:", id);
+      console.log("All Jobs:", allJobs);
+
+      const foundJob = allJobs.find(
+        (j) => String(j.id) === String(id)
+      );
+
+      console.log("Found Job:", foundJob);
+
+      setJob(foundJob);
+    })
+    .catch((err) => console.log(err));
+}, [id]);
 
   if (!job) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-2xl font-bold">
-          Loading job...
-        </p>
-      </div>
-    );
-  }
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <p className="text-2xl font-bold">
+        Job not found 😔
+      </p>
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
+      <button
+  onClick={() => navigate(-1)}
+  className="mb-6 px-5 py-3 rounded-xl font-medium transition-all duration-300
+             bg-blue-600 text-white hover:bg-blue-700 hover:scale-105
+             hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+>
+  ← Back to Jobs
+</button>
 
       <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-10">
 
@@ -108,25 +136,33 @@ function JobDetails() {
         </div>
 
         {/* Apply Button */}
-        <button
-  onClick={() => {
-    setShowForm(true);
-
-    setTimeout(() => {
-      applyFormRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    }, 100);
-  }}
-  className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-xl"
->
-  Apply Now 🚀
-</button>
+        {job?.source === "google" ? (
+  <a
+    href={job.applyLink}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="mt-8 inline-flex items-center justify-center
+               bg-green-600 hover:bg-green-700
+               text-white px-8 py-3 rounded-xl
+               font-semibold transition-all duration-300
+               hover:scale-105 hover:shadow-[0_0_15px_rgba(34,197,94,0.6)]"
+  >
+    Apply on Company Website 🚀
+  </a>
+) : (
+  <button
+    onClick={() => setShowForm(true)}
+    className="mt-8 bg-blue-600 hover:bg-blue-700
+               text-white px-8 py-3 rounded-xl
+               transition-all duration-300 hover:scale-105"
+  >
+    Apply Now 🚀
+  </button>
+)}
 
 {showForm && (
   <div ref={applyFormRef} className="mt-10">
-    <ApplyForm />
+    <ApplyForm job={job} />
   </div>
 )}
 

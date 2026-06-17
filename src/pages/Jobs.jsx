@@ -29,10 +29,16 @@ const [googleLocation, setGoogleLocation] = useState("");
   
 
   const [jobs, setJobs] = useState([]);
-  const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [search, setSearch] = useState(
+  localStorage.getItem("jobSearch") || ""
+);
+ const [locationFilter, setLocationFilter] = useState(
+  localStorage.getItem("jobLocation") || ""
+);
 
-const [modeFilter, setModeFilter] = useState("");
+const [modeFilter, setModeFilter] = useState(
+  localStorage.getItem("jobMode") || ""
+);
 
 const [experienceFilter, setExperienceFilter] = useState("");
 
@@ -56,6 +62,20 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   }
 }, []);
 
+useEffect(() => {
+  localStorage.setItem("jobSearch", search);
+  localStorage.setItem("jobLocation", locationFilter);
+  localStorage.setItem("jobMode", modeFilter);
+}, [search, locationFilter, modeFilter]);
+
+useEffect(() => {
+  const savedExternalJobs = localStorage.getItem("externalJobs");
+
+  if (savedExternalJobs) {
+    setExternalJobs(JSON.parse(savedExternalJobs));
+  }
+}, []);
+
   useEffect(() => {
   fetchJobs()
     .then((data) => {
@@ -69,6 +89,28 @@ const [appliedJobs, setAppliedJobs] = useState([]);
       console.error("API Error:", err);
 
       setLoading(false); // ✅ ALSO HERE
+    });
+}, []);
+
+useEffect(() => {
+  fetchJobs()
+    .then((data) => {
+      console.log("JOBS API:", data);
+
+      setJobs(data);
+
+      // ✅ ADD THIS
+      localStorage.setItem(
+        "jobs",
+        JSON.stringify(data)
+      );
+
+      setLoading(false);
+    })
+    .catch((err) => {
+      console.error("API Error:", err);
+
+      setLoading(false);
     });
 }, []);
 
@@ -95,8 +137,14 @@ console.log("Saved IDs:", ids);
 
 useEffect(() => {
   const timer = setTimeout(() => {
-    if (search.trim() !== "") {
+    if (
+      search.trim() ||
+      locationFilter.trim() ||
+      modeFilter
+    ) {
       fetchExternalJobs();
+    } else {
+      setExternalJobs([]);
     }
   }, 800);
 
@@ -116,7 +164,26 @@ const fetchExternalJobs = async () => {
       }
     );
 
-    setExternalJobs(res.data);
+    const formattedJobs = res.data.map((job) => ({
+  id: job.job_id,
+  title: job.job_title,
+  company: job.employer_name,
+  location: job.job_location,
+  salary: job.job_salary_string || "Not disclosed",
+  description: job.job_description,
+  mode: job.job_is_remote ? "Remote" : "Onsite",
+  experience: "",
+  skills: "",
+  applyLink: job.job_apply_link,
+  source: "google",
+}));
+
+setExternalJobs(formattedJobs);
+
+localStorage.setItem(
+  "externalJobs",
+  JSON.stringify(formattedJobs)
+);
 
   } catch (err) {
     console.log(err);
@@ -124,41 +191,39 @@ const fetchExternalJobs = async () => {
 };
 
   const filteredJobs = Array.isArray(jobs)
-    ? jobs
-  .filter((job) =>
-    job.title.toLowerCase().includes(search.toLowerCase())
-  )
+  ? jobs
+      .filter((job) =>
+        job.title.toLowerCase().includes(search.toLowerCase())
+      )
+      .filter((job) =>
+        locationFilter
+          ? job.location
+              .toLowerCase()
+              .includes(locationFilter.toLowerCase())
+          : true
+      )
+      .filter((job) =>
+        modeFilter
+          ? job.mode === modeFilter
+          : true
+      )
+      .filter((job) =>
+        experienceFilter
+          ? job.experience
+              .toLowerCase()
+              .includes(experienceFilter.toLowerCase())
+          : true
+      )
+      .filter((job) =>
+        salaryFilter
+          ? job.salary
+              .toLowerCase()
+              .includes(salaryFilter.toLowerCase())
+          : true
+      )
+  : [];
 
-  .filter((job) =>
-    locationFilter
-      ? job.location
-          .toLowerCase()
-          .includes(locationFilter.toLowerCase())
-      : true
-  )
-
-  .filter((job) =>
-    modeFilter
-      ? job.mode === modeFilter
-      : true
-  )
-
-  .filter((job) =>
-    experienceFilter
-      ? job.experience
-          .toLowerCase()
-          .includes(experienceFilter.toLowerCase())
-      : true
-  )
-
-  .filter((job) =>
-    salaryFilter
-      ? job.salary
-          .toLowerCase()
-          .includes(salaryFilter.toLowerCase())
-      : true
-  )
-    : [];
+  const allJobs = [...filteredJobs, ...externalJobs];
 
     useEffect(() => {
   const checkAppliedJobs = async () => {
@@ -207,7 +272,7 @@ useEffect(() => {
 if (loading) {
   return (
     <div className="flex justify-center items-center h-screen">
-      <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+       <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
 }
@@ -597,7 +662,7 @@ localStorage.removeItem("userId");
       {/* 📋 Job List */}
       <div className="max-w-7xl mx-auto mt-10">
 
-        {filteredJobs.length === 0 ? (
+       {allJobs.length === 0 ? (
 
           <p className="text-center text-gray-500">
             No jobs found
@@ -607,7 +672,7 @@ localStorage.removeItem("userId");
 
           <div className="grid md:grid-cols-2 gap-8">
 
-           {filteredJobs.map((job) => {
+           {allJobs.map((job) => {
             const appId = localStorage.getItem(`app_${job.id}`);
 
   // ✅ DEBUG HERE (clean way)
@@ -618,7 +683,11 @@ localStorage.removeItem("userId");
 
   return (
     <motion.div
-      onClick={() => navigate(`/jobs/${job.id}`)}
+     onClick={() =>
+  navigate(`/jobs/${job.id}`, {
+    state: { job }
+  })
+}
       key={job.id}
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.98 }}
