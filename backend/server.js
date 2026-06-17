@@ -275,24 +275,39 @@ app.delete("/api/applications/:id", verifyToken, async (req, res) => {
     res.status(500).send("Error deleting application");
   }
 });
-app.post("/api/save-job", async (req, res) => {
-  const { user_id, job_id } = req.body;
 
-  console.log("SAVE JOB:", user_id, job_id);
+app.post("/api/save-job", async (req, res) => {
+  const {
+    user_id,
+    job_id,
+    external_job_id,
+    source
+  } = req.body;
+
+  console.log("BODY:", req.body);
 
   try {
     await db.query(
-      "INSERT INTO saved_jobs (user_id, job_id) VALUES ($1, $2)",
-      [user_id, job_id]
+      `
+      INSERT INTO saved_jobs
+      (user_id, job_id, external_job_id, source)
+      VALUES ($1, $2, $3, $4)
+      `,
+      [
+        user_id,
+        job_id || null,
+        external_job_id || null,
+        source || "internal"
+      ]
     );
 
     res.send("Job saved ✅");
-
   } catch (err) {
-    console.log(err);
+    console.log("SAVE JOB ERROR:", err);
     res.status(500).send("Error saving job");
   }
 });
+
 app.get("/api/saved-jobs/:userId", async (req, res) => {
   const userId = req.params.userId;
 
@@ -1009,12 +1024,23 @@ if (userCheck.rows.length === 0) {
 app.get("/api/applications", verifyToken, async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT * FROM applications WHERE email = $1",
+      `
+      SELECT
+        applications.*,
+        COALESCE(jobs.title, 'Deleted Job') AS title,
+        COALESCE(jobs.company, 'Unknown Company') AS company
+      FROM applications
+      LEFT JOIN jobs
+      ON applications.jobid = jobs.id
+      WHERE applications.email = $1
+      ORDER BY applications.id DESC
+      `,
       [req.user.email]
     );
 
     res.json(result.rows);
   } catch (err) {
+    console.log(err);
     res.status(500).send("Error fetching applications");
   }
 });

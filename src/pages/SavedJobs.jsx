@@ -41,34 +41,27 @@ axios.get(
               📍 {job.location}
             </p>
 <button
-  onClick={() => {
+ onClick={() => {
+  const userId = localStorage.getItem("userId");
 
-    fetch(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/unsave-job",
-      {
-        method: "DELETE",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-       body: JSON.stringify({
-  user_id: userId,
-  job_id: job.id
-})
-      }
-    )
-      .then(() => {
-
-        setJobs(
-          jobs.filter((j) => j.id !== job.id)
-        );
-
+  fetch(
+    "https://humorous-fulfillment-production-1f5e.up.railway.app/api/unsave-job",
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        job_id: job.id
       })
-
-      .catch((err) => console.log(err));
-
-  }}
+    }
+  )
+    .then(() => {
+      setJobs(jobs.filter((j) => j.id !== job.id));
+    })
+    .catch((err) => console.log(err));
+}}
 
   className="mt-5 w-full border border-red-500 text-red-500 py-3 rounded-xl hover:bg-red-50 transition"
 >

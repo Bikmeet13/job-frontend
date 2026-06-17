@@ -820,10 +820,19 @@ localStorage.removeItem("userId");
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
+     body: JSON.stringify(
+  job.source === "google"
+    ? {
         user_id: userId,
-        job_id: job.id
-      })
+        external_job_id: job.id,
+        source: "google"
+      }
+    : {
+        user_id: userId,
+        job_id: job.id,
+        source: "internal"
+      }
+)
     })
       .then(() => {
         toast.success("Job saved ❤️");

@@ -75,42 +75,9 @@ const res = await axios.get(
   }
 );
 
- // 🔥 fetch job details for each application
-    const appsWithJobs = await Promise.all(
-      res.data.map(async (app) => {
-        const jobId = app.jobId || app.job_id || app.jobid;
-
-         if (!jobId) return app;
-
-         if (isNaN(jobId)) return app;
-        try {
-          const jobRes = await axios.get(
-  `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${jobId}`,
-  {
-    validateStatus: (status) => status < 500 // 👈 THIS IS THE FIX
-  }
-);
-if (jobRes.status === 404) {
-  return null; // skip deleted job
-}
-
-          return {
-            ...app,
-            title: jobRes.data.title,
-            company: jobRes.data.company
-          };
-        } catch (err) {
-  if (err.response?.status !== 404) {
-    console.log("JOB FETCH ERROR:", err);
-  }
   
-      return null; // ❌ skip broken job
-    }
-  })
-);
-
 // 🔥 remove null apps
-setApplications(appsWithJobs.filter(Boolean));
+setApplications(res.data);
 
     } catch (err) {
       console.log("APPLICATION ERROR:", err);
