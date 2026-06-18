@@ -289,29 +289,29 @@ app.post("/api/save-job", async (req, res) => {
 
   try {
     await db.query(
-      `
-      INSERT INTO saved_jobs
-      (
-        user_id,
-        job_id,
-        external_job_id,
-        source,
-        title,
-        company,
-        location
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-      `,
-      [
-        user_id,
-        job_id || null,
-        external_job_id || null,
-        source || "internal",
-        title || null,
-        company || null,
-        location || null
-      ]
-    );
+  `
+  INSERT INTO saved_jobs
+  (
+    user_id,
+    job_id,
+    external_job_id,
+    source,
+    title,
+    company,
+    location
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7)
+  `,
+  [
+    user_id,
+    job_id || null,
+    external_job_id || null,
+    source || "internal",
+    title || null,
+    company || null,
+    location || null
+  ]
+);
 
     res.send("Job saved ✅");
   } catch (err) {
@@ -343,32 +343,38 @@ app.get("/api/saved-jobs/:userId", async (req, res) => {
 });
 
 app.delete("/api/unsave-job", async (req, res) => {
-
   try {
+    const {
+      user_id,
+      job_id,
+      external_job_id
+    } = req.body;
 
-    const { user_id, job_id } = req.body;
+    if (external_job_id) {
+      await db.query(
+        `
+        DELETE FROM saved_jobs
+        WHERE user_id = $1
+        AND external_job_id = $2
+        `,
+        [user_id, external_job_id]
+      );
+    } else {
+      await db.query(
+        `
+        DELETE FROM saved_jobs
+        WHERE user_id = $1
+        AND job_id = $2
+        `,
+        [user_id, job_id]
+      );
+    }
 
-    await db.query(
-
-      `
-      DELETE FROM saved_jobs
-      WHERE user_id = $1
-      AND job_id = $2
-      `,
-
-      [user_id, job_id]
-    );
-
-    res.send("Job removed from saved");
-
+    res.send("Job removed from saved ✅");
   } catch (err) {
-
     console.log(err);
-
     res.status(500).send("Error removing saved job");
-
   }
-
 });
 
 app.put("/api/applications/:id", async (req, res) => {

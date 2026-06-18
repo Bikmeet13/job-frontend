@@ -825,12 +825,20 @@ localStorage.removeItem("userId");
     ? {
         user_id: userId,
         external_job_id: job.id,
-        source: "google"
+        source: "google",
+
+        title: job.title,
+        company: job.company,
+        location: job.location
       }
     : {
         user_id: userId,
         job_id: job.id,
-        source: "internal"
+        source: "internal",
+
+        title: job.title,
+        company: job.company,
+        location: job.location
       }
 )
     })

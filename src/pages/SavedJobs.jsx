@@ -11,9 +11,12 @@ function SavedJobs() {
     `https://humorous-fulfillment-production-1f5e.up.railway.app/api/saved-jobs/${userId}`
   )
     .then((res) => {
-      console.log("SAVED JOBS:", res.data);
-      setJobs(res.data);
-    })
+  console.log(
+    JSON.stringify(res.data, null, 2)
+  );
+
+  setJobs(res.data);
+})
     .catch((err) => console.log(err));
 }, []);
 
@@ -56,17 +59,19 @@ function SavedJobs() {
       },
       body: JSON.stringify({
   user_id: userId,
-  external_job_id: job.job_id,
-  source: "google",
-
-  title: job.job_title,
-  company: job.employer_name,
-  location: job.job_city || "Remote"
+  job_id: job.job_id,
+  external_job_id: job.external_job_id
 })
     }
   )
     .then(() => {
-      setJobs(jobs.filter((j) => j.id !== job.id));
+      setJobs(
+  jobs.filter(
+    (j) =>
+      j.id !== job.id &&
+      j.external_job_id !== job.external_job_id
+  )
+);
     })
     .catch((err) => console.log(err));
 }}
