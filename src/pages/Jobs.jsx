@@ -127,7 +127,9 @@ useEffect(() => {
       console.log("SAVED JOBS:", data);
 
       // ✅ store only job IDs
-      const ids = data.map((job) => job.job_id || job.id);
+      const ids = data.map(
+  (job) => job.job_id || job.external_job_id
+);
 
 console.log("Saved IDs:", ids);
       setSavedJobs(ids);

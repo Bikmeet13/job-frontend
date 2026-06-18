@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 function SavedJobs() {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
 
  useEffect(() => {
@@ -32,9 +34,14 @@ function SavedJobs() {
         {jobs.map((job) => (
 
           <div
-            key={job.id}
-            className="bg-white p-6 rounded-2xl shadow-lg"
-          >
+  key={job.id}
+  onClick={() =>
+    navigate(`/jobs/${job.job_id || job.external_job_id}`, {
+      state: { job }
+    })
+  }
+  className="bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-2xl transition"
+>
             <h2 className="text-2xl font-bold">
               {job.title}
             </h2>
@@ -47,7 +54,8 @@ function SavedJobs() {
               📍 {job.location}
             </p>
 <button
- onClick={() => {
+ onClick={(e) => {
+  e.stopPropagation();
   const userId = localStorage.getItem("userId");
 
   fetch(
@@ -65,14 +73,14 @@ function SavedJobs() {
     }
   )
     .then(() => {
-      setJobs(
-  jobs.filter(
-    (j) =>
-      j.id !== job.id &&
-      j.external_job_id !== job.external_job_id
-  )
-);
-    })
+  setJobs((prev) =>
+    prev.filter(
+      (j) =>
+        j.id !== job.id &&
+        j.external_job_id !== job.external_job_id
+    )
+  );
+})
     .catch((err) => console.log(err));
 }}
 
