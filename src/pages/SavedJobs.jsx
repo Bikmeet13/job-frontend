@@ -55,9 +55,14 @@ function SavedJobs() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        user_id: userId,
-        job_id: job.id
-      })
+  user_id: userId,
+  external_job_id: job.job_id,
+  source: "google",
+
+  title: job.job_title,
+  company: job.employer_name,
+  location: job.job_city || "Remote"
+})
     }
   )
     .then(() => {

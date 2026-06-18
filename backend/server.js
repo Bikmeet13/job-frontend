@@ -281,23 +281,35 @@ app.post("/api/save-job", async (req, res) => {
     user_id,
     job_id,
     external_job_id,
-    source
+    source,
+    title,
+    company,
+    location
   } = req.body;
-
-  console.log("BODY:", req.body);
 
   try {
     await db.query(
       `
       INSERT INTO saved_jobs
-      (user_id, job_id, external_job_id, source)
-      VALUES ($1, $2, $3, $4)
+      (
+        user_id,
+        job_id,
+        external_job_id,
+        source,
+        title,
+        company,
+        location
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
       `,
       [
         user_id,
         job_id || null,
         external_job_id || null,
-        source || "internal"
+        source || "internal",
+        title || null,
+        company || null,
+        location || null
       ]
     );
 
