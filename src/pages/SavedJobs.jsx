@@ -25,9 +25,27 @@ function SavedJobs() {
   return (
     <div className="min-h-screen bg-gray-100 p-10">
 
-      <h1 className="text-5xl font-bold mb-10">
-        ❤️ Saved Jobs
-      </h1>
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10">
+  <h1 className="text-5xl font-bold">
+    ❤️ Saved Jobs
+  </h1>
+
+  <div className="flex gap-3">
+    <button
+      onClick={() => navigate("/")}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl"
+    >
+      🏠 Home
+    </button>
+
+    <button
+      onClick={() => navigate("/dashboard")}
+      className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl"
+    >
+      📊 Dashboard
+    </button>
+  </div>
+</div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
