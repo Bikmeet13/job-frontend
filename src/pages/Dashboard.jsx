@@ -98,7 +98,7 @@ setApplications(res.data);
       {/* ✅ HEADER */}
       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-10 rounded-3xl shadow-2xl">
 
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
 
           {/* LEFT */}
           <div>
@@ -113,14 +113,13 @@ setApplications(res.data);
 
           <button
   onClick={() => navigate("/saved-jobs")}
-  className="px-4 py-2 rounded-xl font-medium transition-all duration-300
-             hover:bg-red-500 hover:text-white"
+  className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap"
 >
   ❤️ Saved Jobs
 </button>
 
           {/* RIGHT */}
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-2">
 
             <button
               onClick={() => navigate("/")}
@@ -160,7 +159,7 @@ setApplications(res.data);
             {stats.saved}
           </h2>
           <p className="text-gray-500 mt-2">
-  Completed Interviews
+  Saved Jobs
 </p>
         </div>
 
@@ -184,48 +183,130 @@ setApplications(res.data);
   const jobId = app.jobId || app.job_id || app.jobid;
   const isDone = Boolean(localStorage.getItem(`done_${jobId}`));
 
+  const progressWidth =
+  app.status === "Applied"
+    ? "15%"
+    : app.status === "Under Review"
+    ? "30%"
+    : app.status === "Shortlisted"
+    ? "50%"
+    : app.status === "Interview Scheduled"
+    ? "70%"
+    : app.status === "Interview Completed"
+    ? "85%"
+    : app.status === "Selected"
+    ? "100%"
+    : "0%";
+
   return (
     <div
-      key={app.id}
-      className="flex items-center justify-between border-b pb-4"
-    >
+  key={app.id}
+  className="border-b pb-6"
+>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 w-full">
         <div>
           <h3 className="text-xl font-semibold">{app.title}</h3>
           <p className="text-gray-500">{app.company}</p>
+          <div className="mt-4 w-full">
+
+  <span
+    className={`inline-block px-4 py-2 rounded-full text-white text-sm font-semibold
+      ${
+        app.status === "Applied"
+          ? "bg-blue-500"
+          : app.status === "Under Review"
+          ? "bg-yellow-500"
+          : app.status === "Shortlisted"
+          ? "bg-purple-500"
+          : app.status === "Interview Scheduled"
+          ? "bg-indigo-500"
+          : app.status === "Interview Completed"
+          ? "bg-green-500"
+          : app.status === "Selected"
+          ? "bg-emerald-600"
+          : "bg-red-500"
+      }
+    `}
+  >
+    {app.status || "Applied"}
+  </span>
+
+  <div className="w-full bg-gray-200 rounded-full h-3 mt-3">
+    <div
+  className="bg-green-500 h-3 rounded-full transition-all duration-500"
+  style={{ width: progressWidth }}
+/>
+  </div>
+
+</div>
+          <div className="mt-3 text-sm">
+
+  <p>
+    {["Applied","Under Review","Shortlisted","Interview Scheduled","Interview Completed","Selected"]
+      .indexOf(app.status) >= 0
+      ? "✅"
+      : "⚪"} Applied
+  </p>
+
+  <p>
+    {["Under Review","Shortlisted","Interview Scheduled","Interview Completed","Selected"]
+      .indexOf(app.status) >= 0
+      ? "✅"
+      : "⚪"} Under Review
+  </p>
+
+  <p>
+    {["Shortlisted","Interview Scheduled","Interview Completed","Selected"]
+      .indexOf(app.status) >= 0
+      ? "✅"
+      : "⚪"} Shortlisted
+  </p>
+
+  <p>
+    {["Interview Scheduled","Interview Completed","Selected"]
+      .indexOf(app.status) >= 0
+      ? "✅"
+      : "⚪"} Interview Scheduled
+  </p>
+
+</div>
         </div>
 
-        <button
-  onClick={() =>
-    navigate(`/chatbot?applicationId=${app.id}&jobId=${jobId}`)
-  }
-  disabled={isDone}
-  className={`px-3 py-1 rounded text-white ${
-    isDone
-      ? "bg-gray-400 cursor-not-allowed"
-      : "bg-indigo-600 hover:bg-indigo-700"
-  }`}
->
-  {isDone ? "✅ Interview Completed" : "🤖 Start Interview"}
-</button>
+        <div className="flex gap-3 mt-5 flex-wrap">
 
-        <button
-  onClick={() => {
-    if (window.confirm("Delete this application?")) {
-      deleteApplication(app.id);
+  <button
+    onClick={() =>
+      navigate(`/chatbot?applicationId=${app.id}&jobId=${jobId}`)
     }
-  }}
-  className="px-3 py-1 bg-red-500 text-white rounded"
->
-  🗑 Delete
-</button>
+    disabled={isDone}
+    className={`px-4 py-2 rounded-lg text-white font-medium ${
+      isDone
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-indigo-600 hover:bg-indigo-700"
+    }`}
+  >
+    {isDone
+      ? "✅ Interview Completed"
+      : "🤖 Start Interview"}
+  </button>
+
+  <button
+    onClick={() => {
+      if (window.confirm("Delete this application?")) {
+        deleteApplication(app.id);
+      }
+    }}
+    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium"
+  >
+    🗑 Delete
+  </button>
+
+</div>
 
       </div>
 
-      <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold">
-        {app.status || "Applied"}
-      </span>
+      
 
     </div>
   );

@@ -79,7 +79,7 @@ const verifyOtp = async () => {
     checked={isAdmin}
     onChange={() => setIsAdmin(!isAdmin)}
   />
-  Signup as Admin
+  Signup as Admin 👑
 </label>
 
 

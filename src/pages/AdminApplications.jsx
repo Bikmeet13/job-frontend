@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 
 function AdminApplications() {
 
@@ -47,43 +48,52 @@ function AdminApplications() {
       <div className="space-y-6">
 
         {applications.map((app) => (
+  <div
+  key={app.id}
+  className="bg-white p-6 rounded-2xl shadow-lg"
+>
+    <h3>{app.name}</h3>
+    <p>{app.email}</p>
 
-          <div
-            key={app.id}
-            className="bg-white rounded-2xl shadow-lg p-6 flex items-center justify-between"
-          >
+    <select
+  value={app.status || "Applied"}
+  onChange={(e) =>
+    updateStatus(app.id, e.target.value)
+  }
+  className="border p-2 rounded"
+>
+  <option value="Applied">Applied</option>
+  <option value="Under Review">Under Review</option>
+  <option value="Shortlisted">Shortlisted</option>
+  <option value="Interview Scheduled">Interview Scheduled</option>
+  <option value="Interview Completed">Interview Completed</option>
+  <option value="Selected">Selected</option>
+  <option value="Rejected">Rejected</option>
+</select>
+<span
+  className={`inline-block mt-3 px-3 py-1 rounded-full text-white text-sm
+    ${
+      app.status === "Applied"
+        ? "bg-blue-500"
+        : app.status === "Under Review"
+        ? "bg-yellow-500"
+        : app.status === "Shortlisted"
+        ? "bg-purple-500"
+        : app.status === "Interview Scheduled"
+        ? "bg-indigo-500"
+        : app.status === "Interview Completed"
+        ? "bg-green-500"
+        : app.status === "Selected"
+        ? "bg-emerald-600"
+        : "bg-red-500"
+    }
+  `}
+>
+  {app.status || "Applied"}
+</span>
 
-            <div>
-
-              <h2 className="text-2xl font-bold">
-                {app.title}
-              </h2>
-
-              <p className="text-gray-500">
-                {app.company}
-              </p>
-
-            </div>
-
-            <select
-              value={app.status || "Applied"}
-              onChange={(e) =>
-                updateStatus(app.id, e.target.value)
-              }
-              className="border p-3 rounded-xl"
-            >
-
-              <option>Applied</option>
-              <option>Reviewing</option>
-              <option>Interview Scheduled</option>
-              <option>Rejected</option>
-              <option>Hired</option>
-
-            </select>
-
-          </div>
-
-        ))}
+  </div>
+))}
 
       </div>
 

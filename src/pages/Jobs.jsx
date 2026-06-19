@@ -1000,11 +1000,30 @@ const data = await res.json();
       </h3>
 
       <ul className="space-y-2 text-gray-400">
-        <li>Home</li>
-        <li>Jobs</li>
-        <li>Login</li>
-        <li>Signup</li>
-      </ul>
+  <li>
+    <button onClick={() => navigate("/")}>
+      Home
+    </button>
+  </li>
+
+  <li>
+    <button onClick={() => navigate("/jobs")}>
+      Jobs
+    </button>
+  </li>
+
+  <li>
+    <button onClick={() => navigate("/login")}>
+      Login
+    </button>
+  </li>
+
+  <li>
+    <button onClick={() => navigate("/signup")}>
+      Signup
+    </button>
+  </li>
+</ul>
     </div>
 
     {/* Contact */}
