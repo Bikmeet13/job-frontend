@@ -137,18 +137,23 @@ const externalJob = location.state?.job;
 
         {/* Apply Button */}
         {job?.source === "google" ? (
-  <a
-    href={job.applyLink}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="mt-8 inline-flex items-center justify-center
-               bg-green-600 hover:bg-green-700
-               text-white px-8 py-3 rounded-xl
-               font-semibold transition-all duration-300
-               hover:scale-105 hover:shadow-[0_0_15px_rgba(34,197,94,0.6)]"
-  >
-    Apply on Company Website 🚀
-  </a>
+  <button
+  onClick={() => {
+    window.open(
+      job.applyLink,
+      "_blank",
+      "width=1200,height=800,left=100,top=50,resizable=yes,scrollbars=yes"
+    );
+  }}
+  className="mt-8 inline-flex items-center justify-center
+             bg-green-600 hover:bg-green-700
+             text-white px-8 py-3 rounded-xl
+             font-semibold transition-all duration-300
+             hover:scale-105 hover:shadow-[0_0_15px_rgba(34,197,94,0.6)]"
+>
+  Apply on Company Website 🚀
+</button>
+
 ) : (
   <button
     onClick={() => setShowForm(true)}
