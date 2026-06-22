@@ -5,28 +5,23 @@ function AdminApplications() {
 
   const [applications, setApplications] = useState([]);
 
-  useEffect(() => {
+useEffect(() => {
+  axios
+    .get(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/recent-applications"
+    )
+    .then((res) => {
+      console.log("ADMIN APPS:", res.data);
+      setApplications(res.data);
+    })
+    .catch(console.log);
+}, []);
 
-    fetch("http://localhost:5000/api/recent-applications")
-      .then((res) => res.json())
-      .then((data) => {
-        setApplications(data);
-      })
-      .catch((err) => console.log(err));
-
-  }, []);
-
-  const updateStatus = async (id, status) => {
-
-    await fetch(
-      `http://localhost:5000/api/applications/${id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status })
-      }
+const updateStatus = async (id, status) => {
+  try {
+    await axios.put(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/applications/${id}`,
+      { status }
     );
 
     setApplications((prev) =>
@@ -36,7 +31,10 @@ function AdminApplications() {
           : app
       )
     );
-  };
+  } catch (err) {
+    console.log(err);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
@@ -52,47 +50,39 @@ function AdminApplications() {
   key={app.id}
   className="bg-white p-6 rounded-2xl shadow-lg"
 >
-    <h3>{app.name}</h3>
-    <p>{app.email}</p>
+  <h3 className="text-xl font-bold">{app.name}</h3>
 
-    <select
-  value={app.status || "Applied"}
-  onChange={(e) =>
-    updateStatus(app.id, e.target.value)
-  }
-  className="border p-2 rounded"
->
-  <option value="Applied">Applied</option>
-  <option value="Under Review">Under Review</option>
-  <option value="Shortlisted">Shortlisted</option>
-  <option value="Interview Scheduled">Interview Scheduled</option>
-  <option value="Interview Completed">Interview Completed</option>
-  <option value="Selected">Selected</option>
-  <option value="Rejected">Rejected</option>
-</select>
-<span
-  className={`inline-block mt-3 px-3 py-1 rounded-full text-white text-sm
-    ${
-      app.status === "Applied"
-        ? "bg-blue-500"
-        : app.status === "Under Review"
-        ? "bg-yellow-500"
-        : app.status === "Shortlisted"
-        ? "bg-purple-500"
-        : app.status === "Interview Scheduled"
-        ? "bg-indigo-500"
-        : app.status === "Interview Completed"
-        ? "bg-green-500"
-        : app.status === "Selected"
-        ? "bg-emerald-600"
-        : "bg-red-500"
+  <p className="text-gray-600">
+    {app.title}
+  </p>
+
+  <p className="text-gray-500">
+    {app.company}
+  </p>
+
+  <select
+    value={app.status || "Pending"}
+    onChange={(e) =>
+      updateStatus(app.id, e.target.value)
     }
-  `}
->
-  {app.status || "Applied"}
-</span>
+    className="border p-2 rounded mt-3"
+  >
+    <option value="Pending">Pending</option>
+    <option value="Applied">Applied</option>
+    <option value="Under Review">Under Review</option>
+    <option value="Shortlisted">Shortlisted</option>
+    <option value="Interview Scheduled">Interview Scheduled</option>
+    <option value="Interview Completed">Interview Completed</option>
+    <option value="Selected">Selected</option>
+    <option value="Rejected">Rejected</option>
+  </select>
 
-  </div>
+  <span
+    className="inline-block mt-3 px-3 py-1 rounded-full bg-red-500 text-white text-sm"
+  >
+    {app.status || "Pending"}
+  </span>
+</div>
 ))}
 
       </div>

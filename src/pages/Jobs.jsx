@@ -14,6 +14,7 @@ import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
 
+
 function Jobs() {
 
 const role = localStorage.getItem("role");
@@ -24,6 +25,7 @@ const profilePic = localStorage.getItem("profilePic");
 const [externalJobs, setExternalJobs] = useState([]);
 const [googleSearch, setGoogleSearch] = useState("");
 const [googleLocation, setGoogleLocation] = useState("");
+const [userLocation, setUserLocation] = useState("");
 
   const navigate = useNavigate();
   
@@ -51,6 +53,39 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [appliedMap, setAppliedMap] = useState({});
+  const [locating, setLocating] = useState(false);
+
+  useEffect(() => {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords;
+
+      try {
+        const res = await axios.get(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+        );
+
+        const city =
+          res.data.address.city ||
+          res.data.address.town ||
+          res.data.address.state ||
+          "";
+
+        setUserLocation(city);
+        setLocationFilter(city);
+
+        console.log("Detected Location:", city);
+      } catch (err) {
+        console.log(err);
+      }
+    },
+    (err) => {
+      console.log("Location denied", err);
+    }
+  );
+}, []);
   
    useEffect(() => {
   const role = localStorage.getItem("role");
@@ -603,6 +638,32 @@ localStorage.removeItem("userId");
     : "bg-white text-black border-gray-300"
 }`}
   />
+
+  {userLocation && (
+  <p className="text-green-600 font-medium mb-4">
+    📍 Showing jobs near {userLocation}
+  </p>
+)}
+
+<button
+  onClick={async () => {
+    setLocating(true);
+    await getUserLocation();
+    setLocating(false);
+  }}
+  disabled={locating}
+  className={`
+    px-5 py-3 rounded-xl font-semibold text-white
+    transition-all duration-300
+    ${
+      locating
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-600 hover:bg-blue-700 hover:scale-105"
+    }
+  `}
+>
+  {locating ? "📡 Detecting Location..." : "📍 Use My Location"}
+</button>
 
 </div>
 

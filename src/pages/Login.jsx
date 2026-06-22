@@ -62,8 +62,45 @@ function Login() {
 };
 
 
-  return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
+ return (
+  <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
+
+    {/* SVG Doodle Background */}
+    <div className="absolute inset-0 opacity-5 pointer-events-none">
+      <svg
+        className="w-full h-full"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="100"
+          cy="100"
+          r="50"
+          stroke="blue"
+          fill="none"
+          strokeWidth="3"
+        />
+
+        <circle
+          cx="400"
+          cy="200"
+          r="70"
+          stroke="purple"
+          fill="none"
+          strokeWidth="3"
+        />
+
+        <path
+          d="M100 300 Q300 100 500 300"
+          stroke="blue"
+          fill="none"
+          strokeWidth="3"
+        />
+      </svg>
+    </div>
+
+    <div
+      className="relative z-10 flex flex-col items-center justify-center min-h-screen"
+    >
       <h1
       onClick={() => navigate("/")}
       className="cursor-pointer text-3xl font-bold text-blue-600 mb-6 hover:text-blue-800"
@@ -75,9 +112,10 @@ function Login() {
       <form onSubmit={handleLogin}>
         <input
   type="email"
-  placeholder="Email"
+  placeholder="example@gmail.com"
   value={email}
   onChange={(e) => setEmail(e.target.value)}
+  className="border p-3 rounded-lg w-full max-w-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
 />
 
         <br /><br />
@@ -128,8 +166,10 @@ function Login() {
   ⬅ Back to Home
 </button>
 
-    </div>
-  );
+        </div>
+
+  </div>
+);
 }
 
 export default Login;

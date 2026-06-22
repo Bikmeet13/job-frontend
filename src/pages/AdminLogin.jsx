@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
+import toast from "react-hot-toast";
 
 function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -20,6 +21,8 @@ function AdminLogin() {
         password
       }
     );
+
+    console.log("LOGIN RESPONSE:", res.data);
 
     const { token, role } = res.data; // ✅ ADD THIS
 
@@ -40,6 +43,7 @@ else {
 
   } catch (err) {
   console.log(err);
+   console.log("LOGIN ERROR:", err.response?.data);
 
   const message = err?.response?.data?.error || "";
 
