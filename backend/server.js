@@ -1247,38 +1247,59 @@ app.post("/api/google-login", async (req, res) => {
 
     const payload = ticket.getPayload();
 
-    const email = payload.email;
+    const email = payload.email.toLowerCase().trim();
     const name = payload.name;
 
-    let user = await User.findOne({ email });
+    // Check if user exists
+    const existingUser = await db.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
 
-    if (!user) {
-      user = await User.create({
-        username: name,
-        email,
-        password: "google-auth-user",
-        role: "user",
-      });
+    let user;
+
+    if (existingUser.rows.length === 0) {
+      const newUser = await db.query(
+        `
+        INSERT INTO users
+        (username, email, password, role, is_approved)
+        VALUES ($1,$2,$3,$4,$5)
+        RETURNING *
+        `,
+        [
+          name,
+          email,
+          "google-auth-user",
+          "user",
+          true
+        ]
+      );
+
+      user = newUser.rows[0];
+    } else {
+      user = existingUser.rows[0];
     }
 
     const token = jwt.sign(
       {
-        id: user._id,
+        id: user.id,
+        email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      process.env.JWT_SECRET
     );
 
     res.json({
       token,
       role: user.role,
-      userId: user._id,
+      userId: user.id,
       username: user.username,
       email: user.email,
     });
-  } catch (error) {
-    console.log(error);
+
+  } catch (err) {
+    console.log("GOOGLE LOGIN ERROR:", err);
+
     res.status(500).json({
       error: "Google Login Failed",
     });
