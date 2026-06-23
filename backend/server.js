@@ -28,6 +28,10 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
+const { OAuth2Client } = require("google-auth-library");
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 console.log(
   "OPENAI KEY EXISTS:",
   !!process.env.OPENAI_API_KEY
@@ -1228,6 +1232,55 @@ app.get("/api/google-jobs", async (req, res) => {
 
     res.status(500).json({
       error: "Failed to fetch jobs",
+    });
+  }
+});
+
+app.post("/api/google-login", async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    const email = payload.email;
+    const name = payload.name;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        username: name,
+        email,
+        password: "google-auth-user",
+        role: "user",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      token,
+      role: user.role,
+      userId: user._id,
+      username: user.username,
+      email: user.email,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      error: "Google Login Failed",
     });
   }
 });

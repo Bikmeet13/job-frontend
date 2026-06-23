@@ -2,6 +2,7 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 
 function Login() {
   const [loading, setLoading] = useState(false);
@@ -9,6 +10,32 @@ function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+  try {
+    const res = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-login",
+      {
+        credential: credentialResponse.credential,
+      }
+    );
+
+    const { token, role, userId, username, email } = res.data;
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", role);
+    localStorage.setItem("userId", userId);
+    localStorage.setItem("username", username);
+    localStorage.setItem("email", email);
+
+    toast.success("Google Login Successful 🚀");
+
+    navigate("/");
+  } catch (err) {
+    console.log(err);
+    toast.error("Google Login Failed");
+  }
+};
 
   const handleLogin = async (e) => {
   e.preventDefault();
@@ -182,6 +209,17 @@ function Login() {
 >
   {loading ? "⏳ Logging in..." : "🚀 Login"}
 </button>
+
+<div className="mt-4 flex justify-center">
+  <GoogleLogin
+    onSuccess={(credentialResponse) => {
+      console.log(credentialResponse);
+    }}
+    onError={() => {
+      console.log("Google Login Failed");
+    }}
+  />
+</div>
 
 
 <button
