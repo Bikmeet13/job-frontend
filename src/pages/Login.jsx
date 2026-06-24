@@ -12,6 +12,8 @@ function Login() {
   const [password, setPassword] = useState("");
 
   const handleGoogleSuccess = async (credentialResponse) => {
+     console.log("GOOGLE SUCCESS");
+  console.log(credentialResponse);
   try {
     const res = await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-login",
@@ -21,6 +23,7 @@ function Login() {
     );
 
     const { token, role, userId, username, email } = res.data;
+     console.log("BACKEND RESPONSE:", res.data);
 
     localStorage.setItem("token", token);
     localStorage.setItem("role", role);
@@ -212,13 +215,12 @@ function Login() {
 
 <div className="mt-4 flex justify-center">
   <GoogleLogin
-    onSuccess={(credentialResponse) => {
-      console.log(credentialResponse);
-    }}
-    onError={() => {
-      console.log("Google Login Failed");
-    }}
-  />
+  onSuccess={handleGoogleSuccess}
+  onError={() => {
+    console.log("Google Login Failed");
+    toast.error("Google Login Failed");
+  }}
+/>
 </div>
 
 
