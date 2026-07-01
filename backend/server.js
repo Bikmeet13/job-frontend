@@ -1206,12 +1206,12 @@ app.get("/api/profile/:id", async (req, res) => {
   }
 });
 
-app.get("/api/jobs", async (req, res) => {
+app.get("/api/external-jobs", async (req, res) => {
   try {
     const { query = "", location = "" } = req.query;
 
     const response = await axios.get(
-      `https://api.adzuna.com/v1/api/jobs/in/search/1`,
+      "https://api.adzuna.com/v1/api/jobs/in/search/1",
       {
         params: {
           app_id: process.env.ADZUNA_APP_ID,
@@ -1224,12 +1224,10 @@ app.get("/api/jobs", async (req, res) => {
     );
 
     res.json(response.data.results);
-
   } catch (err) {
     console.error(err.response?.data || err.message);
-
     res.status(500).json({
-      error: "Unable to fetch jobs"
+      error: "Unable to fetch external jobs",
     });
   }
 });
