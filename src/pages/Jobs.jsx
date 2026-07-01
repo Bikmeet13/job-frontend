@@ -55,6 +55,44 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [appliedMap, setAppliedMap] = useState({});
   const [locating, setLocating] = useState(false);
 
+  const getUserLocation = async () => {
+  if (!navigator.geolocation) {
+    toast.error("Geolocation is not supported.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords;
+
+      try {
+        const res = await axios.get(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+        );
+
+        const city =
+          res.data.address.city ||
+          res.data.address.town ||
+          res.data.address.village ||
+          res.data.address.state ||
+          "";
+
+        setUserLocation(city);
+        setLocationFilter(city);
+
+        toast.success(`Location detected: ${city}`);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to detect location");
+      }
+    },
+    (err) => {
+      console.error(err);
+      toast.error("Location permission denied");
+    }
+  );
+};
+
   useEffect(() => {
   if (!navigator.geolocation) return;
 
@@ -191,7 +229,7 @@ useEffect(() => {
 const fetchExternalJobs = async () => {
   try {
     const res = await axios.get(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs",
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/external-jobs",
       {
         params: {
           query: search,
@@ -201,18 +239,21 @@ const fetchExternalJobs = async () => {
       }
     );
 
-    const formattedJobs = res.data.map((job) => ({
-  id: job.job_id,
-  title: job.job_title,
-  company: job.employer_name,
-  location: job.job_location,
-  salary: job.job_salary_string || "Not disclosed",
-  description: job.job_description,
-  mode: job.job_is_remote ? "Remote" : "Onsite",
+   const formattedJobs = res.data.map((job) => ({
+  id: job.id,
+  title: job.title,
+  company: job.company?.display_name || "Unknown",
+  location: job.location?.display_name || "Not specified",
+  salary:
+    job.salary_min && job.salary_max
+      ? `₹${job.salary_min.toLocaleString()} - ₹${job.salary_max.toLocaleString()}`
+      : "Not disclosed",
+  description: job.description,
+  mode: "External",
   experience: "",
   skills: "",
-  applyLink: job.job_apply_link,
-  source: "google",
+  applyLink: job.redirect_url,
+  source: "adzuna",
 }));
 
 setExternalJobs(formattedJobs);
@@ -751,7 +792,7 @@ localStorage.removeItem("userId");
     state: { job }
   })
 }
-      key={job.id}
+     key={`${job.source}-${job.id}`}
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.98 }}
       initial={{ opacity: 0, y: 30 }}
