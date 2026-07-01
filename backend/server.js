@@ -1206,32 +1206,30 @@ app.get("/api/profile/:id", async (req, res) => {
   }
 });
 
-app.get("/api/google-jobs", async (req, res) => {
-  const { query = "", location = "", mode = "" } = req.query;
-
+app.get("/api/jobs", async (req, res) => {
   try {
+    const { query = "", location = "" } = req.query;
+
     const response = await axios.get(
-      "https://jsearch.p.rapidapi.com/search",
+      `https://api.adzuna.com/v1/api/jobs/in/search/1`,
       {
         params: {
-          query: `${query} ${mode} jobs in ${location}`,
-          page: "1",
-          num_pages: "1",
-        },
-        headers: {
-          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-          "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+          app_id: process.env.ADZUNA_APP_ID,
+          app_key: process.env.ADZUNA_APP_KEY,
+          what: query,
+          where: location,
+          results_per_page: 20,
         },
       }
     );
 
-    res.json(response.data.data);
+    res.json(response.data.results);
 
   } catch (err) {
-    console.log(err.response?.data || err.message);
+    console.error(err.response?.data || err.message);
 
     res.status(500).json({
-      error: "Failed to fetch jobs",
+      error: "Unable to fetch jobs"
     });
   }
 });

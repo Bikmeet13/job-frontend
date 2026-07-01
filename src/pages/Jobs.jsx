@@ -191,7 +191,7 @@ useEffect(() => {
 const fetchExternalJobs = async () => {
   try {
     const res = await axios.get(
-      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-jobs",
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs",
       {
         params: {
           query: search,
