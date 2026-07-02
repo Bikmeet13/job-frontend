@@ -1208,6 +1208,9 @@ app.get("/api/profile/:id", async (req, res) => {
 
 app.get("/api/external-jobs", async (req, res) => {
   try {
+    console.log("APP_ID:", process.env.ADZUNA_APP_ID);
+    console.log("APP_KEY EXISTS:", !!process.env.ADZUNA_APP_KEY);
+
     const { query = "", location = "" } = req.query;
 
     const response = await axios.get(
@@ -1225,10 +1228,11 @@ app.get("/api/external-jobs", async (req, res) => {
 
     res.json(response.data.results);
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({
-      error: "Unable to fetch external jobs",
-    });
+    console.log("STATUS:", err.response?.status);
+    console.log("DATA:", err.response?.data);
+    console.log("MESSAGE:", err.message);
+
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1298,6 +1302,33 @@ app.post("/api/google-login", async (req, res) => {
 
     res.status(500).json({
       error: "Google Login Failed",
+    });
+  }
+});
+
+app.get("/api/arbeitnow-jobs", async (req, res) => {
+  try {
+    const { query = "" } = req.query;
+
+    const response = await axios.get(
+      "https://www.arbeitnow.com/api/job-board-api"
+    );
+
+    let jobs = response.data.data;
+
+    // Optional search filter
+    if (query) {
+      jobs = jobs.filter(job =>
+        job.title.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
+    res.json(jobs);
+
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).json({
+      error: "Failed to fetch Arbeitnow jobs"
     });
   }
 });

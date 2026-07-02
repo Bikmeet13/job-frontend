@@ -93,6 +93,47 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   );
 };
 
+const fetchArbeitnowJobs = async () => {
+  try {
+    const res = await axios.get(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/arbeitnow-jobs",
+      {
+        params: {
+          query: search,
+        },
+      }
+    );
+
+    const formattedJobs = res.data.map((job) => ({
+      id: `arbeitnow-${job.slug}`,
+      title: job.title,
+      company: job.company_name,
+      location: job.location,
+      salary: "Not disclosed",
+      description: job.description,
+      mode: job.remote ? "Remote" : "Onsite",
+      experience: "",
+      skills: (job.tags || []).join(", "),
+      applyLink: job.url,
+      source: "arbeitnow",
+    }));
+
+    setExternalJobs(prev => [...prev, ...formattedJobs]);
+
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const fetchAllExternalJobs = async () => {
+  setExternalJobs([]);
+
+  await Promise.all([
+    fetchExternalJobs(),
+    fetchArbeitnowJobs(),
+  ]);
+};
+
   useEffect(() => {
   if (!navigator.geolocation) return;
 
@@ -217,7 +258,7 @@ useEffect(() => {
       locationFilter.trim() ||
       modeFilter
     ) {
-      fetchExternalJobs();
+      fetchAllExternalJobs();
     } else {
       setExternalJobs([]);
     }
