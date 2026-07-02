@@ -1211,10 +1211,14 @@ app.get("/api/external-jobs", async (req, res) => {
     console.log("APP_ID:", process.env.ADZUNA_APP_ID);
     console.log("APP_KEY EXISTS:", !!process.env.ADZUNA_APP_KEY);
 
-    const { query = "", location = "" } = req.query;
+   const {
+  query = "",
+  location = "",
+  country = "in",
+} = req.query;
 
     const response = await axios.get(
-      "https://api.adzuna.com/v1/api/jobs/in/search/1",
+      `https://api.adzuna.com/v1/api/jobs/${country}/search/1`,
       {
         params: {
           app_id: process.env.ADZUNA_APP_ID,

@@ -14,7 +14,6 @@ import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
 
-
 function Jobs() {
 
 const role = localStorage.getItem("role");
@@ -54,6 +53,7 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [appliedMap, setAppliedMap] = useState({});
   const [locating, setLocating] = useState(false);
+  const [country, setCountry] = useState("in");
 
   const getUserLocation = async () => {
   if (!navigator.geolocation) {
@@ -180,7 +180,7 @@ useEffect(() => {
   localStorage.setItem("jobSearch", search);
   localStorage.setItem("jobLocation", locationFilter);
   localStorage.setItem("jobMode", modeFilter);
-}, [search, locationFilter, modeFilter]);
+}, [search, locationFilter, modeFilter, country]);
 
 useEffect(() => {
   const savedExternalJobs = localStorage.getItem("externalJobs");
@@ -273,10 +273,11 @@ const fetchExternalJobs = async () => {
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/external-jobs",
       {
         params: {
-          query: search,
-          location: locationFilter,
-          mode: modeFilter,
-        }
+  query: search,
+  location: locationFilter,
+  country: country,
+  mode: modeFilter,
+}
       }
     );
 
@@ -748,6 +749,27 @@ localStorage.removeItem("userId");
 </button>
 
 </div>
+
+<select
+  value={country}
+  onChange={(e) => setCountry(e.target.value)}
+  className={`p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+    darkMode
+      ? "bg-gray-800 text-white border-gray-700"
+      : "bg-white text-black border-gray-300"
+  }`}
+>
+  <option value="in">🇮🇳 India</option>
+  <option value="us">🇺🇸 United States</option>
+  <option value="ca">🇨🇦 Canada</option>
+  <option value="gb">🇬🇧 United Kingdom</option>
+  <option value="au">🇦🇺 Australia</option>
+  <option value="de">🇩🇪 Germany</option>
+  <option value="fr">🇫🇷 France</option>
+  <option value="sg">🇸🇬 Singapore</option>
+  <option value="ae">🇦🇪 UAE</option>
+  <option value="nl">🇳🇱 Netherlands</option>
+</select>
 
 <div className="grid md:grid-cols-4 gap-4 mb-8">
 
