@@ -46,6 +46,15 @@ const externalJob = location.state?.job;
     .catch((err) => console.log(err));
 }, [id]);
 
+useEffect(() => {
+  if (showForm && applyFormRef.current) {
+    window.scrollTo({
+      top: applyFormRef.current.offsetTop - 80,
+      behavior: "smooth",
+    });
+  }
+}, [showForm]);
+
   if (!job) {
   return (
     <div className="flex justify-center items-center h-screen">
@@ -55,6 +64,7 @@ const externalJob = location.state?.job;
     </div>
   );
 }
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
@@ -136,7 +146,7 @@ const externalJob = location.state?.job;
         </div>
 
         {/* Apply Button */}
-        {job?.source === "google" ? (
+        {job?.applyLink ? (
   <button
   onClick={() => {
     window.open(
@@ -156,13 +166,19 @@ const externalJob = location.state?.job;
 
 ) : (
   <button
-    onClick={() => setShowForm(true)}
-    className="mt-8 bg-blue-600 hover:bg-blue-700
-               text-white px-8 py-3 rounded-xl
-               transition-all duration-300 hover:scale-105"
-  >
-    Apply Now 🚀
-  </button>
+  onClick={() => {
+    if (!showForm) {
+      setShowForm(true);
+    } else {
+      applyFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }}
+>
+  Apply Now 🚀
+</button>
 )}
 
 {showForm && (
