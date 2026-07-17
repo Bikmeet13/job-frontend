@@ -7,9 +7,10 @@ import {
 } from "lucide-react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import ApplyForm from "../components/ApplyForm";
+import HomepageAd from "../components/HomepageAd";
 import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
@@ -27,6 +28,7 @@ const [googleLocation, setGoogleLocation] = useState("");
 const [userLocation, setUserLocation] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
   
 
   const [jobs, setJobs] = useState([]);
@@ -693,6 +695,9 @@ localStorage.removeItem("userId");
 </div>
 
 {/* 🧭 Title */}
+{/* One inline AdSense placement on the homepage. */}
+{location.pathname === "/" && <HomepageAd />}
+
       <h1
   className={`text-5xl font-bold text-center mb-5 ${
     darkMode
@@ -988,11 +993,11 @@ localStorage.removeItem("userId");
         "Content-Type": "application/json"
       },
      body: JSON.stringify(
-  job.source === "google"
+  job.source
     ? {
         user_id: userId,
         external_job_id: job.id,
-        source: "google",
+        source: job.source,
 
         title: job.title,
         company: job.company,
