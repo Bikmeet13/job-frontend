@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 const AD_CLIENT = "ca-pub-9919940051667749";
 const AD_SLOT = "7386784972";
 
-function HomepageAd() {
+function HomepageAd({ className = "" }) {
   const adRef = useRef(null);
 
   useEffect(() => {
@@ -22,14 +22,14 @@ function HomepageAd() {
   }, []);
 
   return (
-    <section className="max-w-5xl mx-auto mb-12" aria-label="Advertisement">
+    <section className={`w-full ${className}`} aria-label="Advertisement">
       <p className="text-center text-xs uppercase tracking-wider text-gray-500 mb-2">
         Advertisement
       </p>
       <ins
         ref={adRef}
         className="adsbygoogle block"
-        style={{ display: "block", minHeight: "90px" }}
+        style={{ display: "block" }}
         data-ad-client={AD_CLIENT}
         data-ad-slot={AD_SLOT}
         data-ad-format="auto"

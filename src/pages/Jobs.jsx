@@ -695,9 +695,6 @@ localStorage.removeItem("userId");
 </div>
 
 {/* 🧭 Title */}
-{/* One inline AdSense placement on the homepage. */}
-{location.pathname === "/" && <HomepageAd />}
-
       <h1
   className={`text-5xl font-bold text-center mb-5 ${
     darkMode
@@ -708,7 +705,13 @@ localStorage.removeItem("userId");
         🚀 Job Listings
       </h1>
       {/* 🔍 Search Bar */}
-<div className="max-w-2xl mx-auto mb-10 relative">
+<div className="xl:grid xl:grid-cols-[minmax(160px,1fr)_minmax(0,42rem)_minmax(160px,1fr)] xl:items-start xl:gap-6 mb-10">
+
+  <div className="hidden xl:block pt-1">
+    {location.pathname === "/" && <HomepageAd />}
+  </div>
+
+<div className="max-w-2xl mx-auto w-full relative">
 
   <Search
     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
@@ -752,6 +755,12 @@ localStorage.removeItem("userId");
 >
   {locating ? "📡 Detecting Location..." : "📍 Use My Location"}
 </button>
+
+</div>
+
+  <div className="hidden xl:block pt-1">
+    {location.pathname === "/" && <HomepageAd />}
+  </div>
 
 </div>
 
