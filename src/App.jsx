@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminCandidates from "./pages/AdminCandidates";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
 
@@ -54,6 +55,15 @@ function App() {
 />
 
 <Route path="/chatbot" element={<ChatbotForm />} />
+
+<Route
+  path="/admin/candidates"
+  element={
+    <ProtectedRoute>
+      <AdminCandidates />
+    </ProtectedRoute>
+  }
+/>
 
 <Route
   path="/admin-applications"

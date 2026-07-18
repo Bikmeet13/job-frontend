@@ -188,6 +188,36 @@ function isSuperAdmin(req, res, next) {
   next();
 }
 
+// Admin-only directory of registered job seekers. Passwords and other
+// sensitive account fields are deliberately never returned.
+app.get("/api/admin/candidates", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const result = await db.query(
+      `
+      SELECT
+        id,
+        username,
+        email,
+        bio,
+        skills,
+        education,
+        experience,
+        projects,
+        profile_pic,
+        resume_url
+      FROM users
+      WHERE role = 'user'
+      ORDER BY id DESC
+      `
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.log("CANDIDATE DIRECTORY ERROR:", err);
+    res.status(500).json({ error: "Unable to fetch candidates" });
+  }
+});
+
 app.get("/api/admin-requests", verifyToken, isSuperAdmin, async (req, res) => {
   try {
     const result = await db.query(
