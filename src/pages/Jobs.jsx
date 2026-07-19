@@ -3,7 +3,8 @@ import {
   Search,
   Briefcase,
   MapPin,
-  Menu
+  Menu,
+  Share2
 } from "lucide-react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
@@ -56,7 +57,35 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [appliedMap, setAppliedMap] = useState({});
   const [locating, setLocating] = useState(false);
-  const [country, setCountry] = useState("in");
+const [country, setCountry] = useState("in");
+
+  const shareJob = async (event, job) => {
+    event.stopPropagation();
+
+    const jobUrl = job.source
+      ? (job.applyLink || job.url || window.location.href)
+      : `${window.location.origin}/jobs/${job.id}`;
+    const shareData = {
+      title: `${job.title} at ${job.company}`,
+      text: `Check out this job: ${job.title} at ${job.company}`,
+      url: jobUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(jobUrl);
+        toast.success("Job link copied to clipboard");
+      } else {
+        window.prompt("Copy this job link:", jobUrl);
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        toast.error("Could not share this job. Please try again.");
+      }
+    }
+  };
 
   const getUserLocation = async () => {
   if (!navigator.geolocation) {
@@ -984,7 +1013,14 @@ localStorage.removeItem("userId");
     Check Details & Apply </span>
 )}
 
-                
+                <button
+                  onClick={(event) => shareJob(event, job)}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-500 py-2 font-semibold text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                >
+                  <Share2 size={18} />
+                  Share Job
+                </button>
+
                 <button
   className={`mt-3 w-full py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2
     ${
