@@ -74,6 +74,8 @@ const app = express();
 app.use(cors({
   origin: [
   "http://localhost:5173",
+  "http://localhost:8081",
+  "http://127.0.0.1:8081",
   "https://job-frontend-vert.vercel.app",
   "https://jobs.marketlence.com"
 ],
