@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import ApplyForm from "../components/ApplyForm";
 import HomepageAd from "../components/HomepageAd";
+import JobNotificationPrompt from "../components/JobNotificationPrompt";
 import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
@@ -406,6 +407,7 @@ if (loading) {
       : "bg-gradient-to-b from-gray-100 to-gray-200 text-black"
   }`}
 >
+      <JobNotificationPrompt />
 
      
 

@@ -29,6 +29,7 @@ const express = require("express");
 const cors = require("cors");
 
 const { OAuth2Client } = require("google-auth-library");
+const webpush = require("web-push");
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -83,6 +84,87 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
+
+const pushNotificationsEnabled = Boolean(
+  process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
+);
+
+if (pushNotificationsEnabled) {
+  webpush.setVapidDetails(
+    "mailto:care@marketlence.com",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn("Web push is disabled: VAPID keys are not configured.");
+}
+
+async function ensurePushSubscriptionsTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint TEXT PRIMARY KEY,
+      subscription JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+async function sendNewJobNotification(job) {
+  if (!pushNotificationsEnabled) return;
+
+  try {
+    const { rows } = await db.query(
+      "SELECT endpoint, subscription FROM push_subscriptions"
+    );
+    const payload = JSON.stringify({
+      title: "New job on Marketlence Jobs",
+      body: `${job.title} at ${job.company}${job.location ? ` - ${job.location}` : ""}`,
+      url: `https://jobs.marketlence.com/jobs/${job.id}`,
+    });
+
+    await Promise.all(rows.map(async ({ endpoint, subscription }) => {
+      try {
+        await webpush.sendNotification(subscription, payload);
+      } catch (error) {
+        if (error.statusCode === 404 || error.statusCode === 410) {
+          await db.query("DELETE FROM push_subscriptions WHERE endpoint = $1", [endpoint]);
+        } else {
+          console.error("Web push delivery failed:", error.message);
+        }
+      }
+    }));
+  } catch (error) {
+    console.error("Could not send new-job notifications:", error.message);
+  }
+}
+
+app.get("/api/push/public-key", (req, res) => {
+  if (!pushNotificationsEnabled) {
+    return res.status(503).json({ error: "Job notifications are not configured yet." });
+  }
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+app.post("/api/push/subscribe", async (req, res) => {
+  const subscription = req.body?.subscription;
+  if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return res.status(400).json({ error: "Invalid push subscription." });
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO push_subscriptions (endpoint, subscription)
+       VALUES ($1, $2::jsonb)
+       ON CONFLICT (endpoint)
+       DO UPDATE SET subscription = EXCLUDED.subscription, created_at = NOW()`,
+      [subscription.endpoint, JSON.stringify(subscription)]
+    );
+    res.status(201).json({ message: "Subscribed to job notifications." });
+  } catch (error) {
+    console.error("Could not save push subscription:", error.message);
+    res.status(500).json({ error: "Could not save subscription." });
+  }
+});
 app.get("/api/jobs", async (req, res) => {
   try {
     const result = await db.query("SELECT * FROM jobs");
@@ -137,7 +219,7 @@ app.post("/api/jobs", async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     `;
 
-    await db.query(sql, [
+    const result = await db.query(`${sql} RETURNING id`, [
       title,
       company,
       location,
@@ -149,6 +231,13 @@ app.post("/api/jobs", async (req, res) => {
       mode,
       chatbotQuestions ?? []
     ]);
+
+    void sendNewJobNotification({
+      id: result.rows[0].id,
+      title,
+      company,
+      location,
+    });
 
     res.json({ message: "Job added ✅" });
 
@@ -1370,6 +1459,13 @@ app.get("/api/arbeitnow-jobs", async (req, res) => {
 });
 
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+ensurePushSubscriptionsTable()
+  .then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Could not initialize push subscriptions:", error);
+    process.exit(1);
+  });
