@@ -176,6 +176,7 @@ useEffect(() => {
       });
     }
   }}
+  className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:from-blue-700 hover:via-sky-600 hover:to-cyan-600 hover:shadow-xl hover:shadow-blue-500/40 focus:outline-none focus:ring-4 focus:ring-blue-200 sm:w-auto"
 >
   Apply Now 🚀
 </button>
