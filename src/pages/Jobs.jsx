@@ -987,9 +987,7 @@ localStorage.removeItem("userId");
                 {/* 🔘 Apply Button */}
                
 {completed ? (
-  <button className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
-  hover:bg-blue-600 hover:text-white hover:scale-105 
-  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+  <button className="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_0_18px_rgba(16,185,129,0.65)]"
 >
     Application Completed ✅
   </button>
@@ -999,16 +997,12 @@ localStorage.removeItem("userId");
       e.stopPropagation();
       navigate(`/chatbot?applicationId=${appId}&jobId=${job.id}`);
     }}
-    className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
-  hover:bg-blue-600 hover:text-white hover:scale-105 
-  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+    className="mt-5 w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_0_18px_rgba(59,130,246,0.7)]"
 >
     Start Interview 🚀
   </button>
 ) : (
-  <span className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
-  hover:bg-blue-600 hover:text-white hover:scale-105 
-  hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+  <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_0_18px_rgba(59,130,246,0.7)]"
 >
     Check Details & Apply </span>
 )}
