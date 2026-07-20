@@ -118,6 +118,13 @@ setApplications(res.data);
   ❤️ Saved Jobs
 </button>
 
+          <button
+  onClick={() => navigate("/resume-builder")}
+  className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap"
+>
+  Build Resume
+</button>
+
           {/* RIGHT */}
           <div className="flex flex-wrap justify-center gap-2">
 
