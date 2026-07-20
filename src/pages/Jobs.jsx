@@ -804,6 +804,8 @@ localStorage.removeItem("userId");
   {locating ? "📡 Detecting Location..." : "📍 Use My Location"}
 </button>
 
+<EmploymentNews darkMode={darkMode} />
+
 </div>
 
   <div className="hidden xl:block pt-1">
@@ -811,8 +813,6 @@ localStorage.removeItem("userId");
   </div>
 
 </div>
-
-<EmploymentNews darkMode={darkMode} />
 
 <div
   className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-24 md:z-40 ${

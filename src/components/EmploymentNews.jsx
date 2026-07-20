@@ -26,27 +26,27 @@ export default function EmploymentNews({ darkMode }) {
   if (!news.length) return null;
 
   return (
-    <section className={`mx-auto mb-7 flex max-w-7xl items-center gap-3 overflow-x-auto rounded-2xl border px-4 py-3 shadow-sm ${
-      darkMode ? "border-gray-700 bg-gray-800 text-white" : "border-blue-100 bg-white text-slate-800"
-    }`}>
-      <div className="flex shrink-0 items-center gap-2 font-bold text-orange-500">
+    <section className="mt-5 w-full">
+      <div className="mb-2 flex items-center gap-2 text-sm font-bold text-orange-500">
         <Flame size={18} fill="currentColor" />
-        <span>Employment News</span>
+        <span>Latest Employment News</span>
       </div>
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         {news.slice(0, 3).map((item) => (
           <a
             key={item.link}
             href={item.link}
             target="_blank"
             rel="noreferrer"
-            className={`flex max-w-xs shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-blue-50 hover:text-blue-700 ${
-              darkMode ? "hover:bg-gray-700" : "bg-slate-50"
+            className={`group flex min-h-20 items-start justify-between gap-2 rounded-xl border p-3 text-sm font-semibold leading-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md ${
+              darkMode
+                ? "border-gray-700 bg-gray-800 text-white hover:bg-gray-700"
+                : "border-blue-100 bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700"
             }`}
             title={item.title}
           >
-            <span className="truncate">{item.title}</span>
-            <ExternalLink size={14} className="shrink-0" />
+            <span className="line-clamp-3">{item.title}</span>
+            <ExternalLink size={15} className="mt-0.5 shrink-0 opacity-60 transition group-hover:opacity-100" />
           </a>
         ))}
       </div>
