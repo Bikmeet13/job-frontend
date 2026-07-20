@@ -738,6 +738,13 @@ localStorage.removeItem("userId");
         🚀 Job Listings
       </h1>
       {/* 🔍 Search Bar */}
+<div
+  className={`sticky top-24 z-40 mb-8 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-3xl border p-4 shadow-xl backdrop-blur-xl md:p-5 ${
+    darkMode
+      ? "border-gray-700 bg-gray-900/95"
+      : "border-white/80 bg-white/95"
+  }`}
+>
 <div className="xl:grid xl:grid-cols-[minmax(160px,1fr)_minmax(0,42rem)_minmax(160px,1fr)] xl:items-start xl:gap-6 mb-10">
 
   <div className="hidden xl:block pt-1">
@@ -874,6 +881,8 @@ localStorage.removeItem("userId");
 </div>
 
       {/* 📋 Job List */}
+      </div>
+
       <div className="max-w-7xl mx-auto mt-10">
 
        {allJobs.length === 0 ? (
