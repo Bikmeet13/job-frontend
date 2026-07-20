@@ -452,11 +452,13 @@ if (loading) {
   {/* 🏷️ Logo */}
   <div className="flex items-center gap-2">
 
-    <img
-      src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-      alt="logo"
-      className="w-8 h-8 md:w-10 md:h-10"
-    />
+    <div className="h-9 w-9 overflow-hidden rounded-lg bg-white md:h-11 md:w-11">
+      <img
+        src="/marketlence-logo.png"
+        alt="Marketlence logo"
+        className="h-full max-w-none object-cover object-left"
+      />
+    </div>
 
     <h2
       className={`text-lg md:text-2xl font-bold ${
