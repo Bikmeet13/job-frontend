@@ -13,6 +13,7 @@ import React, { useEffect, useState } from "react";
 import ApplyForm from "../components/ApplyForm";
 import HomepageAd from "../components/HomepageAd";
 import JobNotificationPrompt from "../components/JobNotificationPrompt";
+import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
 import toast from "react-hot-toast";
 
@@ -810,6 +811,8 @@ localStorage.removeItem("userId");
   </div>
 
 </div>
+
+<EmploymentNews darkMode={darkMode} />
 
 <div
   className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-24 md:z-40 ${

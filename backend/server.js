@@ -4,6 +4,7 @@ console.log("DB URL:", process.env.DATABASE_URL);
 
 const lastRequest = {};
 const otpStore = {};
+let employmentNewsCache = { items: [], expiresAt: 0 };
 const pdfParse = require("pdf-parse");
 
 const fs = require("fs");
@@ -1455,6 +1456,59 @@ app.get("/api/arbeitnow-jobs", async (req, res) => {
     res.status(500).json({
       error: "Failed to fetch Arbeitnow jobs"
     });
+  }
+});
+
+function cleanNewsText(value = "") {
+  return value
+    .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
+function getRssTag(item, tag) {
+  const match = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+  return match ? cleanNewsText(match[1]) : "";
+}
+
+app.get("/api/employment-news", async (req, res) => {
+  if (employmentNewsCache.expiresAt > Date.now()) {
+    return res.json(employmentNewsCache.items);
+  }
+
+  try {
+    const response = await axios.get("https://news.google.com/rss/search", {
+      params: {
+        q: "employment jobs career India",
+        hl: "en-IN",
+        gl: "IN",
+        ceid: "IN:en",
+      },
+      responseType: "text",
+      timeout: 8000,
+    });
+
+    const items = [...response.data.matchAll(/<item>([\s\S]*?)<\/item>/gi)]
+      .slice(0, 6)
+      .map((match) => ({
+        title: getRssTag(match[1], "title"),
+        link: getRssTag(match[1], "link"),
+        publishedAt: getRssTag(match[1], "pubDate"),
+      }))
+      .filter((item) => item.title && item.link);
+
+    employmentNewsCache = {
+      items,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    };
+
+    res.json(items);
+  } catch (error) {
+    console.error("Could not fetch employment news:", error.message);
+    res.status(502).json({ error: "Could not load employment news." });
   }
 });
 
