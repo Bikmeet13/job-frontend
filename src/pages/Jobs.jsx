@@ -798,7 +798,7 @@ localStorage.removeItem("userId");
 </div>
 
 <div
-  className={`sticky top-24 z-40 mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl ${
+  className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-24 md:z-40 ${
     darkMode
       ? "border-gray-700 bg-gray-900/95"
       : "border-white/80 bg-white/95"
