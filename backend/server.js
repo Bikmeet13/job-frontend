@@ -5,6 +5,20 @@ console.log("DB URL:", process.env.DATABASE_URL);
 const lastRequest = {};
 const otpStore = {};
 let employmentNewsCache = { items: [], expiresAt: 0 };
+const employmentNewsFallback = [
+  {
+    title: "Latest hiring and job market news in India",
+    link: "https://news.google.com/search?q=latest%20hiring%20job%20market%20India&hl=en-IN&gl=IN&ceid=IN:en",
+  },
+  {
+    title: "Technology careers and IT hiring updates",
+    link: "https://news.google.com/search?q=technology%20careers%20IT%20hiring%20India&hl=en-IN&gl=IN&ceid=IN:en",
+  },
+  {
+    title: "Government and private sector employment updates",
+    link: "https://news.google.com/search?q=employment%20jobs%20government%20private%20sector%20India&hl=en-IN&gl=IN&ceid=IN:en",
+  },
+];
 const pdfParse = require("pdf-parse");
 
 const fs = require("fs");
@@ -1500,15 +1514,20 @@ app.get("/api/employment-news", async (req, res) => {
       }))
       .filter((item) => item.title && item.link);
 
+    const newsItems = items.length ? items : employmentNewsFallback;
     employmentNewsCache = {
-      items,
+      items: newsItems,
       expiresAt: Date.now() + 15 * 60 * 1000,
     };
 
-    res.json(items);
+    res.json(newsItems);
   } catch (error) {
     console.error("Could not fetch employment news:", error.message);
-    res.status(502).json({ error: "Could not load employment news." });
+    employmentNewsCache = {
+      items: employmentNewsFallback,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    };
+    res.json(employmentNewsFallback);
   }
 });
 
