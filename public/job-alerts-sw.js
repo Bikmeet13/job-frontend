@@ -4,7 +4,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Marketlence Jobs", {
       body: data.body || "A new job has been posted.",
-      icon: "/marketlence-logo.png",
+      icon: "/marketlence-mj-logo.png",
       badge: "/favicon.svg",
       data: { url: data.url || "/jobs" },
     })
