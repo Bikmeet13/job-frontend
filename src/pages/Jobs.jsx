@@ -333,9 +333,31 @@ localStorage.setItem(
     console.log(err);
   }
 };
+  const countryNames = {
+    in: "india",
+    us: "united states",
+    ca: "canada",
+    gb: "united kingdom",
+    au: "australia",
+    de: "germany",
+    fr: "france",
+    sg: "singapore",
+    ae: "uae",
+    nl: "netherlands",
+  };
+
+  const internalJobMatchesCountry = (job) => {
+    const jobCountry = String(job.country || job.country_code || "").toLowerCase();
+
+    // Existing internal jobs were created for India before a country field existed.
+    if (!jobCountry) return country === "in";
+
+    return jobCountry === country || jobCountry.includes(countryNames[country]);
+  };
 
   const filteredJobs = Array.isArray(jobs)
   ? jobs
+      .filter(internalJobMatchesCountry)
       .filter((job) =>
         job.title.toLowerCase().includes(search.toLowerCase())
       )
