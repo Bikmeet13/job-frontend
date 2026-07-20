@@ -285,19 +285,11 @@ console.log("Saved IDs:", ids);
 
 useEffect(() => {
   const timer = setTimeout(() => {
-    if (
-      search.trim() ||
-      locationFilter.trim() ||
-      modeFilter
-    ) {
-      fetchAllExternalJobs();
-    } else {
-      setExternalJobs([]);
-    }
+    fetchAllExternalJobs();
   }, 800);
 
   return () => clearTimeout(timer);
-}, [search, locationFilter, modeFilter]);
+}, [search, locationFilter, modeFilter, country]);
 
 const fetchExternalJobs = async () => {
   try {
@@ -454,8 +446,8 @@ if (loading) {
 
     <div className="h-9 w-9 overflow-hidden rounded-lg bg-white md:h-11 md:w-11">
       <img
-        src="/marketlence-logo.png"
-        alt="Marketlence logo"
+        src="/marketlence-mj-logo.png"
+        alt="MJ - Marketlence Jobs logo"
         className="h-full max-w-none object-cover object-left"
       />
     </div>
