@@ -738,13 +738,6 @@ localStorage.removeItem("userId");
         🚀 Job Listings
       </h1>
       {/* 🔍 Search Bar */}
-<div
-  className={`sticky top-24 z-40 mb-8 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-3xl border p-4 shadow-xl backdrop-blur-xl md:p-5 ${
-    darkMode
-      ? "border-gray-700 bg-gray-900/95"
-      : "border-white/80 bg-white/95"
-  }`}
->
 <div className="xl:grid xl:grid-cols-[minmax(160px,1fr)_minmax(0,42rem)_minmax(160px,1fr)] xl:items-start xl:gap-6 mb-10">
 
   <div className="hidden xl:block pt-1">
@@ -804,10 +797,18 @@ localStorage.removeItem("userId");
 
 </div>
 
+<div
+  className={`sticky top-24 z-40 mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl ${
+    darkMode
+      ? "border-gray-700 bg-gray-900/95"
+      : "border-white/80 bg-white/95"
+  }`}
+>
+<div className="grid gap-4 md:grid-cols-5">
 <select
   value={country}
   onChange={(e) => setCountry(e.target.value)}
-  className={`p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+  className={`w-full p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
     darkMode
       ? "bg-gray-800 text-white border-gray-700"
       : "bg-white text-black border-gray-300"
@@ -825,7 +826,7 @@ localStorage.removeItem("userId");
   <option value="nl">🇳🇱 Netherlands</option>
 </select>
 
-<div className="grid md:grid-cols-4 gap-4 mb-8">
+<div className="contents">
 
   <input
     type="text"
@@ -877,6 +878,8 @@ localStorage.removeItem("userId");
     : "bg-white text-black border-gray-300"
 }`}
   />
+
+</div>
 
 </div>
 
