@@ -356,6 +356,19 @@ localStorage.setItem(
     return jobCountry === country || jobCountry.includes(countryNames[country]);
   };
 
+  const isCountryWideJob = (job) => {
+    const jobLocation = String(job.location || "").toLowerCase();
+    const countryLocationNames = [
+      countryNames[country],
+      ...(country === "ae" ? ["united arab emirates"] : []),
+      ...(country === "us" ? ["usa", "america"] : []),
+    ];
+
+    return countryLocationNames.some(
+      (countryName) => countryName && jobLocation.includes(countryName)
+    );
+  };
+
   const filteredJobs = Array.isArray(jobs)
   ? jobs
       .filter(internalJobMatchesCountry)
@@ -364,9 +377,9 @@ localStorage.setItem(
       )
       .filter((job) =>
         locationFilter
-          ? job.location
+          ? String(job.location || "")
               .toLowerCase()
-              .includes(locationFilter.toLowerCase())
+              .includes(locationFilter.toLowerCase()) || isCountryWideJob(job)
           : true
       )
       .filter((job) =>
