@@ -936,6 +936,7 @@ localStorage.removeItem("userId");
   console.log("Is Saved:", savedJobs.includes(job.id));
 
   const completed = localStorage.getItem(`done_${job.id}`);
+  const applicationEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
 
   return (
     <motion.div
@@ -993,7 +994,7 @@ localStorage.removeItem("userId");
   <p>{job.location}</p>
 </div>
 <p
-  className={`mt-3 line-clamp-2 ${
+  className={`mt-3 line-clamp-4 ${
     darkMode
       ? "text-gray-300"
       : "text-gray-500"
@@ -1045,10 +1046,14 @@ localStorage.removeItem("userId");
 >
     Start Interview 🚀
   </button>
-) : (
+) : applicationEnabled ? (
   <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_0_18px_rgba(59,130,246,0.7)]"
 >
     Check Details & Apply </span>
+) : (
+  <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-slate-200 px-4 py-3 font-bold text-slate-600 transition hover:bg-slate-300">
+    View Details — Applications Closed
+  </span>
 )}
 
                 <button

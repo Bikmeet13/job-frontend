@@ -65,6 +65,7 @@ useEffect(() => {
   );
 }
 
+  const applicationsEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
@@ -137,16 +138,14 @@ useEffect(() => {
             Job Description
           </h2>
 
-          <p className="text-gray-700 leading-8">
-            We are looking for a talented developer to join our growing team.
-            You will work on exciting real-world projects and collaborate
-            with modern technologies.
+          <p className="whitespace-pre-line text-gray-700 leading-8">
+            {job.description || "No description available."}
           </p>
 
         </div>
 
         {/* Apply Button */}
-        {job?.applyLink ? (
+        {applicationsEnabled ? (job?.applyLink ? (
   <button
   onClick={() => {
     window.open(
@@ -180,9 +179,13 @@ useEffect(() => {
 >
   Apply Now 🚀
 </button>
+)) : (
+  <div className="mt-8 inline-flex items-center rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 font-semibold text-amber-800">
+    Applications are currently closed for this job.
+  </div>
 )}
 
-{showForm && (
+{applicationsEnabled && showForm && (
   <div ref={applyFormRef} className="mt-10">
     <ApplyForm job={job} />
   </div>

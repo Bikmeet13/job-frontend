@@ -25,6 +25,7 @@ const [loadingMap, setLoadingMap] = useState({});
 const [countMap, setCountMap] = useState({});
 const [questions, setQuestions] = useState([""]);
 const [description, setDescription] = useState("");
+const [applyEnabled, setApplyEnabled] = useState(true);
 const [adminRequests, setAdminRequests] = useState([]);
 
 const navigate = useNavigate();
@@ -131,7 +132,8 @@ if (!token) return;
     description,
     type,
     mode,
-    chatbotQuestions: questions.filter(q => q.trim() !== "")
+    chatbotQuestions: questions.filter(q => q.trim() !== ""),
+    applyEnabled
   },
   {
     headers: {
@@ -155,6 +157,8 @@ axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
     setSkills("");
     setType("");
     setMode("");
+    setDescription("");
+    setApplyEnabled(true);
     
   
   } catch (err) {
@@ -553,13 +557,25 @@ const filteredApplications = (applications || []).filter(app => {
             className="border p-2 rounded w-full mb-3"
           />
 
-          <input
-  type="text"
+          <textarea
   placeholder="Job Description"
   value={description}
   onChange={(e) => setDescription(e.target.value)}
-  className="border p-2 rounded w-full mb-3"
+  maxLength={3000}
+  rows="6"
+  className="border p-2 rounded w-full mb-1"
 />
+          <p className="mb-3 text-right text-xs text-gray-500">{description.length}/3000 characters</p>
+
+          <label className="mb-4 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
+            <input
+              type="checkbox"
+              checked={applyEnabled}
+              onChange={(e) => setApplyEnabled(e.target.checked)}
+              className="h-4 w-4 accent-blue-600"
+            />
+            Enable Apply button for this job
+          </label>
 
           <h3 className="font-semibold mb-2">Chatbot Questions</h3>
 

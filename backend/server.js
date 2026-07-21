@@ -124,6 +124,12 @@ async function ensurePushSubscriptionsTable() {
   `);
 }
 
+async function ensureJobColumns() {
+  await db.query(
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_enabled BOOLEAN NOT NULL DEFAULT TRUE"
+  );
+}
+
 async function sendNewJobNotification(job) {
   if (!pushNotificationsEnabled) return;
 
@@ -213,7 +219,8 @@ app.post("/api/jobs", async (req, res) => {
     description,
     type,
     mode,
-    chatbotQuestions
+    chatbotQuestions,
+    applyEnabled = true
   } = req.body;
 
   try {
@@ -229,9 +236,10 @@ app.post("/api/jobs", async (req, res) => {
         description,
         type,
         mode,
-        chatbot_questions
+        chatbot_questions,
+        apply_enabled
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     `;
 
     const result = await db.query(`${sql} RETURNING id`, [
@@ -244,7 +252,8 @@ app.post("/api/jobs", async (req, res) => {
       description,
       type,
       mode,
-      chatbotQuestions ?? []
+      chatbotQuestions ?? [],
+      applyEnabled !== false
     ]);
 
     void sendNewJobNotification({
@@ -1532,7 +1541,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-ensurePushSubscriptionsTable()
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns()])
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
