@@ -145,7 +145,7 @@ useEffect(() => {
         </div>
 
         {/* Apply Button */}
-        {applicationsEnabled ? (job?.applyLink ? (
+        {job?.applyLink ? (
   <button
   onClick={() => {
     window.open(
@@ -163,7 +163,7 @@ useEffect(() => {
   Apply on Company Website 🚀
 </button>
 
-) : (
+ ) : applicationsEnabled ? (
   <button
   onClick={() => {
     if (!showForm) {
@@ -179,7 +179,7 @@ useEffect(() => {
 >
   Apply Now 🚀
 </button>
-)) : (
+) : (
   <div className="mt-8 inline-flex items-center rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 font-semibold text-amber-800">
     Applications are currently closed for this job.
   </div>

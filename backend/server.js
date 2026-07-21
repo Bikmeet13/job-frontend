@@ -125,9 +125,12 @@ async function ensurePushSubscriptionsTable() {
 }
 
 async function ensureJobColumns() {
-  await db.query(
-    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_enabled BOOLEAN NOT NULL DEFAULT TRUE"
-  );
+  await Promise.all([
+    db.query(
+      "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_enabled BOOLEAN NOT NULL DEFAULT TRUE"
+    ),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_link TEXT"),
+  ]);
 }
 
 async function sendNewJobNotification(job) {
@@ -192,6 +195,7 @@ app.get("/api/jobs", async (req, res) => {
 
     const jobs = result.rows.map(job => ({
       ...job,
+      applyLink: job.apply_link || null,
       chatbot_questions:
   Array.isArray(job.chatbot_questions)
     ? job.chatbot_questions
@@ -220,7 +224,8 @@ app.post("/api/jobs", async (req, res) => {
     type,
     mode,
     chatbotQuestions,
-    applyEnabled = true
+    applyEnabled = true,
+    applyLink = null
   } = req.body;
 
   try {
@@ -237,9 +242,10 @@ app.post("/api/jobs", async (req, res) => {
         type,
         mode,
         chatbot_questions,
-        apply_enabled
+        apply_enabled,
+        apply_link
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     `;
 
     const result = await db.query(`${sql} RETURNING id`, [
@@ -253,7 +259,8 @@ app.post("/api/jobs", async (req, res) => {
       type,
       mode,
       chatbotQuestions ?? [],
-      applyEnabled !== false
+      applyEnabled !== false,
+      applyLink?.trim() || null
     ]);
 
     void sendNewJobNotification({
@@ -604,7 +611,58 @@ const user = await db.query(
     res.status(500).send("Login error");
   }
 });
-app.delete("/api/jobs/:id", async (req, res) => {
+app.put("/api/jobs/:id", verifyToken, isAdmin, async (req, res) => {
+  const id = req.params.id;
+  const {
+    title,
+    company,
+    location,
+    salary,
+    experience,
+    skills,
+    description,
+    type,
+    mode,
+    applyEnabled = true,
+    applyLink = null,
+  } = req.body;
+
+  try {
+    const result = await db.query(
+      `UPDATE jobs
+       SET title = $1, company = $2, location = $3, salary = $4,
+           experience = $5, skills = $6, description = $7, type = $8,
+           mode = $9, apply_enabled = $10, apply_link = $11
+       WHERE id = $12
+       RETURNING *`,
+      [
+        title,
+        company,
+        location,
+        salary,
+        experience,
+        skills,
+        description,
+        type,
+        mode,
+        applyEnabled !== false,
+        applyLink?.trim() || null,
+        id,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    res.json({ message: "Job updated successfully", job: result.rows[0] });
+  } catch (err) {
+    console.log("Could not update job:", err);
+    res.status(500).json({ error: "Could not update job" });
+  }
+});
+
+app.delete("/api/jobs/:id", verifyToken, isAdmin, async (req, res) => {
   const id = req.params.id;
 
   try {

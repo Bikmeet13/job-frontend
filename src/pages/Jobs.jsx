@@ -1046,6 +1046,10 @@ localStorage.removeItem("userId");
 >
     Start Interview 🚀
   </button>
+) : job.applyLink ? (
+  <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-green-600 px-4 py-3 font-bold text-white shadow-md shadow-green-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-[0_0_18px_rgba(34,197,94,0.7)]">
+    Apply on Company Website
+  </span>
 ) : applicationEnabled ? (
   <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_0_18px_rgba(59,130,246,0.7)]"
 >

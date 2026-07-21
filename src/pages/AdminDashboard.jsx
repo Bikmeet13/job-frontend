@@ -26,6 +26,10 @@ const [countMap, setCountMap] = useState({});
 const [questions, setQuestions] = useState([""]);
 const [description, setDescription] = useState("");
 const [applyEnabled, setApplyEnabled] = useState(true);
+const [applyLink, setApplyLink] = useState("");
+const [jobSearch, setJobSearch] = useState("");
+const [jobFilter, setJobFilter] = useState("all");
+const [editingJob, setEditingJob] = useState(null);
 const [adminRequests, setAdminRequests] = useState([]);
 
 const navigate = useNavigate();
@@ -133,7 +137,8 @@ if (!token) return;
     type,
     mode,
     chatbotQuestions: questions.filter(q => q.trim() !== ""),
-    applyEnabled
+    applyEnabled,
+    applyLink
   },
   {
     headers: {
@@ -159,6 +164,7 @@ axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
     setMode("");
     setDescription("");
     setApplyEnabled(true);
+    setApplyLink("");
     
   
   } catch (err) {
@@ -190,7 +196,12 @@ const deleteJob = async (id) => {
 
   try {
     const res = await axios.delete(
-      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${id}`
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      }
     );
 
     console.log(res.data);
@@ -201,6 +212,47 @@ const deleteJob = async (id) => {
 
   } catch (err) {
     console.log(err);
+  }
+};
+
+const startEditingJob = (job) => {
+  setEditingJob({
+    ...job,
+    applyEnabled: job.apply_enabled !== false,
+    applyLink: job.apply_link || job.applyLink || "",
+  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+const saveEditedJob = async (e) => {
+  e.preventDefault();
+  if (!editingJob) return;
+
+  try {
+    const res = await axios.put(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs/${editingJob.id}`,
+      {
+        title: editingJob.title,
+        company: editingJob.company,
+        location: editingJob.location,
+        salary: editingJob.salary,
+        experience: editingJob.experience,
+        skills: editingJob.skills,
+        description: editingJob.description,
+        type: editingJob.type,
+        mode: editingJob.mode,
+        applyEnabled: editingJob.applyEnabled,
+        applyLink: editingJob.applyLink,
+      },
+      { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+    );
+
+    setJobs(jobs.map((job) => job.id === editingJob.id ? res.data.job : job));
+    setEditingJob(null);
+    toast.success("Job updated successfully");
+  } catch (err) {
+    console.log(err);
+    toast.error("Could not update the job");
   }
 };
 
@@ -416,6 +468,16 @@ const filteredApplications = (applications || []).filter(app => {
   return true;
 });
 
+const filteredJobs = (jobs || []).filter((job) => {
+  const searchText = `${job.title || ""} ${job.company || ""} ${job.location || ""}`.toLowerCase();
+  const acceptsApplications = job.apply_enabled !== false || Boolean(job.apply_link || job.applyLink);
+
+  if (jobSearch.trim() && !searchText.includes(jobSearch.trim().toLowerCase())) return false;
+  if (jobFilter === "accepting" && !acceptsApplications) return false;
+  if (jobFilter === "closed" && acceptsApplications) return false;
+  return true;
+});
+
 
 
  
@@ -464,27 +526,58 @@ const filteredApplications = (applications || []).filter(app => {
       {/* 🔹 JOBS SECTION */}
       <h1 className="text-2xl font-bold mb-4">💼 Jobs Section</h1>
 
-      {(jobs || []).map(job => (
-        <div
-          key={job.id}
-          className="bg-white shadow-md rounded-lg p-4 mb-4 border"
-        >
-          <h3 className="text-lg font-semibold">{job.title}</h3>
-          <p>{job.company}</p>
-          <p>{job.location}</p>
-
-          
-          <button
-  onClick={() => handleJobDelete(job.id)}
-  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
->
-  Delete
-</button>
-
-
+      <section className="mb-8">
+        <div className="mb-4 flex flex-col gap-3 rounded-xl bg-white p-4 shadow sm:flex-row">
+          <input type="search" value={jobSearch} onChange={(e) => setJobSearch(e.target.value)} placeholder="Search by job title, company or location" className="min-w-0 flex-1 rounded-lg border p-2" />
+          <select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} className="rounded-lg border p-2">
+            <option value="all">All posted jobs</option>
+            <option value="accepting">Accepting applications</option>
+            <option value="closed">Applications closed</option>
+          </select>
         </div>
-        
-      ))}
+
+        {filteredJobs.map((job) => {
+          const acceptsApplications = job.apply_enabled !== false || Boolean(job.apply_link || job.applyLink);
+          return (
+            <div key={job.id} className="mb-3 flex flex-col gap-3 rounded-lg border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">{job.title}</h3>
+                <p className="text-sm text-gray-600">{job.company} · {job.location}</p>
+                <p className={`mt-1 text-xs font-semibold ${acceptsApplications ? "text-green-700" : "text-amber-700"}`}>
+                  {acceptsApplications ? (job.apply_link ? "Company apply link active" : "Internal applications active") : "Applications closed"}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => startEditingJob(job)} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Edit</button>
+                <button onClick={() => handleJobDelete(job.id)} className="rounded-lg bg-red-500 px-4 py-2 font-medium text-white hover:bg-red-600">Delete</button>
+              </div>
+            </div>
+          );
+        })}
+        {filteredJobs.length === 0 && <p className="rounded-lg bg-white p-4 text-gray-500 shadow">No posted jobs match this filter.</p>}
+      </section>
+
+      {editingJob && (
+        <section className="mb-8 rounded-lg bg-white p-6 shadow">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h2 className="text-xl font-bold">Edit Job: {editingJob.title}</h2>
+            <button type="button" onClick={() => setEditingJob(null)} className="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</button>
+          </div>
+          <form onSubmit={saveEditedJob} className="space-y-3">
+            {[['title', 'Job Title'], ['company', 'Company'], ['location', 'Location'], ['salary', 'Salary'], ['experience', 'Experience'], ['skills', 'Skills'], ['type', 'Job Type'], ['mode', 'Remote / On-site']].map(([field, label]) => (
+              <input key={field} type="text" placeholder={label} value={editingJob[field] || ""} onChange={(e) => setEditingJob({ ...editingJob, [field]: e.target.value })} className="w-full rounded border p-2" />
+            ))}
+            <textarea placeholder="Job Description" value={editingJob.description || ""} maxLength={3000} rows="7" onChange={(e) => setEditingJob({ ...editingJob, description: e.target.value })} className="w-full rounded border p-2" />
+            <p className="text-right text-xs text-gray-500">{(editingJob.description || "").length}/3000 characters</p>
+            <label className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
+              <input type="checkbox" checked={editingJob.applyEnabled} onChange={(e) => setEditingJob({ ...editingJob, applyEnabled: e.target.checked })} className="h-4 w-4 accent-blue-600" />
+              Enable internal Apply button for this job
+            </label>
+            {!editingJob.applyEnabled && <input type="url" placeholder="Company application link (https://...)" value={editingJob.applyLink || ""} onChange={(e) => setEditingJob({ ...editingJob, applyLink: e.target.value })} className="w-full rounded border p-2" />}
+            <button type="submit" className="rounded-lg bg-green-600 px-6 py-2 font-semibold text-white hover:bg-green-700">Save Changes</button>
+          </form>
+        </section>
+      )}
 
       
 
@@ -576,6 +669,16 @@ const filteredApplications = (applications || []).filter(app => {
             />
             Enable Apply button for this job
           </label>
+
+          {!applyEnabled && (
+            <input
+              type="url"
+              placeholder="Company application link (https://...)"
+              value={applyLink}
+              onChange={(e) => setApplyLink(e.target.value)}
+              className="border p-2 rounded w-full mb-3"
+            />
+          )}
 
           <h3 className="font-semibold mb-2">Chatbot Questions</h3>
 
