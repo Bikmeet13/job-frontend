@@ -130,6 +130,7 @@ async function ensureJobColumns() {
       "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_enabled BOOLEAN NOT NULL DEFAULT TRUE"
     ),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_link TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_category TEXT"),
   ]);
 }
 
@@ -225,7 +226,8 @@ app.post("/api/jobs", async (req, res) => {
     mode,
     chatbotQuestions,
     applyEnabled = true,
-    applyLink = null
+    applyLink = null,
+    jobCategory = null
   } = req.body;
 
   try {
@@ -243,9 +245,10 @@ app.post("/api/jobs", async (req, res) => {
         mode,
         chatbot_questions,
         apply_enabled,
-        apply_link
+        apply_link,
+        job_category
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
     `;
 
     const result = await db.query(`${sql} RETURNING id`, [
@@ -260,7 +263,8 @@ app.post("/api/jobs", async (req, res) => {
       mode,
       chatbotQuestions ?? [],
       applyEnabled !== false,
-      applyLink?.trim() || null
+      applyLink?.trim() || null,
+      ["Private", "Government"].includes(jobCategory) ? jobCategory : null
     ]);
 
     void sendNewJobNotification({
@@ -625,6 +629,7 @@ app.put("/api/jobs/:id", verifyToken, isAdmin, async (req, res) => {
     mode,
     applyEnabled = true,
     applyLink = null,
+    jobCategory = null,
   } = req.body;
 
   try {
@@ -632,8 +637,8 @@ app.put("/api/jobs/:id", verifyToken, isAdmin, async (req, res) => {
       `UPDATE jobs
        SET title = $1, company = $2, location = $3, salary = $4,
            experience = $5, skills = $6, description = $7, type = $8,
-           mode = $9, apply_enabled = $10, apply_link = $11
-       WHERE id = $12
+           mode = $9, apply_enabled = $10, apply_link = $11, job_category = $12
+       WHERE id = $13
        RETURNING *`,
       [
         title,
@@ -647,6 +652,7 @@ app.put("/api/jobs/:id", verifyToken, isAdmin, async (req, res) => {
         mode,
         applyEnabled !== false,
         applyLink?.trim() || null,
+        ["Private", "Government"].includes(jobCategory) ? jobCategory : null,
         id,
       ]
     );

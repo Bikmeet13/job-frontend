@@ -15,6 +15,7 @@ const [salary, setSalary] = useState("");
 const [experience, setExperience] = useState("");
 const [skills, setSkills] = useState("");
 const [type, setType] = useState("");
+const [jobCategory, setJobCategory] = useState("");
 const [mode, setMode] = useState("");
 const [filterStatus, setFilterStatus] = useState("all");
 const [filterType, setFilterType] = useState("all"); // all / shortlisted
@@ -135,6 +136,7 @@ if (!token) return;
     skills,
     description,
     type,
+    jobCategory,
     mode,
     chatbotQuestions: questions.filter(q => q.trim() !== ""),
     applyEnabled,
@@ -161,6 +163,7 @@ axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
     setExperience("");
     setSkills("");
     setType("");
+    setJobCategory("");
     setMode("");
     setDescription("");
     setApplyEnabled(true);
@@ -220,6 +223,7 @@ const startEditingJob = (job) => {
     ...job,
     applyEnabled: job.apply_enabled !== false,
     applyLink: job.apply_link || job.applyLink || "",
+    jobCategory: job.job_category || job.jobCategory || "",
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -240,6 +244,7 @@ const saveEditedJob = async (e) => {
         skills: editingJob.skills,
         description: editingJob.description,
         type: editingJob.type,
+        jobCategory: editingJob.job_category || editingJob.jobCategory || null,
         mode: editingJob.mode,
         applyEnabled: editingJob.applyEnabled,
         applyLink: editingJob.applyLink,
@@ -567,6 +572,11 @@ const filteredJobs = (jobs || []).filter((job) => {
             {[['title', 'Job Title'], ['company', 'Company'], ['location', 'Location'], ['salary', 'Salary'], ['experience', 'Experience'], ['skills', 'Skills'], ['type', 'Job Type'], ['mode', 'Remote / On-site']].map(([field, label]) => (
               <input key={field} type="text" placeholder={label} value={editingJob[field] || ""} onChange={(e) => setEditingJob({ ...editingJob, [field]: e.target.value })} className="w-full rounded border p-2" />
             ))}
+            <select value={editingJob.jobCategory || ""} onChange={(e) => setEditingJob({ ...editingJob, jobCategory: e.target.value })} className="w-full rounded border p-2">
+              <option value="">Job sector: Not set</option>
+              <option value="Private">Private job</option>
+              <option value="Government">Government job</option>
+            </select>
             <textarea placeholder="Job Description" value={editingJob.description || ""} maxLength={3000} rows="7" onChange={(e) => setEditingJob({ ...editingJob, description: e.target.value })} className="w-full rounded border p-2" />
             <p className="text-right text-xs text-gray-500">{(editingJob.description || "").length}/3000 characters</p>
             <label className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
@@ -625,6 +635,16 @@ const filteredJobs = (jobs || []).filter((job) => {
             onChange={(e) => setType(e.target.value)}
             className="border p-2 rounded w-full mb-3"
           />
+
+          <select
+            value={jobCategory}
+            onChange={(e) => setJobCategory(e.target.value)}
+            className="border p-2 rounded w-full mb-3"
+          >
+            <option value="">Select job sector</option>
+            <option value="Private">Private job</option>
+            <option value="Government">Government job</option>
+          </select>
 
           <input
             type="text"

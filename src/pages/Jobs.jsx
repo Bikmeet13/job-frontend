@@ -49,6 +49,7 @@ const [modeFilter, setModeFilter] = useState(
 const [experienceFilter, setExperienceFilter] = useState("");
 
 const [salaryFilter, setSalaryFilter] = useState("");
+const [jobCategoryFilter, setJobCategoryFilter] = useState("");
 
 const [appliedJobs, setAppliedJobs] = useState([]);
   
@@ -147,6 +148,7 @@ const fetchArbeitnowJobs = async () => {
       mode: job.remote ? "Remote" : "Onsite",
       experience: "",
       skills: (job.tags || []).join(", "),
+      jobCategory: "Private",
       applyLink: job.url,
       source: "arbeitnow",
     }));
@@ -319,6 +321,7 @@ const fetchExternalJobs = async () => {
   mode: "External",
   experience: "",
   skills: "",
+  jobCategory: "Private",
   applyLink: job.redirect_url,
   source: "adzuna",
 }));
@@ -401,9 +404,20 @@ localStorage.setItem(
               .includes(salaryFilter.toLowerCase())
           : true
       )
-  : [];
+      .filter((job) =>
+        jobCategoryFilter
+          ? String(job.job_category || job.jobCategory || "").toLowerCase() === jobCategoryFilter.toLowerCase()
+          : true
+      )
+   : [];
 
-  const allJobs = [...filteredJobs, ...externalJobs];
+  const visibleExternalJobs = externalJobs.filter((job) =>
+    jobCategoryFilter
+      ? String(job.job_category || job.jobCategory || "").toLowerCase() === jobCategoryFilter.toLowerCase()
+      : true
+  );
+
+  const allJobs = [...filteredJobs, ...visibleExternalJobs];
 
     useEffect(() => {
   const checkAppliedJobs = async () => {
@@ -834,7 +848,7 @@ localStorage.removeItem("userId");
       : "border-white/80 bg-white/95"
   }`}
 >
-<div className="grid gap-4 md:grid-cols-5">
+<div className="grid gap-4 md:grid-cols-6">
 <select
   value={country}
   onChange={(e) => setCountry(e.target.value)}
@@ -883,6 +897,20 @@ localStorage.removeItem("userId");
     <option value="Remote">Remote</option>
     <option value="Onsite">Onsite</option>
     <option value="Hybrid">Hybrid</option>
+  </select>
+
+  <select
+    value={jobCategoryFilter}
+    onChange={(e) => setJobCategoryFilter(e.target.value)}
+    className={`p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+      darkMode
+        ? "bg-gray-800 text-white border-gray-700"
+        : "bg-white text-black border-gray-300"
+    }`}
+  >
+    <option value="">All sectors</option>
+    <option value="Private">Private jobs</option>
+    <option value="Government">Government jobs</option>
   </select>
 
   <input
