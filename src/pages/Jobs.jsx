@@ -49,7 +49,9 @@ const [modeFilter, setModeFilter] = useState(
 const [experienceFilter, setExperienceFilter] = useState("");
 
 const [salaryFilter, setSalaryFilter] = useState("");
-const [jobCategoryFilter, setJobCategoryFilter] = useState("");
+const [jobCategoryFilter, setJobCategoryFilter] = useState(
+  localStorage.getItem("jobCategory") || ""
+);
 
 const [appliedJobs, setAppliedJobs] = useState([]);
   
@@ -215,7 +217,8 @@ useEffect(() => {
   localStorage.setItem("jobSearch", search);
   localStorage.setItem("jobLocation", locationFilter);
   localStorage.setItem("jobMode", modeFilter);
-}, [search, locationFilter, modeFilter, country]);
+  localStorage.setItem("jobCategory", jobCategoryFilter);
+}, [search, locationFilter, modeFilter, jobCategoryFilter, country]);
 
 useEffect(() => {
   const savedExternalJobs = localStorage.getItem("externalJobs");
