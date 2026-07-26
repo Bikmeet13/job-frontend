@@ -32,6 +32,11 @@ const [jobSearch, setJobSearch] = useState("");
 const [jobFilter, setJobFilter] = useState("all");
 const [editingJob, setEditingJob] = useState(null);
 const [adminRequests, setAdminRequests] = useState([]);
+const [governmentSources, setGovernmentSources] = useState([]);
+const [governmentDrafts, setGovernmentDrafts] = useState([]);
+const [governmentSourceName, setGovernmentSourceName] = useState("");
+const [governmentSourceUrl, setGovernmentSourceUrl] = useState("");
+const [governmentScanning, setGovernmentScanning] = useState(false);
 
 const navigate = useNavigate();
 
@@ -362,6 +367,83 @@ const rejectAdmin = async (id) => {
   }
 };
 
+const governmentAgentHeaders = () => ({
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+});
+
+const fetchGovernmentJobAgentData = async () => {
+  try {
+    const [sourcesRes, draftsRes] = await Promise.all([
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/sources", governmentAgentHeaders()),
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/drafts", governmentAgentHeaders()),
+    ]);
+    setGovernmentSources(sourcesRes.data);
+    setGovernmentDrafts(draftsRes.data);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const addGovernmentSource = async (e) => {
+  e.preventDefault();
+  try {
+    await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/sources",
+      { name: governmentSourceName, url: governmentSourceUrl },
+      governmentAgentHeaders()
+    );
+    setGovernmentSourceName("");
+    setGovernmentSourceUrl("");
+    toast.success("Official source added");
+    fetchGovernmentJobAgentData();
+  } catch (err) {
+    toast.error(err.response?.data?.error || "Could not add source");
+  }
+};
+
+const scanGovernmentSources = async () => {
+  setGovernmentScanning(true);
+  try {
+    const result = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/scan",
+      {},
+      governmentAgentHeaders()
+    );
+    toast.success(`Scan complete: ${result.data.discovered} new notifications found`);
+    fetchGovernmentJobAgentData();
+  } catch (err) {
+    toast.error("Government job scan failed");
+  } finally {
+    setGovernmentScanning(false);
+  }
+};
+
+const reviewGovernmentDraft = async (id, action) => {
+  try {
+    await axios.post(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/drafts/${id}/${action}`,
+      {},
+      governmentAgentHeaders()
+    );
+    toast.success(action === "approve" ? "Government job published" : "Notification dismissed");
+    fetchGovernmentJobAgentData();
+  } catch (err) {
+    toast.error("Could not review this notification");
+  }
+};
+
+const removeGovernmentSource = async (id) => {
+  try {
+    await axios.delete(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/sources/${id}`,
+      governmentAgentHeaders()
+    );
+    fetchGovernmentJobAgentData();
+  } catch (err) {
+    toast.error("Could not remove source");
+  }
+};
+
 
   
 useEffect(() => {
@@ -458,6 +540,12 @@ useEffect(() => {
   }
 }, [role]);
 
+useEffect(() => {
+  if (role === "admin" || role === "superadmin") {
+    fetchGovernmentJobAgentData();
+  }
+}, [role]);
+
 
 
 const filteredApplications = (applications || []).filter(app => {
@@ -491,6 +579,50 @@ const filteredJobs = (jobs || []).filter((job) => {
   <div className="p-10 bg-gray-100 min-h-screen">
 
     <div className="max-w-5xl mx-auto">
+
+      <section className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-emerald-950">Government Jobs Agent</h2>
+            <p className="text-sm text-emerald-800">Only official .gov.in and .nic.in sources are collected. Every notification needs your approval before publishing.</p>
+          </div>
+          <button onClick={scanGovernmentSources} disabled={governmentScanning || governmentSources.length === 0} className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300 hover:bg-emerald-700">
+            {governmentScanning ? "Scanning official sources..." : "Scan official sources"}
+          </button>
+        </div>
+
+        <form onSubmit={addGovernmentSource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_auto]">
+          <input value={governmentSourceName} onChange={(e) => setGovernmentSourceName(e.target.value)} placeholder="Source name (for example, UPSC)" className="rounded-lg border p-2" required />
+          <input type="url" value={governmentSourceUrl} onChange={(e) => setGovernmentSourceUrl(e.target.value)} placeholder="Official source URL ending in .gov.in or .nic.in" className="rounded-lg border p-2" required />
+          <button type="submit" className="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white hover:bg-slate-900">Add source</button>
+        </form>
+
+        <div className="mb-5 space-y-2">
+          {governmentSources.map((source) => (
+            <div key={source.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <span><b>{source.name}</b> — {source.url}</span>
+              <button onClick={() => removeGovernmentSource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button>
+            </div>
+          ))}
+          {governmentSources.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">Add official recruitment-notification pages first, then scan them.</p>}
+        </div>
+
+        <h3 className="mb-2 font-bold text-emerald-950">Notifications waiting for review ({governmentDrafts.length})</h3>
+        <div className="space-y-3">
+          {governmentDrafts.map((draft) => (
+            <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm">
+              <p className="font-semibold text-gray-900">{draft.title}</p>
+              <p className="mt-1 text-sm text-gray-600">Source: {draft.source_name}</p>
+              <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official notification</a>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => reviewGovernmentDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button>
+                <button onClick={() => reviewGovernmentDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button>
+              </div>
+            </div>
+          ))}
+          {governmentDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new government job notifications are waiting for review.</p>}
+        </div>
+      </section>
 
       {role === "superadmin" && (
   <>
