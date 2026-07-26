@@ -131,6 +131,7 @@ async function ensureJobColumns() {
     ),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_link TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_category TEXT"),
+    db.query("ALTER TABLE jobs ALTER COLUMN title TYPE VARCHAR(300)"),
   ]);
 }
 
@@ -511,7 +512,7 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`,
       [
-        draft.title,
+        draft.title.slice(0, 300),
         draft.source_name,
         "India",
         "As per official notification",
