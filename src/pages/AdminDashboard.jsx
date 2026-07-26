@@ -428,7 +428,7 @@ const reviewGovernmentDraft = async (id, action) => {
     toast.success(action === "approve" ? "Government job published" : "Notification dismissed");
     fetchGovernmentJobAgentData();
   } catch (err) {
-    toast.error("Could not review this notification");
+    toast.error(err.response?.data?.error || "Could not review this notification");
   }
 };
 

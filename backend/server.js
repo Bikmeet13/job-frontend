@@ -534,8 +534,9 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
     void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "India" });
     res.json({ message: "Government job published", jobId: jobResult.rows[0].id });
   } catch (error) {
-    console.log("Could not approve government job draft:", error);
-    res.status(500).json({ error: "Could not publish government job" });
+    const message = error?.message || "Unknown database error";
+    console.log("Could not approve government job draft:", message, error?.detail || "");
+    res.status(500).json({ error: `Could not publish government job: ${message}` });
   }
 });
 
