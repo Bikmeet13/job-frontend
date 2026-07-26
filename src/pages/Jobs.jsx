@@ -475,7 +475,7 @@ if (loading) {
 }
   return (
     <div
-  className={`min-h-screen p-6 md:p-10 transition-all duration-500 ${
+  className={`min-h-screen overflow-x-hidden p-3 sm:p-6 md:p-10 transition-all duration-500 ${
     darkMode
       ? "bg-gray-900 text-white"
       : "bg-gradient-to-b from-gray-100 to-gray-200 text-black"
@@ -727,17 +727,17 @@ localStorage.removeItem("userId");
 
       
             {/* 🚀 Hero Section */}
-<div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-3xl p-10 md:p-20 text-center shadow-2xl mb-20">
+<div className="mx-auto mb-10 w-full max-w-7xl rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-800 p-6 text-center text-white shadow-2xl sm:mb-16 sm:rounded-3xl sm:p-10 md:p-20">
 
-  <h1 className="text-4xl md:text-6xl font-bold drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+  <h1 className="text-3xl font-bold drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] sm:text-4xl md:text-6xl">
     Find Your Dream Job
   </h1>
 
-  <p className="mt-5 text-xl text-blue-100">
+  <p className="mt-4 text-base text-blue-100 sm:mt-5 sm:text-xl">
     Discover top opportunities from leading companies
   </p>
 
-  <div className="flex justify-center gap-4 mt-10">
+  <div className="mt-8 flex flex-col justify-center gap-3 sm:mt-10 sm:flex-row sm:gap-4">
 
     <button
       onClick={() => {
@@ -746,7 +746,7 @@ localStorage.removeItem("userId");
           behavior: "smooth"
         });
       }}
-      className="border border-white px-5 py-3 md:px-8 md:py-4 rounded-2xl font-semibold hover:bg-white hover:text-blue-700 transition"
+      className="w-full rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
 >
       Find Jobs
     </button>
@@ -763,7 +763,7 @@ localStorage.removeItem("userId");
     navigate("/signup"); // 👈 normal user
   }
 }}
-      className="border border-white px-5 py-3 md:px-8 md:py-4 rounded-2xl font-semibold hover:bg-white hover:text-blue-700 transition"
+      className="w-full rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
 >
       Post Job
     </button>
@@ -947,7 +947,7 @@ localStorage.removeItem("userId");
       {/* 📋 Job List */}
       </div>
 
-      <div className="max-w-7xl mx-auto mt-10">
+      <div className="mx-auto mt-10 w-full max-w-7xl">
 
        {allJobs.length === 0 ? (
 
