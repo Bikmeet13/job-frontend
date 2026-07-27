@@ -37,6 +37,12 @@ const [governmentDrafts, setGovernmentDrafts] = useState([]);
 const [governmentSourceName, setGovernmentSourceName] = useState("");
 const [governmentSourceUrl, setGovernmentSourceUrl] = useState("");
 const [governmentScanning, setGovernmentScanning] = useState(false);
+const [companySources, setCompanySources] = useState([]);
+const [companyDrafts, setCompanyDrafts] = useState([]);
+const [companySourceName, setCompanySourceName] = useState("");
+const [companySourceUrl, setCompanySourceUrl] = useState("");
+const [companySourceCategory, setCompanySourceCategory] = useState("Private");
+const [companyScanning, setCompanyScanning] = useState(false);
 
 const navigate = useNavigate();
 
@@ -444,6 +450,80 @@ const removeGovernmentSource = async (id) => {
   }
 };
 
+const fetchCompanyJobAgentData = async () => {
+  try {
+    const [sourcesRes, draftsRes] = await Promise.all([
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/sources", governmentAgentHeaders()),
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/drafts", governmentAgentHeaders()),
+    ]);
+    setCompanySources(sourcesRes.data);
+    setCompanyDrafts(draftsRes.data);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const addCompanySource = async (e) => {
+  e.preventDefault();
+  try {
+    await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/sources",
+      { name: companySourceName, url: companySourceUrl, jobCategory: companySourceCategory },
+      governmentAgentHeaders()
+    );
+    setCompanySourceName("");
+    setCompanySourceUrl("");
+    setCompanySourceCategory("Private");
+    toast.success("Company careers source added");
+    fetchCompanyJobAgentData();
+  } catch (err) {
+    toast.error(err.response?.data?.error || "Could not add company source");
+  }
+};
+
+const scanCompanySources = async () => {
+  setCompanyScanning(true);
+  try {
+    const result = await axios.post(
+      "https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/scan",
+      {},
+      governmentAgentHeaders()
+    );
+    toast.success(`Scan complete: ${result.data.discovered} new company openings found`);
+    fetchCompanyJobAgentData();
+  } catch (err) {
+    toast.error("Company job scan failed");
+  } finally {
+    setCompanyScanning(false);
+  }
+};
+
+const reviewCompanyDraft = async (id, action) => {
+  try {
+    await axios.post(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/drafts/${id}/${action}`,
+      {},
+      governmentAgentHeaders()
+    );
+    toast.success(action === "approve" ? "Company job published" : "Opening dismissed");
+    fetchCompanyJobAgentData();
+  } catch (err) {
+    toast.error(err.response?.data?.error || "Could not review this opening");
+  }
+};
+
+const removeCompanySource = async (id) => {
+  try {
+    await axios.delete(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/sources/${id}`,
+      governmentAgentHeaders()
+    );
+    fetchCompanyJobAgentData();
+  } catch (err) {
+    toast.error("Could not remove company source");
+  }
+};
+
 
   
 useEffect(() => {
@@ -543,6 +623,7 @@ useEffect(() => {
 useEffect(() => {
   if (role === "admin" || role === "superadmin") {
     fetchGovernmentJobAgentData();
+    fetchCompanyJobAgentData();
   }
 }, [role]);
 
@@ -621,6 +702,54 @@ const filteredJobs = (jobs || []).filter((job) => {
             </div>
           ))}
           {governmentDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new government job notifications are waiting for review.</p>}
+        </div>
+      </section>
+
+      <section className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-blue-950">Company Jobs Agent</h2>
+            <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it.</p>
+          </div>
+          <button onClick={scanCompanySources} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">
+            {companyScanning ? "Scanning company sources..." : "Scan company sources"}
+          </button>
+        </div>
+
+        <form onSubmit={addCompanySource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_150px_auto]">
+          <input value={companySourceName} onChange={(e) => setCompanySourceName(e.target.value)} placeholder="Company name (for example, TCS)" className="rounded-lg border p-2" required />
+          <input type="url" value={companySourceUrl} onChange={(e) => setCompanySourceUrl(e.target.value)} placeholder="Verified HTTPS company careers page" className="rounded-lg border p-2" required />
+          <select value={companySourceCategory} onChange={(e) => setCompanySourceCategory(e.target.value)} className="rounded-lg border p-2">
+            <option value="Private">Private company</option>
+            <option value="Government">PSU / public-sector</option>
+          </select>
+          <button type="submit" className="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white hover:bg-slate-900">Add source</button>
+        </form>
+
+        <div className="mb-5 space-y-2">
+          {companySources.map((source) => (
+            <div key={source.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <span><b>{source.name}</b> ({source.job_category}) — {source.url}</span>
+              <button onClick={() => removeCompanySource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button>
+            </div>
+          ))}
+          {companySources.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">Add an official company careers page first, then scan it.</p>}
+        </div>
+
+        <h3 className="mb-2 font-bold text-blue-950">Company openings waiting for review ({companyDrafts.length})</h3>
+        <div className="space-y-3">
+          {companyDrafts.map((draft) => (
+            <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm">
+              <p className="font-semibold text-gray-900">{draft.title}</p>
+              <p className="mt-1 text-sm text-gray-600">{draft.source_name} · {draft.job_category}</p>
+              <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official company listing</a>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => reviewCompanyDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button>
+                <button onClick={() => reviewCompanyDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button>
+              </div>
+            </div>
+          ))}
+          {companyDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new company openings are waiting for review.</p>}
         </div>
       </section>
 

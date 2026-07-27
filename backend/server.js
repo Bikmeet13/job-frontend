@@ -179,6 +179,34 @@ async function ensureGovernmentJobAgentTables() {
   }
 }
 
+async function ensureCompanyJobAgentTables() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS company_job_sources (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL UNIQUE,
+      job_category TEXT NOT NULL DEFAULT 'Private',
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS company_job_drafts (
+      id SERIAL PRIMARY KEY,
+      source_id INTEGER,
+      source_name TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      job_category TEXT NOT NULL DEFAULT 'Private',
+      title TEXT NOT NULL,
+      apply_link TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      reviewed_at TIMESTAMPTZ
+    )
+  `);
+}
+
 function cleanGovernmentJobText(value) {
   return String(value || "")
     .replace(/<[^>]*>/g, " ")
@@ -191,7 +219,7 @@ function cleanGovernmentJobText(value) {
 function findGovernmentJobLinks(html, sourceUrl) {
   const links = [];
   const pattern = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  const keywords = /recruit|vacan|employment|notification|advertisement|exam|appointment|post|job/i;
+  const keywords = /recruit|vacan|employment|notification|advertisement|exam|appointment|post|job|career|opening|opportunit/i;
   let match;
 
   while ((match = pattern.exec(html)) && links.length < 30) {
@@ -249,6 +277,58 @@ function startGovernmentJobAgent() {
   setTimeout(() => scanGovernmentJobSources().catch((error) => console.log(error)), 30000);
   setInterval(() => scanGovernmentJobSources().catch((error) => console.log(error)), intervalHours * 60 * 60 * 1000);
   console.log(`Government Job Agent enabled: scanning every ${intervalHours} hours.`);
+}
+
+function isSafeCompanySourceUrl(value) {
+  try {
+    const parsed = new URL(value);
+    const hostname = parsed.hostname.toLowerCase();
+    if (parsed.protocol !== "https:" || hostname === "localhost" || !hostname.includes(".")) return false;
+    return !/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function scanCompanyJobSources() {
+  const { rows: sources } = await db.query(
+    "SELECT id, name, url, job_category FROM company_job_sources WHERE enabled = TRUE"
+  );
+  let discovered = 0;
+
+  for (const source of sources) {
+    try {
+      const response = await axios.get(source.url, {
+        timeout: 15000,
+        responseType: "text",
+        headers: { "User-Agent": "MarketlenceJobsBot/1.0 (company-job-review-agent)" },
+      });
+      const listings = findGovernmentJobLinks(response.data, source.url);
+
+      for (const listing of listings) {
+        const inserted = await db.query(
+          `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (apply_link) DO NOTHING
+           RETURNING id`,
+          [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink]
+        );
+        if (inserted.rows.length) discovered += 1;
+      }
+    } catch (error) {
+      console.log(`Company job source scan failed for ${source.name}:`, error.message);
+    }
+  }
+
+  return { sourcesChecked: sources.length, discovered };
+}
+
+function startCompanyJobAgent() {
+  if (process.env.COMPANY_JOB_AGENT_ENABLED !== "true") return;
+  const intervalHours = Math.max(1, Number(process.env.COMPANY_JOB_SCAN_HOURS) || 6);
+  setTimeout(() => scanCompanyJobSources().catch((error) => console.log(error)), 45000);
+  setInterval(() => scanCompanyJobSources().catch((error) => console.log(error)), intervalHours * 60 * 60 * 1000);
+  console.log(`Company Job Agent enabled: scanning every ${intervalHours} hours.`);
 }
 
 async function sendNewJobNotification(job) {
@@ -550,6 +630,117 @@ app.post("/api/government-job-agent/drafts/:id/dismiss", verifyToken, isAdmin, a
     res.json({ message: "Government job draft dismissed" });
   } catch (error) {
     res.status(500).json({ error: "Could not dismiss government job draft" });
+  }
+});
+
+app.get("/api/company-job-agent/sources", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM company_job_sources ORDER BY name ASC");
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Could not load company job sources" });
+  }
+});
+
+app.post("/api/company-job-agent/sources", verifyToken, isAdmin, async (req, res) => {
+  const { name, url, jobCategory = "Private" } = req.body;
+  if (!name?.trim() || !isSafeCompanySourceUrl(url)) {
+    return res.status(400).json({ error: "Use a verified HTTPS company careers URL" });
+  }
+  const category = jobCategory === "Government" ? "Government" : "Private";
+
+  try {
+    const result = await db.query(
+      "INSERT INTO company_job_sources (name, url, job_category) VALUES ($1, $2, $3) RETURNING *",
+      [name.trim(), url.trim(), category]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === "23505") return res.status(409).json({ error: "This source is already added" });
+    res.status(500).json({ error: "Could not add company job source" });
+  }
+});
+
+app.delete("/api/company-job-agent/sources/:id", verifyToken, isAdmin, async (req, res) => {
+  try {
+    await db.query("DELETE FROM company_job_sources WHERE id = $1", [req.params.id]);
+    res.json({ message: "Source removed" });
+  } catch (error) {
+    res.status(500).json({ error: "Could not remove company job source" });
+  }
+});
+
+app.get("/api/company-job-agent/drafts", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM company_job_drafts WHERE status = 'pending' ORDER BY created_at DESC"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Could not load company job drafts" });
+  }
+});
+
+app.post("/api/company-job-agent/scan", verifyToken, isAdmin, async (req, res) => {
+  try {
+    res.json(await scanCompanyJobSources());
+  } catch (error) {
+    res.status(500).json({ error: "Company job scan failed" });
+  }
+});
+
+app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const draftResult = await db.query(
+      "SELECT * FROM company_job_drafts WHERE id = $1 AND status = 'pending'",
+      [req.params.id]
+    );
+    const draft = draftResult.rows[0];
+    if (!draft) return res.status(404).json({ error: "Pending company job draft not found" });
+
+    const jobResult = await db.query(
+      `INSERT INTO jobs
+       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING id`,
+      [
+        draft.title.slice(0, 300),
+        draft.source_name,
+        "See company careers page",
+        "Not disclosed",
+        "See company careers page",
+        "See company careers page",
+        `Opening collected from the official ${draft.source_name} careers page. Check the official job page for eligibility, responsibilities and deadlines.`,
+        "Company recruitment",
+        "As per company posting",
+        [],
+        false,
+        draft.apply_link,
+        draft.job_category === "Government" ? "Government" : "Private",
+      ]
+    );
+    await db.query(
+      "UPDATE company_job_drafts SET status = 'approved', reviewed_at = NOW() WHERE id = $1",
+      [draft.id]
+    );
+    void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "See company careers page" });
+    res.json({ message: "Company job published", jobId: jobResult.rows[0].id });
+  } catch (error) {
+    const message = error?.message || "Unknown database error";
+    console.log("Could not approve company job draft:", message, error?.detail || "");
+    res.status(500).json({ error: `Could not publish company job: ${message}` });
+  }
+});
+
+app.post("/api/company-job-agent/drafts/:id/dismiss", verifyToken, isAdmin, async (req, res) => {
+  try {
+    await db.query(
+      "UPDATE company_job_drafts SET status = 'dismissed', reviewed_at = NOW() WHERE id = $1 AND status = 'pending'",
+      [req.params.id]
+    );
+    res.json({ message: "Company job draft dismissed" });
+  } catch (error) {
+    res.status(500).json({ error: "Could not dismiss company job draft" });
   }
 });
 
@@ -1844,11 +2035,12 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables()])
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       startGovernmentJobAgent();
+      startCompanyJobAgent();
     });
   })
   .catch((error) => {
