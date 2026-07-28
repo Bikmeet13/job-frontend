@@ -26,6 +26,7 @@ const [loadingMap, setLoadingMap] = useState({});
 const [countMap, setCountMap] = useState({});
 const [questions, setQuestions] = useState([""]);
 const [description, setDescription] = useState("");
+const [lastDate, setLastDate] = useState("");
 const [applyEnabled, setApplyEnabled] = useState(true);
 const [applyLink, setApplyLink] = useState("");
 const [jobSearch, setJobSearch] = useState("");
@@ -146,6 +147,7 @@ if (!token) return;
     experience,
     skills,
     description,
+    lastDate,
     type,
     jobCategory,
     mode,
@@ -177,6 +179,7 @@ axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
     setJobCategory("");
     setMode("");
     setDescription("");
+    setLastDate("");
     setApplyEnabled(true);
     setApplyLink("");
     
@@ -254,6 +257,7 @@ const saveEditedJob = async (e) => {
         experience: editingJob.experience,
         skills: editingJob.skills,
         description: editingJob.description,
+        lastDate: editingJob.last_date || editingJob.lastDate || null,
         type: editingJob.type,
         jobCategory: editingJob.job_category || editingJob.jobCategory || null,
         mode: editingJob.mode,
@@ -838,6 +842,10 @@ const filteredJobs = (jobs || []).filter((job) => {
               <option value="Private">Private job</option>
               <option value="Government">Government job</option>
             </select>
+            <label className="block text-sm font-semibold text-gray-700">
+              Last date to apply
+              <input type="date" value={editingJob.last_date || editingJob.lastDate || ""} onChange={(e) => setEditingJob({ ...editingJob, lastDate: e.target.value, last_date: e.target.value })} className="mt-1 w-full rounded border p-2" />
+            </label>
             <textarea placeholder="Job Description" value={editingJob.description || ""} maxLength={3000} rows="7" onChange={(e) => setEditingJob({ ...editingJob, description: e.target.value })} className="w-full rounded border p-2" />
             <p className="text-right text-xs text-gray-500">{(editingJob.description || "").length}/3000 characters</p>
             <label className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
@@ -930,6 +938,16 @@ const filteredJobs = (jobs || []).filter((job) => {
             onChange={(e) => setLocation(e.target.value)}
             className="border p-2 rounded w-full mb-3"
           />
+
+          <label className="mb-3 block text-sm font-semibold text-gray-700">
+            Last date to apply
+            <input
+              type="date"
+              value={lastDate}
+              onChange={(e) => setLastDate(e.target.value)}
+              className="mt-1 border p-2 rounded w-full"
+            />
+          </label>
 
           <textarea
   placeholder="Job Description"

@@ -968,6 +968,7 @@ localStorage.removeItem("userId");
 
   const completed = localStorage.getItem(`done_${job.id}`);
   const applicationEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
+  const lastDateLabel = job.last_date || job.lastDate || "Check job details";
 
   return (
     <motion.div
@@ -1042,6 +1043,9 @@ localStorage.removeItem("userId");
 </p>
 <p className="text-sm text-blue-500 mt-1">
   🛠️ {job.skills}
+</p>
+<p className="mt-2 inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200">
+  Last date: {lastDateLabel}
 </p>
                   </div>
 
