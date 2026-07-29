@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 import React, { useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 
 function Signup() {
   const [username, setUsername] = useState("");
@@ -14,6 +15,28 @@ function Signup() {
   const navigate = useNavigate();
   const location = useLocation();
   const isJobAlertsSignup = location.state?.source === "job-alerts";
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const res = await axios.post(
+        "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-login",
+        { credential: credentialResponse.credential }
+      );
+
+      const { token, role, userId, username, email } = res.data;
+      localStorage.setItem("token", token);
+      localStorage.setItem("role", role);
+      localStorage.setItem("userId", userId);
+      localStorage.setItem("username", username);
+      localStorage.setItem("email", email);
+
+      toast.success("Account created with Google");
+      navigate("/");
+    } catch (err) {
+      console.error("Google signup failed", err);
+      toast.error("Google signup failed. Please try again.");
+    }
+  };
 
   const sendOtp = async () => {
   console.log("CLICKED");
@@ -80,6 +103,22 @@ const verifyOtp = async () => {
             Create your free account to save jobs, build your resume, and get new job alerts by email.
           </p>
         )}
+
+        <div className="mb-5 flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => toast.error("Google signup failed. Please try again.")}
+            text="signup_with"
+            shape="rectangular"
+            width="300"
+          />
+        </div>
+
+        <div className="mb-5 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-gray-400">
+          <span className="h-px flex-1 bg-gray-200" />
+          or sign up with email
+          <span className="h-px flex-1 bg-gray-200" />
+        </div>
 
         <label className="mb-4 flex items-center gap-2 text-sm">
   <input
