@@ -44,6 +44,9 @@ const [companySourceName, setCompanySourceName] = useState("");
 const [companySourceUrl, setCompanySourceUrl] = useState("");
 const [companySourceCategory, setCompanySourceCategory] = useState("Private");
 const [companyScanning, setCompanyScanning] = useState(false);
+const [showGovernmentAgent, setShowGovernmentAgent] = useState(false);
+const [showCompanyAgent, setShowCompanyAgent] = useState(false);
+const [showPostedJobs, setShowPostedJobs] = useState(false);
 
 const navigate = useNavigate();
 
@@ -666,9 +669,14 @@ const filteredJobs = (jobs || []).filter((job) => {
     <div className="max-w-5xl mx-auto">
 
       <section className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+        <button type="button" onClick={() => setShowGovernmentAgent(!showGovernmentAgent)} className="flex w-full items-center justify-between text-left text-xl font-bold text-emerald-950">
+          Government Jobs Agent
+          <span>{showGovernmentAgent ? "−" : "+"}</span>
+        </button>
+        {showGovernmentAgent && (
+          <>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-emerald-950">Government Jobs Agent</h2>
             <p className="text-sm text-emerald-800">Only official .gov.in and .nic.in sources are collected. Every notification needs your approval before publishing.</p>
           </div>
           <button onClick={scanGovernmentSources} disabled={governmentScanning || governmentSources.length === 0} className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300 hover:bg-emerald-700">
@@ -707,12 +715,19 @@ const filteredJobs = (jobs || []).filter((job) => {
           ))}
           {governmentDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new government job notifications are waiting for review.</p>}
         </div>
+          </>
+        )}
       </section>
 
       <section className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+        <button type="button" onClick={() => setShowCompanyAgent(!showCompanyAgent)} className="flex w-full items-center justify-between text-left text-xl font-bold text-blue-950">
+          Company Jobs Agent
+          <span>{showCompanyAgent ? "−" : "+"}</span>
+        </button>
+        {showCompanyAgent && (
+          <>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-blue-950">Company Jobs Agent</h2>
             <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it.</p>
           </div>
           <button onClick={scanCompanySources} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">
@@ -755,6 +770,8 @@ const filteredJobs = (jobs || []).filter((job) => {
           ))}
           {companyDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new company openings are waiting for review.</p>}
         </div>
+          </>
+        )}
       </section>
 
       {role === "superadmin" && (
@@ -797,6 +814,12 @@ const filteredJobs = (jobs || []).filter((job) => {
       <h1 className="text-2xl font-bold mb-4">💼 Jobs Section</h1>
 
       <section className="mb-8">
+        <button type="button" onClick={() => setShowPostedJobs(!showPostedJobs)} className="mb-4 flex w-full items-center justify-between rounded-xl bg-white p-4 text-left text-lg font-bold text-gray-800 shadow hover:bg-gray-50">
+          Posted Jobs ({jobs.length})
+          <span>{showPostedJobs ? "−" : "+"}</span>
+        </button>
+        {showPostedJobs && (
+          <>
         <div className="mb-4 flex flex-col gap-3 rounded-xl bg-white p-4 shadow sm:flex-row">
           <input type="search" value={jobSearch} onChange={(e) => setJobSearch(e.target.value)} placeholder="Search by job title, company or location" className="min-w-0 flex-1 rounded-lg border p-2" />
           <select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} className="rounded-lg border p-2">
@@ -825,6 +848,8 @@ const filteredJobs = (jobs || []).filter((job) => {
           );
         })}
         {filteredJobs.length === 0 && <p className="rounded-lg bg-white p-4 text-gray-500 shadow">No posted jobs match this filter.</p>}
+          </>
+        )}
       </section>
 
       {editingJob && (
