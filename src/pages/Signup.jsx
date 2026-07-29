@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 import React, { useState } from "react";
@@ -12,6 +12,8 @@ function Signup() {
   const [otpSent, setOtpSent] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const isJobAlertsSignup = location.state?.source === "job-alerts";
 
   const sendOtp = async () => {
   console.log("CLICKED");
@@ -73,7 +75,13 @@ const verifyOtp = async () => {
           Create Account 🚀
         </h2>
 
-        <label>
+        {isJobAlertsSignup && (
+          <p className="mb-6 rounded-xl bg-blue-50 px-4 py-3 text-center text-sm font-medium leading-6 text-blue-800">
+            Create your free account to save jobs, build your resume, and get new job alerts by email.
+          </p>
+        )}
+
+        <label className="mb-4 flex items-center gap-2 text-sm">
   <input
     type="checkbox"
     checked={isAdmin}

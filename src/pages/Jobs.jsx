@@ -4,7 +4,9 @@ import {
   Briefcase,
   MapPin,
   Menu,
-  Share2
+  Share2,
+  BellRing,
+  FileText
 } from "lucide-react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
@@ -792,6 +794,21 @@ localStorage.removeItem("userId");
 </div>
 
 {/* 🧭 Title */}
+{!token && (
+  <section className="mx-auto mb-10 flex w-full max-w-5xl flex-col items-center justify-between gap-5 rounded-2xl border border-blue-200 bg-white px-5 py-5 text-center shadow-lg shadow-blue-900/10 sm:flex-row sm:px-7 sm:text-left">
+    <div className="flex items-center gap-4">
+      <div className="rounded-2xl bg-blue-100 p-3 text-blue-700"><BellRing size={27} /></div>
+      <div>
+        <p className="text-lg font-bold text-slate-900">Get free job alerts made for you</p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Save jobs, build your resume, and receive new opportunities by email.</p>
+      </div>
+    </div>
+    <button onClick={() => navigate("/signup", { state: { source: "job-alerts" } })} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-blue-500/30">
+      <FileText size={18} /> Create free account
+    </button>
+  </section>
+)}
+
       <h1
   className={`text-5xl font-bold text-center mb-5 ${
     darkMode
