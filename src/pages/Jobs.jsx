@@ -52,6 +52,7 @@ const [salaryFilter, setSalaryFilter] = useState("");
 const [jobCategoryFilter, setJobCategoryFilter] = useState(
   localStorage.getItem("jobCategory") || ""
 );
+const [sortFilter, setSortFilter] = useState("newest");
 
 const [appliedJobs, setAppliedJobs] = useState([]);
   
@@ -151,6 +152,7 @@ const fetchArbeitnowJobs = async () => {
       experience: "",
       skills: (job.tags || []).join(", "),
       jobCategory: "Private",
+      postedAt: job.created_at || job.created || null,
       applyLink: job.url,
       source: "arbeitnow",
     }));
@@ -325,6 +327,7 @@ const fetchExternalJobs = async () => {
   experience: "",
   skills: "",
   jobCategory: "Private",
+  postedAt: job.created || job.created_at || null,
   applyLink: job.redirect_url,
   source: "adzuna",
 }));
@@ -420,7 +423,23 @@ localStorage.setItem(
       : true
   );
 
-  const allJobs = [...filteredJobs, ...visibleExternalJobs];
+  const getPostedTime = (job) => {
+    const value = job.posted_at || job.postedAt || job.created_at || job.created;
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isNaN(time) ? 0 : time;
+  };
+
+  const getDeadlineTime = (job) => {
+    const value = job.last_date || job.lastDate;
+    const time = value ? new Date(value).getTime() : Number.MAX_SAFE_INTEGER;
+    return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+  };
+
+  const allJobs = [...filteredJobs, ...visibleExternalJobs].sort((a, b) => {
+    if (sortFilter === "oldest") return getPostedTime(a) - getPostedTime(b);
+    if (sortFilter === "deadline") return getDeadlineTime(a) - getDeadlineTime(b);
+    return getPostedTime(b) - getPostedTime(a);
+  });
 
     useEffect(() => {
   const checkAppliedJobs = async () => {
@@ -851,7 +870,7 @@ localStorage.removeItem("userId");
       : "border-white/80 bg-white/95"
   }`}
 >
-<div className="grid gap-4 md:grid-cols-6">
+<div className="grid gap-4 md:grid-cols-6 xl:grid-cols-7">
 <select
   value={country}
   onChange={(e) => setCountry(e.target.value)}
@@ -916,6 +935,20 @@ localStorage.removeItem("userId");
     <option value="Government">Government jobs</option>
   </select>
 
+  <select
+    value={sortFilter}
+    onChange={(e) => setSortFilter(e.target.value)}
+    className={`p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+      darkMode
+        ? "bg-gray-800 text-white border-gray-700"
+        : "bg-white text-black border-gray-300"
+    }`}
+  >
+    <option value="newest">Newest posted</option>
+    <option value="oldest">Oldest posted</option>
+    <option value="deadline">Closing soon</option>
+  </select>
+
   <input
     type="text"
     placeholder="Experience"
@@ -969,6 +1002,10 @@ localStorage.removeItem("userId");
   const completed = localStorage.getItem(`done_${job.id}`);
   const applicationEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
   const lastDateLabel = job.last_date || job.lastDate || "Check job details";
+  const postedValue = job.posted_at || job.postedAt || job.created_at || job.created;
+  const postedDate = postedValue && !Number.isNaN(new Date(postedValue).getTime())
+    ? new Date(postedValue).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : "Recently";
 
   return (
     <motion.div
@@ -983,12 +1020,17 @@ localStorage.removeItem("userId");
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${
-        darkMode
-          ? "bg-gray-800 text-white"
-          : "bg-white text-black"
-      }`}
-    >
+       className={`relative rounded-2xl p-6 pt-20 shadow-lg flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${
+         darkMode
+           ? "bg-gray-800 text-white"
+           : "bg-white text-black"
+       }`}
+     >
+
+      <div className="absolute left-4 top-4 -rotate-2 rounded-sm bg-amber-200 px-3 py-2 text-center text-xs font-bold text-amber-950 shadow-md ring-1 ring-amber-300">
+        <span className="block uppercase tracking-wide">Posted</span>
+        {postedDate}
+      </div>
 
                 {/* 🖼️ Logo + Info */}
                 <div className="flex items-center gap-4">

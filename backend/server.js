@@ -132,6 +132,7 @@ async function ensureJobColumns() {
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_link TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_category TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_date TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
     db.query("ALTER TABLE jobs ALTER COLUMN title TYPE VARCHAR(300)"),
   ]);
 }
