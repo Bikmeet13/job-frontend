@@ -362,6 +362,52 @@ async function sendNewJobNotification(job) {
   }
 }
 
+// Posts only after a job has been published. Secrets stay in Railway variables,
+// never in the website or source code.
+function isFacebookAutoPostingEnabled() {
+  return process.env.FACEBOOK_AUTO_POST_ENABLED === "true"
+    && Boolean(process.env.FACEBOOK_PAGE_ID)
+    && Boolean(process.env.FACEBOOK_PAGE_ACCESS_TOKEN);
+}
+
+function buildFacebookJobPost(job) {
+  const publicJobsUrl = (process.env.PUBLIC_JOBS_URL || "https://jobs.marketlence.com").replace(/\/$/, "");
+  const lines = [
+    `New opportunity: ${job.title}`,
+    job.company && `Company: ${job.company}`,
+    job.location && `Location: ${job.location}`,
+    job.salary && `Salary: ${job.salary}`,
+    job.lastDate && `Last date: ${job.lastDate}`,
+    "",
+    `Apply now: ${publicJobsUrl}/jobs/${job.id}`,
+    "",
+    "#MarketlenceJobs #Hiring #Jobs #CareerOpportunity",
+  ].filter(Boolean);
+
+  return lines.join("\n").slice(0, 5000);
+}
+
+async function postApprovedJobToFacebook(job) {
+  if (!isFacebookAutoPostingEnabled()) return;
+
+  const apiVersion = process.env.FACEBOOK_GRAPH_API_VERSION || "v22.0";
+  const endpoint = `https://graph.facebook.com/${apiVersion}/${process.env.FACEBOOK_PAGE_ID}/feed`;
+  const body = new URLSearchParams({
+    message: buildFacebookJobPost(job),
+    access_token: process.env.FACEBOOK_PAGE_ACCESS_TOKEN,
+  });
+
+  try {
+    const response = await axios.post(endpoint, body.toString(), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      timeout: 15000,
+    });
+    console.log(`Facebook Page post created for job ${job.id}: ${response.data?.id || "success"}`);
+  } catch (error) {
+    console.error(`Facebook Page post failed for job ${job.id}:`, error.response?.data?.error?.message || error.message);
+  }
+}
+
 app.get("/api/push/public-key", (req, res) => {
   if (!pushNotificationsEnabled) {
     return res.status(503).json({ error: "Job notifications are not configured yet." });
@@ -474,6 +520,14 @@ app.post("/api/jobs", async (req, res) => {
       title,
       company,
       location,
+    });
+    void postApprovedJobToFacebook({
+      id: result.rows[0].id,
+      title,
+      company,
+      location,
+      salary,
+      lastDate,
     });
 
     res.json({ message: "Job added ✅" });
@@ -619,6 +673,14 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
       [draft.id]
     );
     void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "India" });
+    void postApprovedJobToFacebook({
+      id: jobResult.rows[0].id,
+      title: draft.title,
+      company: draft.source_name,
+      location: "India",
+      salary: "As per official notification",
+      lastDate: "Check official notification",
+    });
     res.json({ message: "Government job published", jobId: jobResult.rows[0].id });
   } catch (error) {
     const message = error?.message || "Unknown database error";
@@ -731,6 +793,14 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
       [draft.id]
     );
     void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "See company careers page" });
+    void postApprovedJobToFacebook({
+      id: jobResult.rows[0].id,
+      title: draft.title,
+      company: draft.source_name,
+      location: "See company careers page",
+      salary: "Not disclosed",
+      lastDate: "Check company careers page",
+    });
     res.json({ message: "Company job published", jobId: jobResult.rows[0].id });
   } catch (error) {
     const message = error?.message || "Unknown database error";
