@@ -715,6 +715,11 @@ const filteredJobs = (jobs || []).filter((job) => {
           ))}
           {governmentDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new government job notifications are waiting for review.</p>}
         </div>
+        <div className="mt-5 flex justify-center">
+          <button type="button" onClick={() => setShowGovernmentAgent(false)} className="rounded-lg border border-emerald-300 bg-white px-5 py-2 font-semibold text-emerald-800 transition hover:bg-emerald-100">
+            Close Government Jobs Agent
+          </button>
+        </div>
           </>
         )}
       </section>
@@ -769,6 +774,11 @@ const filteredJobs = (jobs || []).filter((job) => {
             </div>
           ))}
           {companyDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new company openings are waiting for review.</p>}
+        </div>
+        <div className="mt-5 flex justify-center">
+          <button type="button" onClick={() => setShowCompanyAgent(false)} className="rounded-lg border border-blue-300 bg-white px-5 py-2 font-semibold text-blue-800 transition hover:bg-blue-100">
+            Close Company Jobs Agent
+          </button>
         </div>
           </>
         )}
@@ -848,6 +858,11 @@ const filteredJobs = (jobs || []).filter((job) => {
           );
         })}
         {filteredJobs.length === 0 && <p className="rounded-lg bg-white p-4 text-gray-500 shadow">No posted jobs match this filter.</p>}
+        <div className="mt-5 flex justify-center">
+          <button type="button" onClick={() => setShowPostedJobs(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2 font-semibold text-gray-700 transition hover:bg-gray-100">
+            Close Posted Jobs
+          </button>
+        </div>
           </>
         )}
       </section>
