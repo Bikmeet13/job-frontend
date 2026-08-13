@@ -769,7 +769,7 @@ localStorage.removeItem("userId");
       }}
       className="w-full rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
 >
-      Find Jobs
+      Go to Jobs
     </button>
 
     <button
