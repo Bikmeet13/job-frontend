@@ -44,14 +44,7 @@ function App() {
 
 <Route path="/forgot-password" element={<ForgotPassword />} />
 
-<Route
-  path="/resume-builder"
-  element={
-    <ProtectedRoute>
-      <ResumeBuilder />
-    </ProtectedRoute>
-  }
-/>
+<Route path="/resume-builder" element={<ResumeBuilder />} />
 
       
 

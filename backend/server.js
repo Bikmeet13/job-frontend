@@ -105,7 +105,7 @@ app.use(cors({
 }));
 app.use(express.json());   // ✅ REQUIRED
 
-app.post("/api/resume-builder/import", verifyToken, resumeTextUpload.single("document"), async (req, res) => {
+app.post("/api/resume-builder/import", resumeTextUpload.single("document"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "Please choose a file first." });
 

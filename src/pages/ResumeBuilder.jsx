@@ -63,8 +63,7 @@ function ResumeBuilder() {
     setUploading(true);
     try {
       const form = new FormData(); form.append("document", file);
-      const token = localStorage.getItem("token");
-      const response = await fetch(API_URL, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      const response = await fetch(API_URL, { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Could not read this file.");
       if (data.extracted && Object.keys(data.extracted).length) setResume((current) => ({ ...current, ...Object.fromEntries(Object.entries(data.extracted).filter(([, value]) => value)) }));
