@@ -47,6 +47,10 @@ const [companyScanning, setCompanyScanning] = useState(false);
 const [showGovernmentAgent, setShowGovernmentAgent] = useState(false);
 const [showCompanyAgent, setShowCompanyAgent] = useState(false);
 const [showPostedJobs, setShowPostedJobs] = useState(false);
+const [selectedGovernmentDraftIds, setSelectedGovernmentDraftIds] = useState([]);
+const [selectedCompanyDraftIds, setSelectedCompanyDraftIds] = useState([]);
+const [bulkApprovingGovernment, setBulkApprovingGovernment] = useState(false);
+const [bulkApprovingCompany, setBulkApprovingCompany] = useState(false);
 
 const navigate = useNavigate();
 
@@ -445,6 +449,37 @@ const reviewGovernmentDraft = async (id, action) => {
   }
 };
 
+const toggleGovernmentDraftSelection = (id) => {
+  setSelectedGovernmentDraftIds((current) => current.includes(id)
+    ? current.filter((selectedId) => selectedId !== id)
+    : [...current, id]
+  );
+};
+
+const toggleAllGovernmentDrafts = () => {
+  setSelectedGovernmentDraftIds((current) => current.length === governmentDrafts.length ? [] : governmentDrafts.map((draft) => draft.id));
+};
+
+const approveSelectedGovernmentDrafts = async () => {
+  if (!selectedGovernmentDraftIds.length || bulkApprovingGovernment) return;
+  if (!window.confirm(`Approve and publish ${selectedGovernmentDraftIds.length} selected government opening(s)?`)) return;
+
+  setBulkApprovingGovernment(true);
+  const selectedIds = [...selectedGovernmentDraftIds];
+  const results = await Promise.allSettled(selectedIds.map((id) => axios.post(
+    `https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/drafts/${id}/approve`,
+    {},
+    governmentAgentHeaders()
+  )));
+  const approved = results.filter((result) => result.status === "fulfilled").length;
+  setSelectedGovernmentDraftIds([]);
+  await fetchGovernmentJobAgentData();
+  setBulkApprovingGovernment(false);
+  approved === selectedIds.length
+    ? toast.success(`${approved} government opening(s) published`)
+    : toast.error(`${approved} of ${selectedIds.length} government openings were published. Please retry the remaining ones.`);
+};
+
 const removeGovernmentSource = async (id) => {
   try {
     await axios.delete(
@@ -517,6 +552,37 @@ const reviewCompanyDraft = async (id, action) => {
   } catch (err) {
     toast.error(err.response?.data?.error || "Could not review this opening");
   }
+};
+
+const toggleCompanyDraftSelection = (id) => {
+  setSelectedCompanyDraftIds((current) => current.includes(id)
+    ? current.filter((selectedId) => selectedId !== id)
+    : [...current, id]
+  );
+};
+
+const toggleAllCompanyDrafts = () => {
+  setSelectedCompanyDraftIds((current) => current.length === companyDrafts.length ? [] : companyDrafts.map((draft) => draft.id));
+};
+
+const approveSelectedCompanyDrafts = async () => {
+  if (!selectedCompanyDraftIds.length || bulkApprovingCompany) return;
+  if (!window.confirm(`Approve and publish ${selectedCompanyDraftIds.length} selected company opening(s)?`)) return;
+
+  setBulkApprovingCompany(true);
+  const selectedIds = [...selectedCompanyDraftIds];
+  const results = await Promise.allSettled(selectedIds.map((id) => axios.post(
+    `https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/drafts/${id}/approve`,
+    {},
+    governmentAgentHeaders()
+  )));
+  const approved = results.filter((result) => result.status === "fulfilled").length;
+  setSelectedCompanyDraftIds([]);
+  await fetchCompanyJobAgentData();
+  setBulkApprovingCompany(false);
+  approved === selectedIds.length
+    ? toast.success(`${approved} company opening(s) published`)
+    : toast.error(`${approved} of ${selectedIds.length} company openings were published. Please retry the remaining ones.`);
 };
 
 const removeCompanySource = async (id) => {
@@ -701,10 +767,24 @@ const filteredJobs = (jobs || []).filter((job) => {
         </div>
 
         <h3 className="mb-2 font-bold text-emerald-950">Notifications waiting for review ({governmentDrafts.length})</h3>
+        {governmentDrafts.length > 0 && (
+          <div className="mb-3 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-100/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-emerald-950">
+              <input type="checkbox" checked={selectedGovernmentDraftIds.length === governmentDrafts.length} onChange={toggleAllGovernmentDrafts} className="h-4 w-4 accent-emerald-600" />
+              Select all openings
+            </label>
+            <button type="button" onClick={approveSelectedGovernmentDrafts} disabled={!selectedGovernmentDraftIds.length || bulkApprovingGovernment} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-300">
+              {bulkApprovingGovernment ? "Publishing selected openings..." : `Approve selected (${selectedGovernmentDraftIds.length})`}
+            </button>
+          </div>
+        )}
         <div className="space-y-3">
           {governmentDrafts.map((draft) => (
             <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="font-semibold text-gray-900">{draft.title}</p>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" checked={selectedGovernmentDraftIds.includes(draft.id)} onChange={() => toggleGovernmentDraftSelection(draft.id)} className="mt-1 h-4 w-4 shrink-0 accent-emerald-600" aria-label={`Select ${draft.title}`} />
+                <span className="font-semibold text-gray-900">{draft.title}</span>
+              </label>
               <p className="mt-1 text-sm text-gray-600">Source: {draft.source_name}</p>
               <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official notification</a>
               <div className="mt-3 flex gap-2">
@@ -761,10 +841,24 @@ const filteredJobs = (jobs || []).filter((job) => {
         </div>
 
         <h3 className="mb-2 font-bold text-blue-950">Company openings waiting for review ({companyDrafts.length})</h3>
+        {companyDrafts.length > 0 && (
+          <div className="mb-3 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-100/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-blue-950">
+              <input type="checkbox" checked={selectedCompanyDraftIds.length === companyDrafts.length} onChange={toggleAllCompanyDrafts} className="h-4 w-4 accent-blue-600" />
+              Select all openings
+            </label>
+            <button type="button" onClick={approveSelectedCompanyDrafts} disabled={!selectedCompanyDraftIds.length || bulkApprovingCompany} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300">
+              {bulkApprovingCompany ? "Publishing selected openings..." : `Approve selected (${selectedCompanyDraftIds.length})`}
+            </button>
+          </div>
+        )}
         <div className="space-y-3">
           {companyDrafts.map((draft) => (
             <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="font-semibold text-gray-900">{draft.title}</p>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" checked={selectedCompanyDraftIds.includes(draft.id)} onChange={() => toggleCompanyDraftSelection(draft.id)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" aria-label={`Select ${draft.title}`} />
+                <span className="font-semibold text-gray-900">{draft.title}</span>
+              </label>
               <p className="mt-1 text-sm text-gray-600">{draft.source_name} · {draft.job_category}</p>
               <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official company listing</a>
               <div className="mt-3 flex gap-2">
