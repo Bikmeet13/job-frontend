@@ -789,6 +789,13 @@ localStorage.removeItem("userId");
       Post Job
     </button>
 
+    <button
+      onClick={() => token ? navigate("/resume-builder") : navigate("/signup", { state: { source: "resume-builder" } })}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
+    >
+      <FileText size={18} /> Build Resume
+    </button>
+
   </div>
 
 </div>

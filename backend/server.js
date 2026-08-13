@@ -20,6 +20,7 @@ const employmentNewsFallback = [
   },
 ];
 const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
 
 const fs = require("fs");
 const axios = require("axios");
@@ -85,6 +86,10 @@ const storage = new CloudinaryStorage({
 });
 
 const upload = multer({ storage });
+const resumeTextUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 const app = express();
 app.use(cors({
@@ -99,6 +104,57 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
+
+app.post("/api/resume-builder/import", verifyToken, resumeTextUpload.single("document"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Please choose a file first." });
+
+    const file = req.file;
+    const name = (file.originalname || "").toLowerCase();
+    let text = "";
+
+    if (file.mimetype === "application/pdf" || name.endsWith(".pdf")) {
+      text = (await pdfParse(file.buffer)).text;
+    } else if (file.mimetype.includes("wordprocessingml") || name.endsWith(".docx")) {
+      text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+    } else if (file.mimetype === "text/plain" || name.endsWith(".txt")) {
+      text = file.buffer.toString("utf8");
+    } else if (file.mimetype.startsWith("image/")) {
+      if (!process.env.OPENAI_API_KEY) return res.status(503).json({ message: "Image reading is not configured yet. Please use a PDF, Word, or text document." });
+      const imageUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+      const vision = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: [
+          { type: "text", text: "Read all resume text visible in this image. Return plain text only." },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ] }],
+      });
+      text = vision.choices?.[0]?.message?.content || "";
+    } else {
+      return res.status(400).json({ message: "Please upload a PDF, DOCX, TXT, JPG, or PNG file." });
+    }
+
+    if (!text.trim()) return res.status(400).json({ message: "No readable text was found in this file." });
+
+    let extracted = {};
+    if (process.env.OPENAI_API_KEY) {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "Extract a resume into JSON only. Use keys fullName, email, phone, location, summary, skills, experience, education. Skills must be a comma-separated string; experience and education should use one item per line. Leave unknown fields empty." },
+          { role: "user", content: text.slice(0, 18000) },
+        ],
+      });
+      extracted = JSON.parse(completion.choices?.[0]?.message?.content || "{}");
+    }
+
+    res.json({ text, extracted });
+  } catch (error) {
+    console.error("Resume builder import failed:", error.message);
+    res.status(500).json({ message: "We could not read that file. Try a smaller PDF, DOCX, TXT, JPG, or PNG." });
+  }
+});
 
 const pushNotificationsEnabled = Boolean(
   process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
