@@ -17,6 +17,7 @@ import HomepageAd from "../components/HomepageAd";
 import JobNotificationPrompt from "../components/JobNotificationPrompt";
 import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
+import { COUNTRIES, COUNTRY_NAMES } from "../data/countries";
 import toast from "react-hot-toast";
 
 
@@ -332,6 +333,7 @@ const fetchExternalJobs = async () => {
   postedAt: job.created || job.created_at || null,
   applyLink: job.redirect_url,
   source: "adzuna",
+  country,
 }));
 
 setExternalJobs(formattedJobs);
@@ -345,18 +347,7 @@ localStorage.setItem(
     console.log(err);
   }
 };
-  const countryNames = {
-    in: "india",
-    us: "united states",
-    ca: "canada",
-    gb: "united kingdom",
-    au: "australia",
-    de: "germany",
-    fr: "france",
-    sg: "singapore",
-    ae: "uae",
-    nl: "netherlands",
-  };
+  const countryNames = COUNTRY_NAMES;
 
   const internalJobMatchesCountry = (job) => {
     const jobCountry = String(job.country || job.country_code || "").toLowerCase();
@@ -419,11 +410,15 @@ localStorage.setItem(
       )
    : [];
 
-  const visibleExternalJobs = externalJobs.filter((job) =>
-    jobCategoryFilter
+  const visibleExternalJobs = externalJobs.filter((job) => {
+    const externalCountryMatch = job.source === "adzuna"
+      ? job.country === country
+      : String(job.location || "").toLowerCase().includes(countryNames[country] || "");
+    const categoryMatch = jobCategoryFilter
       ? String(job.job_category || job.jobCategory || "").toLowerCase() === jobCategoryFilter.toLowerCase()
-      : true
-  );
+      : true;
+    return externalCountryMatch && categoryMatch;
+  });
 
   const getPostedTime = (job) => {
     const value = job.posted_at || job.postedAt || job.created_at || job.created;
@@ -904,16 +899,9 @@ localStorage.removeItem("userId");
       : "bg-white text-black border-gray-300"
   }`}
 >
-  <option value="in">🇮🇳 India</option>
-  <option value="us">🇺🇸 United States</option>
-  <option value="ca">🇨🇦 Canada</option>
-  <option value="gb">🇬🇧 United Kingdom</option>
-  <option value="au">🇦🇺 Australia</option>
-  <option value="de">🇩🇪 Germany</option>
-  <option value="fr">🇫🇷 France</option>
-  <option value="sg">🇸🇬 Singapore</option>
-  <option value="ae">🇦🇪 UAE</option>
-  <option value="nl">🇳🇱 Netherlands</option>
+  {COUNTRIES.map(({ code, name }) => (
+    <option key={code} value={code}>{name}</option>
+  ))}
 </select>
 
 <div className="contents">

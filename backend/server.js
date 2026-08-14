@@ -1980,6 +1980,8 @@ app.get("/api/profile/:id", async (req, res) => {
   }
 });
 
+const adzunaCountries = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
+
 app.get("/api/external-jobs", async (req, res) => {
   try {
     console.log("APP_ID:", process.env.ADZUNA_APP_ID);
@@ -1990,6 +1992,12 @@ app.get("/api/external-jobs", async (req, res) => {
   location = "",
   country = "in",
 } = req.query;
+
+    // Adzuna only publishes job feeds for these markets. Other countries can
+    // still show internal jobs and global sources without triggering a 500 error.
+    if (!adzunaCountries.has(String(country).toLowerCase())) {
+      return res.json([]);
+    }
 
     const response = await axios.get(
       `https://api.adzuna.com/v1/api/jobs/${country}/search/1`,
