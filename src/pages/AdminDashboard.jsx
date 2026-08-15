@@ -531,8 +531,10 @@ const scanCompanySources = async () => {
       {},
       governmentAgentHeaders()
     );
-    toast.success(`Scan complete: ${result.data.discovered} new company openings found`);
-    fetchCompanyJobAgentData();
+    toast.success(result.data.message || "Company job scan started");
+    // The scan runs in the background because there are many sources. Refresh
+    // the review list shortly after the new openings have been collected.
+    setTimeout(fetchCompanyJobAgentData, 8000);
   } catch (err) {
     toast.error("Company job scan failed");
   } finally {

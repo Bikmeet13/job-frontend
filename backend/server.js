@@ -5,6 +5,7 @@ console.log("DB URL:", process.env.DATABASE_URL);
 const lastRequest = {};
 const otpStore = {};
 let employmentNewsCache = { items: [], expiresAt: 0 };
+let companyJobScanRunning = false;
 const employmentNewsFallback = [
   {
     title: "Latest hiring and job market news in India",
@@ -349,36 +350,52 @@ function isSafeCompanySourceUrl(value) {
 }
 
 async function scanCompanyJobSources() {
+  if (companyJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0 };
+
+  companyJobScanRunning = true;
   const { rows: sources } = await db.query(
     "SELECT id, name, url, job_category FROM company_job_sources WHERE enabled = TRUE"
   );
   let discovered = 0;
 
-  for (const source of sources) {
-    try {
-      const response = await axios.get(source.url, {
-        timeout: 15000,
-        responseType: "text",
-        headers: { "User-Agent": "MarketlenceJobsBot/1.0 (company-job-review-agent)" },
-      });
-      const listings = findGovernmentJobLinks(response.data, source.url);
+  try {
+    // Scan a small group at a time. This is much faster than one-by-one while
+    // remaining polite to the career sites being checked.
+    for (let index = 0; index < sources.length; index += 6) {
+      const group = sources.slice(index, index + 6);
+      const groupResults = await Promise.all(group.map(async (source) => {
+        try {
+          const response = await axios.get(source.url, {
+            timeout: 7000,
+            responseType: "text",
+            headers: { "User-Agent": "MarketlenceJobsBot/1.0 (company-job-review-agent)" },
+          });
+          const listings = findGovernmentJobLinks(response.data, source.url);
+          let found = 0;
 
-      for (const listing of listings) {
-        const inserted = await db.query(
-          `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (apply_link) DO NOTHING
-           RETURNING id`,
-          [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink]
-        );
-        if (inserted.rows.length) discovered += 1;
-      }
-    } catch (error) {
-      console.log(`Company job source scan failed for ${source.name}:`, error.message);
+          for (const listing of listings) {
+            const inserted = await db.query(
+              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (apply_link) DO NOTHING
+               RETURNING id`,
+              [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink]
+            );
+            if (inserted.rows.length) found += 1;
+          }
+          return found;
+        } catch (error) {
+          console.log(`Company job source scan failed for ${source.name}:`, error.message);
+          return 0;
+        }
+      }));
+      discovered += groupResults.reduce((total, value) => total + value, 0);
     }
-  }
 
-  return { sourcesChecked: sources.length, discovered };
+    return { running: false, sourcesChecked: sources.length, discovered };
+  } finally {
+    companyJobScanRunning = false;
+  }
 }
 
 function startCompanyJobAgent() {
@@ -806,11 +823,14 @@ app.get("/api/company-job-agent/drafts", verifyToken, isAdmin, async (req, res) 
 });
 
 app.post("/api/company-job-agent/scan", verifyToken, isAdmin, async (req, res) => {
-  try {
-    res.json(await scanCompanyJobSources());
-  } catch (error) {
-    res.status(500).json({ error: "Company job scan failed" });
+  if (companyJobScanRunning) {
+    return res.status(202).json({ started: false, message: "A company job scan is already running" });
   }
+
+  // Do not keep the browser request open while hundreds of sources are read.
+  // Railway can otherwise end the request before the scan has finished.
+  scanCompanyJobSources().catch((error) => console.log("Company job scan failed:", error.message));
+  res.status(202).json({ started: true, message: "Company job scan started in the background" });
 });
 
 app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {
