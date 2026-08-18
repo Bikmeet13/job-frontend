@@ -139,15 +139,21 @@ app.post("/api/resume-builder/import", resumeTextUpload.single("document"), asyn
 
     let extracted = {};
     if (process.env.OPENAI_API_KEY) {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: "Extract a resume into JSON only. Use keys fullName, email, phone, location, summary, skills, experience, education. Skills must be a comma-separated string; experience and education should use one item per line. Leave unknown fields empty." },
-          { role: "user", content: text.slice(0, 18000) },
-        ],
-      });
-      extracted = JSON.parse(completion.choices?.[0]?.message?.content || "{}");
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: "Extract a resume into JSON only. Use keys fullName, email, phone, location, summary, skills, experience, education. Skills must be a comma-separated string; experience and education should use one item per line. Leave unknown fields empty." },
+            { role: "user", content: text.slice(0, 18000) },
+          ],
+        });
+        extracted = JSON.parse(completion.choices?.[0]?.message?.content || "{}");
+      } catch (error) {
+        // The uploaded document was read correctly. Keep that text available
+        // even if the optional AI field extraction is temporarily unavailable.
+        console.error("Resume AI extraction failed; returning readable text:", error.message);
+      }
     }
 
     res.json({ text, extracted });
