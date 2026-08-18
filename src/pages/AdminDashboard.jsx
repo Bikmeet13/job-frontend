@@ -970,9 +970,16 @@ const filteredJobs = (jobs || []).filter((job) => {
             <button type="button" onClick={() => setEditingJob(null)} className="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</button>
           </div>
           <form onSubmit={saveEditedJob} className="space-y-3">
-            {[['title', 'Job Title'], ['company', 'Company'], ['location', 'Location'], ['salary', 'Salary'], ['experience', 'Experience'], ['skills', 'Skills'], ['type', 'Job Type'], ['mode', 'Remote / On-site']].map(([field, label]) => (
+            {[['title', 'Job Title'], ['company', 'Company'], ['location', 'Location'], ['salary', 'Salary'], ['experience', 'Experience'], ['skills', 'Skills'], ['type', 'Job Type']].map(([field, label]) => (
               <input key={field} type="text" placeholder={label} value={editingJob[field] || ""} onChange={(e) => setEditingJob({ ...editingJob, [field]: e.target.value })} className="w-full rounded border p-2" />
             ))}
+            <select value={editingJob.mode || ""} onChange={(e) => setEditingJob({ ...editingJob, mode: e.target.value })} className="w-full rounded border p-2">
+              <option value="">Work mode: Not set</option>
+              <option value="Onsite">Onsite</option>
+              <option value="Remote">Remote</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="Visa Sponsorship">Visa Sponsorship</option>
+            </select>
             <select value={editingJob.jobCategory || ""} onChange={(e) => setEditingJob({ ...editingJob, jobCategory: e.target.value })} className="w-full rounded border p-2">
               <option value="">Job sector: Not set</option>
               <option value="Private">Private job</option>
@@ -1051,13 +1058,17 @@ const filteredJobs = (jobs || []).filter((job) => {
             <option value="Government">Government job</option>
           </select>
 
-          <input
-            type="text"
-            placeholder="Remote / On-site"
+          <select
             value={mode}
             onChange={(e) => setMode(e.target.value)}
             className="border p-2 rounded w-full mb-3"
-          />
+          >
+            <option value="">Select work mode</option>
+            <option value="Onsite">Onsite</option>
+            <option value="Remote">Remote</option>
+            <option value="Hybrid">Hybrid</option>
+            <option value="Visa Sponsorship">Visa Sponsorship</option>
+          </select>
 
           <input
             type="text"

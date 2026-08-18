@@ -18,6 +18,7 @@ import JobNotificationPrompt from "../components/JobNotificationPrompt";
 import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
 import { COUNTRIES, COUNTRY_NAMES } from "../data/countries";
+import { VISA_SPONSORSHIP_RESOURCES } from "../data/visaSponsorshipResources";
 import toast from "react-hot-toast";
 
 
@@ -882,6 +883,33 @@ localStorage.removeItem("userId");
 
 </div>
 
+<section className={`mx-auto mb-8 max-w-5xl rounded-2xl border p-4 shadow-sm ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-indigo-50/70"}`}>
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>🌍 Visa Sponsorship Jobs</h2>
+      <p className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Find roles tagged for visa support, then check official work-visa guidance for your destination.</p>
+    </div>
+    <button
+      type="button"
+      onClick={() => setModeFilter("Visa Sponsorship")}
+      className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
+    >
+      Show sponsored jobs
+    </button>
+  </div>
+  <details className={`mt-4 rounded-xl border px-4 py-3 ${darkMode ? "border-slate-700 bg-slate-800" : "border-white bg-white"}`}>
+    <summary className="cursor-pointer font-semibold text-indigo-700">Official work-visa and international-job resources ({VISA_SPONSORSHIP_RESOURCES.length})</summary>
+    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {VISA_SPONSORSHIP_RESOURCES.map((resource) => (
+        <a key={resource.country} href={resource.url} target="_blank" rel="noreferrer" className={`rounded-lg border px-3 py-2 text-sm transition hover:border-indigo-400 hover:text-indigo-700 ${darkMode ? "border-slate-700 text-slate-200" : "border-slate-200 text-slate-700"}`}>
+          <span className="block font-semibold">{resource.country}</span>
+          <span className="block truncate text-xs opacity-80">{resource.name} ↗</span>
+        </a>
+      ))}
+    </div>
+  </details>
+</section>
+
 <div
   className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-24 md:z-40 ${
     darkMode
@@ -931,6 +959,7 @@ localStorage.removeItem("userId");
     <option value="Remote">Remote</option>
     <option value="Onsite">Onsite</option>
     <option value="Hybrid">Hybrid</option>
+    <option value="Visa Sponsorship">Visa Sponsorship</option>
   </select>
 
   <select
@@ -1109,11 +1138,11 @@ localStorage.removeItem("userId");
                 <div className="flex gap-2 mt-4">
 
                   <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">
-                    Full-time
+                    {job.type || "Full-time"}
                   </span>
 
-                  <span className="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-xs">
-                    Remote
+                  <span className={`px-3 py-1 rounded-full text-xs ${job.mode === "Visa Sponsorship" ? "bg-violet-100 font-bold text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
+                    {job.mode || "Onsite"}
                   </span>
 
                 </div>

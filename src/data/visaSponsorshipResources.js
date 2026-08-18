@@ -1,0 +1,32 @@
+// Official government / public employment resources for people seeking work-visa support.
+// These links are deliberately kept separate from the automated company-job scanner: visa
+// guidance pages should help candidates, but should never be scraped and posted as job ads.
+export const VISA_SPONSORSHIP_RESOURCES = [
+  { country: "Australia", name: "Workforce Australia", url: "https://www.workforceaustralia.gov.au/" },
+  { country: "Austria", name: "Migration and residence", url: "https://www.migration.gv.at/en/" },
+  { country: "Belgium", name: "Working in Belgium", url: "https://www.workinginbelgium.be/en" },
+  { country: "Canada", name: "Job Bank — foreign candidates", url: "https://www.jobbank.gc.ca/findajob/foreign-candidates" },
+  { country: "Czechia", name: "Employee Card", url: "https://frs.gov.cz/en/visa-and-residence-permits/third-country-nationals/long-term-residence-permit/employee-card/" },
+  { country: "Denmark", name: "Work in Denmark", url: "https://www.nyidanmark.dk/en-GB/You-want-to-apply/Work" },
+  { country: "Estonia", name: "Working in Estonia", url: "https://www.workinestonia.com/" },
+  { country: "Finland", name: "Work in Finland", url: "https://migri.fi/en/working-in-finland" },
+  { country: "France", name: "Work in France", url: "https://www.service-public.fr/particuliers/vosdroits/F2728?lang=en" },
+  { country: "Germany", name: "Make it in Germany", url: "https://www.make-it-in-germany.com/en/looking-for-foreign-professionals" },
+  { country: "Ireland", name: "Employment permits", url: "https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/" },
+  { country: "Italy", name: "Work visa information", url: "https://vistoperitalia.esteri.it/home/en" },
+  { country: "Japan", name: "Hello Work", url: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000187983.html" },
+  { country: "Netherlands", name: "Work permits", url: "https://ind.nl/en/residence-permits/work" },
+  { country: "New Zealand", name: "Accredited Employer Work Visa", url: "https://www.immigration.govt.nz/visas/getting-a-visa/visa-listing/accredited-employer-work-visa" },
+  { country: "Norway", name: "Work immigration", url: "https://www.udi.no/en/want-to-apply/work-immigration/" },
+  { country: "Poland", name: "Work in Poland", url: "https://www.gov.pl/web/udsc-en/work-in-poland" },
+  { country: "Portugal", name: "Working in Portugal", url: "https://eportugal.gov.pt/en/servicos/pedir-um-visto-de-residencia-para-trabalho-dependente" },
+  { country: "Saudi Arabia", name: "Work permits", url: "https://www.hrsd.gov.sa/en/knowledge-centre/articles/work-permit" },
+  { country: "Singapore", name: "Employment Pass", url: "https://www.mom.gov.sg/passes-and-permits/employment-pass" },
+  { country: "South Korea", name: "Visa Portal", url: "https://www.visa.go.kr/" },
+  { country: "Spain", name: "Work and residence", url: "https://www.inclusion.gob.es/web/migraciones/w/autorizacion-de-residencia-temporal-y-trabajo-por-cuenta-ajena" },
+  { country: "Sweden", name: "Work permits", url: "https://www.migrationsverket.se/en/you-want-to-apply/work/employee-or-self-employed.html" },
+  { country: "Switzerland", name: "Working in Switzerland", url: "https://www.sem.admin.ch/sem/en/home/overview-arbeit.html" },
+  { country: "United Arab Emirates", name: "Work permits", url: "https://u.ae/en/information-and-services/jobs/working-in-uae/work-permits" },
+  { country: "United Kingdom", name: "Skilled Worker visa", url: "https://www.gov.uk/skilled-worker-visa" },
+  { country: "United States", name: "Temporary worker visas", url: "https://travel.state.gov/content/travel/en/us-visas/employment/temporary-worker-visas.html" },
+];
