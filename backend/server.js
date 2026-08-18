@@ -321,6 +321,25 @@ function hasVisaSponsorship(text) {
   return positive.test(value) && !negative.test(value);
 }
 
+async function hasVisaSponsorshipOnJobPage(listing) {
+  // Career index pages often show only a title. Check a small number of the
+  // actual opening pages as well, where eligibility is normally written.
+  if (hasVisaSponsorship(`${listing.title} ${listing.applyLink} ${listing.context}`)) return true;
+  if (!isSafeCompanySourceUrl(listing.applyLink)) return false;
+
+  try {
+    const response = await axios.get(listing.applyLink, {
+      timeout: 5000,
+      responseType: "text",
+      maxContentLength: 750000,
+      headers: { "User-Agent": "MarketlenceJobsBot/1.0 (visa-sponsorship-review-agent)" },
+    });
+    return hasVisaSponsorship(cleanGovernmentJobText(String(response.data || "").slice(0, 120000)));
+  } catch {
+    return false;
+  }
+}
+
 async function scanGovernmentJobSources() {
   const { rows: sources } = await db.query(
     "SELECT id, name, url FROM government_job_sources WHERE enabled = TRUE"
@@ -399,15 +418,28 @@ async function scanCompanyJobSources() {
           const listings = findGovernmentJobLinks(response.data, source.url);
           let found = 0;
 
+          // Limit extra job-detail checks so the scanner remains reliable even
+          // with the large worldwide source list. Visible page text is always
+          // checked; the first five listings also get a detail-page check.
+          const visaMatches = new Map();
+          await Promise.all(listings.slice(0, 5).map(async (listing) => {
+            visaMatches.set(listing.applyLink, await hasVisaSponsorshipOnJobPage(listing));
+          }));
+
           for (const listing of listings) {
+            const visaSponsorship = visaMatches.get(listing.applyLink)
+              || hasVisaSponsorship(`${listing.title} ${listing.applyLink} ${listing.context}`);
             const inserted = await db.query(
-            `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link, visa_sponsorship)
+              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link, visa_sponsorship)
                VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (apply_link) DO NOTHING
-               RETURNING id`,
-              [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink, hasVisaSponsorship(`${listing.title} ${listing.applyLink} ${listing.context}`)]
+               ON CONFLICT (apply_link) DO UPDATE
+               SET visa_sponsorship = TRUE
+               WHERE company_job_drafts.status = 'pending'
+                 AND EXCLUDED.visa_sponsorship = TRUE
+               RETURNING id, (xmax = 0) AS was_inserted`,
+              [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink, visaSponsorship]
             );
-            if (inserted.rows.length) found += 1;
+            if (inserted.rows[0]?.was_inserted) found += 1;
           }
           return { found, unavailable: false };
         } catch (error) {
