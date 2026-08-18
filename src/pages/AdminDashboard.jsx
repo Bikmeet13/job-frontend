@@ -861,7 +861,10 @@ const filteredJobs = (jobs || []).filter((job) => {
                 <input type="checkbox" checked={selectedCompanyDraftIds.includes(draft.id)} onChange={() => toggleCompanyDraftSelection(draft.id)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" aria-label={`Select ${draft.title}`} />
                 <span className="font-semibold text-gray-900">{draft.title}</span>
               </label>
-              <p className="mt-1 text-sm text-gray-600">{draft.source_name} · {draft.job_category}</p>
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                <span>{draft.source_name} · {draft.job_category}</span>
+                {draft.visa_sponsorship && <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-700">Visa Sponsorship detected</span>}
+              </p>
               <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official company listing</a>
               <div className="mt-3 flex gap-2">
                 <button onClick={() => reviewCompanyDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button>

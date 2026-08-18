@@ -219,6 +219,7 @@ async function ensureGovernmentJobAgentTables() {
       source_url TEXT NOT NULL,
       title TEXT NOT NULL,
       apply_link TEXT NOT NULL UNIQUE,
+      visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE,
       status TEXT NOT NULL DEFAULT 'pending',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       reviewed_at TIMESTAMPTZ
@@ -270,6 +271,10 @@ async function ensureCompanyJobAgentTables() {
       reviewed_at TIMESTAMPTZ
     )
   `);
+
+  // Existing Railway databases already have this table, so add the new
+  // classification field safely during startup as well.
+  await db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE");
 }
 
 function cleanGovernmentJobText(value) {
@@ -297,10 +302,23 @@ function findGovernmentJobLinks(html, sourceUrl) {
     }
 
     if (title.length < 8 || !keywords.test(`${title} ${applyLink}`)) continue;
-    links.push({ title: title.slice(0, 300), applyLink });
+    // Many career sites include visa eligibility beside the job-card link.
+    // Keep a small local context so we can classify only explicit matches.
+    const context = cleanGovernmentJobText(html.slice(
+      Math.max(0, match.index - 900),
+      Math.min(html.length, match.index + match[0].length + 900)
+    ));
+    links.push({ title: title.slice(0, 300), applyLink, context });
   }
 
   return [...new Map(links.map((item) => [item.applyLink, item])).values()];
+}
+
+function hasVisaSponsorship(text) {
+  const value = String(text || "").toLowerCase();
+  const negative = /(?:no|not|without|unable to provide|cannot provide|can't provide)\s+(?:a\s+)?(?:visa\s+)?sponsor(?:ship)?|(?:visa\s+)?sponsorship\s+(?:is\s+)?not\s+(?:available|offered)|must\s+(?:already\s+)?have\s+(?:the\s+)?right\s+to\s+work/;
+  const positive = /visa\s+sponsor(?:ship)?(?:\s+(?:available|provided|offered))?|sponsorship\s+(?:available|provided|offered)|work\s+visa\s+(?:support|provided|available)|skilled\s+worker\s+sponsor(?:ship)?|relocation\s+(?:and\s+)?visa\s+(?:support|assistance)/;
+  return positive.test(value) && !negative.test(value);
 }
 
 async function scanGovernmentJobSources() {
@@ -383,11 +401,11 @@ async function scanCompanyJobSources() {
 
           for (const listing of listings) {
             const inserted = await db.query(
-              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link)
-               VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link, visa_sponsorship)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
                ON CONFLICT (apply_link) DO NOTHING
                RETURNING id`,
-              [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink]
+              [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink, hasVisaSponsorship(`${listing.title} ${listing.applyLink} ${listing.context}`)]
             );
             if (inserted.rows.length) found += 1;
           }
@@ -868,7 +886,7 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
         "See company careers page",
         `Opening collected from the official ${draft.source_name} careers page. Check the official job page for eligibility, responsibilities and deadlines.`,
         "Company recruitment",
-        "As per company posting",
+        draft.visa_sponsorship ? "Visa Sponsorship" : "As per company posting",
         [],
         false,
         draft.apply_link,
