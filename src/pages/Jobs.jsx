@@ -235,6 +235,14 @@ useEffect(() => {
 }, []);
 
   useEffect(() => {
+  // Job lists can become very large. They belong in the database/API, not in
+  // the browser's small local-storage quota. Remove the old cache once.
+  try {
+    localStorage.removeItem("jobs");
+  } catch {
+    // The page can still load if browser storage is unavailable.
+  }
+
   fetchJobs()
     .then((data) => {
       console.log("JOBS API:", data);
@@ -247,28 +255,6 @@ useEffect(() => {
       console.error("API Error:", err);
 
       setLoading(false); // ✅ ALSO HERE
-    });
-}, []);
-
-useEffect(() => {
-  fetchJobs()
-    .then((data) => {
-      console.log("JOBS API:", data);
-
-      setJobs(data);
-
-      // ✅ ADD THIS
-      localStorage.setItem(
-        "jobs",
-        JSON.stringify(data)
-      );
-
-      setLoading(false);
-    })
-    .catch((err) => {
-      console.error("API Error:", err);
-
-      setLoading(false);
     });
 }, []);
 
