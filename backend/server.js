@@ -350,15 +350,17 @@ function isSafeCompanySourceUrl(value) {
 }
 
 async function scanCompanyJobSources() {
-  if (companyJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0 };
+  if (companyJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0, unavailable: 0 };
 
   companyJobScanRunning = true;
-  const { rows: sources } = await db.query(
-    "SELECT id, name, url, job_category FROM company_job_sources WHERE enabled = TRUE"
-  );
-  let discovered = 0;
 
   try {
+    const { rows: sources } = await db.query(
+      "SELECT id, name, url, job_category FROM company_job_sources WHERE enabled = TRUE"
+    );
+    let discovered = 0;
+    let unavailable = 0;
+
     // Scan a small group at a time. This is much faster than one-by-one while
     // remaining polite to the career sites being checked.
     for (let index = 0; index < sources.length; index += 6) {
@@ -383,16 +385,20 @@ async function scanCompanyJobSources() {
             );
             if (inserted.rows.length) found += 1;
           }
-          return found;
+          return { found, unavailable: false };
         } catch (error) {
-          console.log(`Company job source scan failed for ${source.name}:`, error.message);
-          return 0;
+          // A careers website may block automated access, move its page, or
+          // have a certificate problem. Skip it and continue with all others.
+          return { found: 0, unavailable: true };
         }
       }));
-      discovered += groupResults.reduce((total, value) => total + value, 0);
+      discovered += groupResults.reduce((total, result) => total + result.found, 0);
+      unavailable += groupResults.filter((result) => result.unavailable).length;
     }
 
-    return { running: false, sourcesChecked: sources.length, discovered };
+    const summary = { running: false, sourcesChecked: sources.length, discovered, unavailable };
+    console.log(`Company job scan complete: ${discovered} new openings from ${sources.length - unavailable}/${sources.length} available sources.`);
+    return summary;
   } finally {
     companyJobScanRunning = false;
   }
