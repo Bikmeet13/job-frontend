@@ -292,6 +292,10 @@ const visaJobDefaultSources = [
   ["Sweden Platsbanken", "https://arbetsformedlingen.se/other-languages/english-engelska/work-in-sweden", "se"],
   ["Singapore MyCareersFuture", "https://www.mycareersfuture.gov.sg/", "sg"],
   ["EURES European Job Network", "https://eures.europa.eu/index_en", "global"],
+  ["Relocate.me", "https://relocate.me/", "global"],
+  ["Visa Jobs", "https://www.visajobs.com/", "global"],
+  ["MyVisaJobs", "https://www.myvisajobs.com/", "us"],
+  ["Jobbatical Jobs", "https://jobbatical.com/jobs", "global"],
 ];
 
 async function ensureVisaJobAgentTables() {
@@ -993,7 +997,7 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
         "See company careers page",
         `Opening collected from the official ${draft.source_name} careers page. Check the official job page for eligibility, responsibilities and deadlines.`,
         "Company recruitment",
-        draft.visa_sponsorship ? "Visa Sponsorship" : "As per company posting",
+        draft.visa_sponsorship ? "Visa" : "As per company posting",
         [],
         false,
         draft.apply_link,
@@ -1057,7 +1061,7 @@ app.post("/api/visa-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`, [
       draft.title.slice(0, 300), draft.source_name, "See official job listing", "Not disclosed", "See official job listing", "See official job listing",
       `Visa sponsorship opening collected from ${draft.source_name}. Please confirm eligibility and visa support on the official listing before applying.`,
-      "Company recruitment", "Visa Sponsorship", [], false, draft.apply_link, "Private", draft.country || "global", "Check official job listing"
+      "Company recruitment", "Visa", [], false, draft.apply_link, "Private", draft.country || "global", "Check official job listing"
     ]);
     await db.query("UPDATE visa_job_drafts SET status = 'approved', reviewed_at = NOW() WHERE id = $1", [draft.id]);
     void sendNewJobNotification({ id: result.rows[0].id, title: draft.title, company: draft.source_name, location: "Visa sponsorship" });

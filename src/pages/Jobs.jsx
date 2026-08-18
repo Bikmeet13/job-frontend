@@ -341,7 +341,7 @@ localStorage.setItem(
 
     // Agent-detected sponsored roles can be open to international applicants
     // even when the source does not publish one destination country.
-    if (jobCountry === "global" && job.mode === "Visa Sponsorship") return true;
+    if (jobCountry === "global" && job.mode === "Visa") return true;
 
     // Existing internal jobs were created for India before a country field existed.
     if (!jobCountry) return country === "in";
@@ -879,12 +879,12 @@ localStorage.removeItem("userId");
 <section className={`mx-auto mb-8 max-w-5xl rounded-2xl border p-4 shadow-sm ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-indigo-50/70"}`}>
   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
-      <h2 className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>🌍 Visa Sponsorship Jobs</h2>
+      <h2 className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>🌍 Visa Jobs</h2>
       <p className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Find roles tagged for visa support, then check official work-visa guidance for your destination.</p>
     </div>
     <button
       type="button"
-      onClick={() => setModeFilter("Visa Sponsorship")}
+      onClick={() => setModeFilter("Visa")}
       className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
     >
       Show sponsored jobs
@@ -952,7 +952,7 @@ localStorage.removeItem("userId");
     <option value="Remote">Remote</option>
     <option value="Onsite">Onsite</option>
     <option value="Hybrid">Hybrid</option>
-    <option value="Visa Sponsorship">Visa Sponsorship</option>
+    <option value="Visa">Visa Jobs</option>
   </select>
 
   <select
@@ -1134,7 +1134,7 @@ localStorage.removeItem("userId");
                     {job.type || "Full-time"}
                   </span>
 
-                  <span className={`px-3 py-1 rounded-full text-xs ${job.mode === "Visa Sponsorship" ? "bg-violet-100 font-bold text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
+                  <span className={`px-3 py-1 rounded-full text-xs ${job.mode === "Visa" ? "bg-violet-100 font-bold text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
                     {job.mode || "Onsite"}
                   </span>
 

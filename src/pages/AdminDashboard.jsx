@@ -846,22 +846,22 @@ const filteredJobs = (jobs || []).filter((job) => {
 
       <section className="mb-8 rounded-2xl border border-violet-100 bg-violet-50 p-5 shadow-sm">
         <button type="button" onClick={() => setShowVisaAgent(!showVisaAgent)} className="flex w-full items-center justify-between text-left text-xl font-bold text-violet-950">
-          🌍 Visa Sponsorship Jobs Agent <span>{showVisaAgent ? "−" : "+"}</span>
+          🌍 Visa Jobs Agent <span>{showVisaAgent ? "−" : "+"}</span>
         </button>
         {showVisaAgent && <>
           <div className="mb-4 mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-violet-800">Official public job resources are scanned separately. Only openings with clear visa-sponsorship wording are added for review.</p>
+            <p className="text-sm text-violet-800">Official public resources and specialist visa-job sources are scanned separately. Only openings with clear visa wording are added for review.</p>
             <button onClick={scanVisaSources} disabled={visaScanning || !visaSources.length} className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{visaScanning ? "Scanning sponsored jobs..." : "Scan visa resources"}</button>
           </div>
           <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="block text-xs text-gray-500">{source.country.toUpperCase()} · Official resource ↗</span></a>)}
+            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="block text-xs text-gray-500">{source.country.toUpperCase()} · Job resource ↗</span></a>)}
           </div>
-          <h3 className="mb-2 font-bold text-violet-950">Sponsored openings waiting for review ({visaDrafts.length})</h3>
+          <h3 className="mb-2 font-bold text-violet-950">Visa openings waiting for review ({visaDrafts.length})</h3>
           <div className="space-y-3">
-            {visaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold text-gray-900">{draft.title}</p><p className="mt-1 text-sm text-violet-700">Visa Sponsorship · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex gap-2"><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
+            {visaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold text-gray-900">{draft.title}</p><p className="mt-1 text-sm text-violet-700">Visa Job · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex gap-2"><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
             {!visaDrafts.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No verified sponsored openings are waiting for review.</p>}
           </div>
-          <div className="mt-5 flex justify-center"><button type="button" onClick={() => setShowVisaAgent(false)} className="rounded-lg border border-violet-300 bg-white px-5 py-2 font-semibold text-violet-800 hover:bg-violet-100">Close Visa Sponsorship Jobs Agent</button></div>
+          <div className="mt-5 flex justify-center"><button type="button" onClick={() => setShowVisaAgent(false)} className="rounded-lg border border-violet-300 bg-white px-5 py-2 font-semibold text-violet-800 hover:bg-violet-100">Close Visa Jobs Agent</button></div>
         </>}
       </section>
 
@@ -922,7 +922,7 @@ const filteredJobs = (jobs || []).filter((job) => {
               </label>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
                 <span>{draft.source_name} · {draft.job_category}</span>
-                {draft.visa_sponsorship && <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-700">Visa Sponsorship detected</span>}
+                {draft.visa_sponsorship && <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-700">Visa detected</span>}
               </p>
               <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official company listing</a>
               <div className="mt-3 flex gap-2">
@@ -1040,7 +1040,7 @@ const filteredJobs = (jobs || []).filter((job) => {
               <option value="Onsite">Onsite</option>
               <option value="Remote">Remote</option>
               <option value="Hybrid">Hybrid</option>
-              <option value="Visa Sponsorship">Visa Sponsorship</option>
+              <option value="Visa">Visa Jobs</option>
             </select>
             <select value={editingJob.jobCategory || ""} onChange={(e) => setEditingJob({ ...editingJob, jobCategory: e.target.value })} className="w-full rounded border p-2">
               <option value="">Job sector: Not set</option>
@@ -1129,7 +1129,7 @@ const filteredJobs = (jobs || []).filter((job) => {
             <option value="Onsite">Onsite</option>
             <option value="Remote">Remote</option>
             <option value="Hybrid">Hybrid</option>
-            <option value="Visa Sponsorship">Visa Sponsorship</option>
+            <option value="Visa">Visa Jobs</option>
           </select>
 
           <input
