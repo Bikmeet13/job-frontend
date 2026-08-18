@@ -418,7 +418,10 @@ localStorage.setItem(
     const categoryMatch = jobCategoryFilter
       ? String(job.job_category || job.jobCategory || "").toLowerCase() === jobCategoryFilter.toLowerCase()
       : true;
-    return externalCountryMatch && categoryMatch;
+    // External feeds do not provide reliable visa-sponsorship information, so they
+    // must not appear when a user specifically asks for sponsored roles.
+    const modeMatch = !modeFilter || job.mode === modeFilter;
+    return externalCountryMatch && categoryMatch && modeMatch;
   });
 
   const getPostedTime = (job) => {
