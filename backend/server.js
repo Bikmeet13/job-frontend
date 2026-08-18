@@ -6,6 +6,7 @@ const lastRequest = {};
 const otpStore = {};
 let employmentNewsCache = { items: [], expiresAt: 0 };
 let companyJobScanRunning = false;
+let visaJobScanRunning = false;
 const employmentNewsFallback = [
   {
     title: "Latest hiring and job market news in India",
@@ -278,6 +279,35 @@ async function ensureCompanyJobAgentTables() {
   await db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE");
 }
 
+const visaJobDefaultSources = [
+  ["Canada Job Bank", "https://www.jobbank.gc.ca/findajob/foreign-candidates", "ca"],
+  ["Make it in Germany", "https://www.make-it-in-germany.com/en/working-in-germany/job-listings", "de"],
+  ["UK Find a Job", "https://findajob.dwp.gov.uk/", "gb"],
+  ["Workforce Australia", "https://www.workforceaustralia.gov.au/", "au"],
+  ["JobsIreland", "https://www.jobsireland.ie/", "ie"],
+  ["Work in Finland", "https://tyomarkkinatori.fi/en", "fi"],
+  ["Work in Denmark", "https://www.workindenmark.dk/", "dk"],
+  ["France Travail", "https://www.francetravail.fr/", "fr"],
+  ["Netherlands Werk.nl", "https://www.werk.nl/", "nl"],
+  ["Sweden Platsbanken", "https://arbetsformedlingen.se/other-languages/english-engelska/work-in-sweden", "se"],
+  ["Singapore MyCareersFuture", "https://www.mycareersfuture.gov.sg/", "sg"],
+  ["EURES European Job Network", "https://eures.europa.eu/index_en", "global"],
+];
+
+async function ensureVisaJobAgentTables() {
+  await db.query(`CREATE TABLE IF NOT EXISTS visa_job_sources (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL UNIQUE,
+    country TEXT NOT NULL DEFAULT 'global', enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await db.query(`CREATE TABLE IF NOT EXISTS visa_job_drafts (
+    id SERIAL PRIMARY KEY, source_id INTEGER, source_name TEXT NOT NULL, source_url TEXT NOT NULL,
+    country TEXT NOT NULL DEFAULT 'global', title TEXT NOT NULL, apply_link TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), reviewed_at TIMESTAMPTZ)`);
+  for (const [name, url, country] of visaJobDefaultSources) {
+    await db.query("INSERT INTO visa_job_sources (name, url, country) VALUES ($1, $2, $3) ON CONFLICT (url) DO NOTHING", [name, url, country]);
+  }
+}
+
 function cleanGovernmentJobText(value) {
   return String(value || "")
     .replace(/<[^>]*>/g, " ")
@@ -467,6 +497,46 @@ function startCompanyJobAgent() {
   setTimeout(() => scanCompanyJobSources().catch((error) => console.log(error)), 45000);
   setInterval(() => scanCompanyJobSources().catch((error) => console.log(error)), intervalHours * 60 * 60 * 1000);
   console.log(`Company Job Agent enabled: scanning every ${intervalHours} hours.`);
+}
+
+async function scanVisaJobSources() {
+  if (visaJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0 };
+  visaJobScanRunning = true;
+  try {
+    const { rows: sources } = await db.query("SELECT id, name, url, country FROM visa_job_sources WHERE enabled = TRUE");
+    let discovered = 0;
+    for (let index = 0; index < sources.length; index += 4) {
+      const results = await Promise.all(sources.slice(index, index + 4).map(async (source) => {
+        try {
+          const response = await axios.get(source.url, { timeout: 8000, responseType: "text", headers: { "User-Agent": "MarketlenceJobsBot/1.0 (visa-job-review-agent)" } });
+          const listings = findGovernmentJobLinks(response.data, source.url);
+          const checks = new Map();
+          await Promise.all(listings.slice(0, 8).map(async (listing) => checks.set(listing.applyLink, await hasVisaSponsorshipOnJobPage(listing))));
+          let found = 0;
+          for (const listing of listings) {
+            const sponsored = checks.get(listing.applyLink) || hasVisaSponsorship(`${listing.title} ${listing.context} ${listing.applyLink}`);
+            if (!sponsored) continue;
+            const inserted = await db.query(`INSERT INTO visa_job_drafts (source_id, source_name, source_url, country, title, apply_link)
+              VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (apply_link) DO NOTHING RETURNING id`,
+              [source.id, source.name, source.url, source.country, listing.title, listing.applyLink]);
+            if (inserted.rows.length) found += 1;
+          }
+          return found;
+        } catch { return 0; }
+      }));
+      discovered += results.reduce((total, value) => total + value, 0);
+    }
+    console.log(`Visa sponsorship scan complete: ${discovered} new sponsored openings.`);
+    return { running: false, sourcesChecked: sources.length, discovered };
+  } finally { visaJobScanRunning = false; }
+}
+
+function startVisaJobAgent() {
+  if (process.env.VISA_JOB_AGENT_ENABLED !== "true") return;
+  const intervalHours = Math.max(1, Number(process.env.VISA_JOB_SCAN_HOURS) || 12);
+  setTimeout(() => scanVisaJobSources().catch((error) => console.log(error)), 60000);
+  setInterval(() => scanVisaJobSources().catch((error) => console.log(error)), intervalHours * 60 * 60 * 1000);
+  console.log(`Visa Sponsorship Jobs Agent enabled: scanning every ${intervalHours} hours.`);
 }
 
 async function sendNewJobNotification(job) {
@@ -963,6 +1033,41 @@ app.post("/api/company-job-agent/drafts/:id/dismiss", verifyToken, isAdmin, asyn
   } catch (error) {
     res.status(500).json({ error: "Could not dismiss company job draft" });
   }
+});
+
+app.get("/api/visa-job-agent/sources", verifyToken, isAdmin, async (req, res) => {
+  try { res.json((await db.query("SELECT * FROM visa_job_sources ORDER BY country, name")).rows); }
+  catch { res.status(500).json({ error: "Could not load visa job resources" }); }
+});
+app.get("/api/visa-job-agent/drafts", verifyToken, isAdmin, async (req, res) => {
+  try { res.json((await db.query("SELECT * FROM visa_job_drafts WHERE status = 'pending' ORDER BY created_at DESC")).rows); }
+  catch { res.status(500).json({ error: "Could not load sponsored job drafts" }); }
+});
+app.post("/api/visa-job-agent/scan", verifyToken, isAdmin, (req, res) => {
+  if (visaJobScanRunning) return res.status(202).json({ started: false, message: "A visa sponsorship scan is already running" });
+  scanVisaJobSources().catch((error) => console.log("Visa sponsorship scan failed:", error.message));
+  res.status(202).json({ started: true, message: "Visa sponsorship scan started in the background" });
+});
+app.post("/api/visa-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const draft = (await db.query("SELECT * FROM visa_job_drafts WHERE id = $1 AND status = 'pending'", [req.params.id])).rows[0];
+    if (!draft) return res.status(404).json({ error: "Pending sponsored job draft not found" });
+    const result = await db.query(`INSERT INTO jobs
+      (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`, [
+      draft.title.slice(0, 300), draft.source_name, "See official job listing", "Not disclosed", "See official job listing", "See official job listing",
+      `Visa sponsorship opening collected from ${draft.source_name}. Please confirm eligibility and visa support on the official listing before applying.`,
+      "Company recruitment", "Visa Sponsorship", [], false, draft.apply_link, "Private", draft.country || "global", "Check official job listing"
+    ]);
+    await db.query("UPDATE visa_job_drafts SET status = 'approved', reviewed_at = NOW() WHERE id = $1", [draft.id]);
+    void sendNewJobNotification({ id: result.rows[0].id, title: draft.title, company: draft.source_name, location: "Visa sponsorship" });
+    void postApprovedJobToFacebook({ id: result.rows[0].id, title: draft.title, company: draft.source_name, location: "Visa sponsorship", salary: "Not disclosed", lastDate: "Check official job listing" });
+    res.json({ message: "Visa sponsorship job published", jobId: result.rows[0].id });
+  } catch (error) { res.status(500).json({ error: `Could not publish sponsored job: ${error.message}` }); }
+});
+app.post("/api/visa-job-agent/drafts/:id/dismiss", verifyToken, isAdmin, async (req, res) => {
+  try { await db.query("UPDATE visa_job_drafts SET status = 'dismissed', reviewed_at = NOW() WHERE id = $1 AND status = 'pending'", [req.params.id]); res.json({ message: "Opening dismissed" }); }
+  catch { res.status(500).json({ error: "Could not dismiss sponsored opening" }); }
 });
 
 // Admin-only directory of registered job seekers. Passwords and other
@@ -2266,12 +2371,13 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables()])
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       startGovernmentJobAgent();
       startCompanyJobAgent();
+      startVisaJobAgent();
     });
   })
   .catch((error) => {

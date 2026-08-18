@@ -46,8 +46,12 @@ const [companySourceName, setCompanySourceName] = useState("");
 const [companySourceUrl, setCompanySourceUrl] = useState("");
 const [companySourceCategory, setCompanySourceCategory] = useState("Private");
 const [companyScanning, setCompanyScanning] = useState(false);
+const [visaSources, setVisaSources] = useState([]);
+const [visaDrafts, setVisaDrafts] = useState([]);
+const [visaScanning, setVisaScanning] = useState(false);
 const [showGovernmentAgent, setShowGovernmentAgent] = useState(false);
 const [showCompanyAgent, setShowCompanyAgent] = useState(false);
+const [showVisaAgent, setShowVisaAgent] = useState(false);
 const [showPostedJobs, setShowPostedJobs] = useState(false);
 const [selectedGovernmentDraftIds, setSelectedGovernmentDraftIds] = useState([]);
 const [selectedCompanyDraftIds, setSelectedCompanyDraftIds] = useState([]);
@@ -603,6 +607,35 @@ const removeCompanySource = async (id) => {
   }
 };
 
+const fetchVisaJobAgentData = async () => {
+  try {
+    const [sources, drafts] = await Promise.all([
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-job-agent/sources", governmentAgentHeaders()),
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-job-agent/drafts", governmentAgentHeaders()),
+    ]);
+    setVisaSources(sources.data);
+    setVisaDrafts(drafts.data);
+  } catch (err) { console.log(err); }
+};
+
+const scanVisaSources = async () => {
+  setVisaScanning(true);
+  try {
+    const result = await axios.post("https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-job-agent/scan", {}, governmentAgentHeaders());
+    toast.success(result.data.message || "Visa sponsorship scan started");
+    setTimeout(fetchVisaJobAgentData, 10000);
+  } catch { toast.error("Visa sponsorship scan failed"); }
+  finally { setVisaScanning(false); }
+};
+
+const reviewVisaDraft = async (id, action) => {
+  try {
+    await axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-job-agent/drafts/${id}/${action}`, {}, governmentAgentHeaders());
+    toast.success(action === "approve" ? "Sponsored job published" : "Opening dismissed");
+    fetchVisaJobAgentData();
+  } catch (err) { toast.error(err.response?.data?.error || "Could not review sponsored opening"); }
+};
+
 
   
 useEffect(() => {
@@ -703,6 +736,7 @@ useEffect(() => {
   if (role === "admin" || role === "superadmin") {
     fetchGovernmentJobAgentData();
     fetchCompanyJobAgentData();
+    fetchVisaJobAgentData();
   }
 }, [role]);
 
@@ -808,6 +842,27 @@ const filteredJobs = (jobs || []).filter((job) => {
         </div>
           </>
         )}
+      </section>
+
+      <section className="mb-8 rounded-2xl border border-violet-100 bg-violet-50 p-5 shadow-sm">
+        <button type="button" onClick={() => setShowVisaAgent(!showVisaAgent)} className="flex w-full items-center justify-between text-left text-xl font-bold text-violet-950">
+          🌍 Visa Sponsorship Jobs Agent <span>{showVisaAgent ? "−" : "+"}</span>
+        </button>
+        {showVisaAgent && <>
+          <div className="mb-4 mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-violet-800">Official public job resources are scanned separately. Only openings with clear visa-sponsorship wording are added for review.</p>
+            <button onClick={scanVisaSources} disabled={visaScanning || !visaSources.length} className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{visaScanning ? "Scanning sponsored jobs..." : "Scan visa resources"}</button>
+          </div>
+          <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="block text-xs text-gray-500">{source.country.toUpperCase()} · Official resource ↗</span></a>)}
+          </div>
+          <h3 className="mb-2 font-bold text-violet-950">Sponsored openings waiting for review ({visaDrafts.length})</h3>
+          <div className="space-y-3">
+            {visaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold text-gray-900">{draft.title}</p><p className="mt-1 text-sm text-violet-700">Visa Sponsorship · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex gap-2"><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
+            {!visaDrafts.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No verified sponsored openings are waiting for review.</p>}
+          </div>
+          <div className="mt-5 flex justify-center"><button type="button" onClick={() => setShowVisaAgent(false)} className="rounded-lg border border-violet-300 bg-white px-5 py-2 font-semibold text-violet-800 hover:bg-violet-100">Close Visa Sponsorship Jobs Agent</button></div>
+        </>}
       </section>
 
       <section className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
