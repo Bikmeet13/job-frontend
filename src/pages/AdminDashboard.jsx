@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { COUNTRIES } from "../data/countries";
 
 function AdminDashboard() {
 
@@ -17,6 +18,7 @@ const [skills, setSkills] = useState("");
 const [type, setType] = useState("");
 const [jobCategory, setJobCategory] = useState("");
 const [mode, setMode] = useState("");
+const [jobCountry, setJobCountry] = useState("in");
 const [filterStatus, setFilterStatus] = useState("all");
 const [filterType, setFilterType] = useState("all"); // all / shortlisted
 const [chatData, setChatData] = useState([]);
@@ -157,6 +159,7 @@ if (!token) return;
     lastDate,
     type,
     jobCategory,
+    country: jobCountry,
     mode,
     chatbotQuestions: questions.filter(q => q.trim() !== ""),
     applyEnabled,
@@ -184,6 +187,7 @@ axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs"
     setSkills("");
     setType("");
     setJobCategory("");
+    setJobCountry("in");
     setMode("");
     setDescription("");
     setLastDate("");
@@ -1088,6 +1092,13 @@ const filteredJobs = (jobs || []).filter((job) => {
             onChange={(e) => setLocation(e.target.value)}
             className="border p-2 rounded w-full mb-3"
           />
+
+          <label className="mb-3 block text-sm font-semibold text-gray-700">
+            Country where this job is available
+            <select value={jobCountry} onChange={(e) => setJobCountry(e.target.value)} className="mt-1 border p-2 rounded w-full">
+              {COUNTRIES.map(({ code, name }) => <option key={code} value={code}>{name}</option>)}
+            </select>
+          </label>
 
           <label className="mb-3 block text-sm font-semibold text-gray-700">
             Last date to apply

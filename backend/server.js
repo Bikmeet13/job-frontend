@@ -194,6 +194,7 @@ async function ensureJobColumns() {
     ),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_link TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_category TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_date TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
     db.query("ALTER TABLE jobs ALTER COLUMN title TYPE VARCHAR(300)"),
@@ -608,6 +609,7 @@ app.post("/api/jobs", async (req, res) => {
     applyEnabled = true,
     applyLink = null,
     jobCategory = null,
+    country = null,
     lastDate = null
   } = req.body;
 
@@ -628,9 +630,10 @@ app.post("/api/jobs", async (req, res) => {
         apply_enabled,
         apply_link,
         job_category,
+        country,
         last_date
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
     `;
 
     const result = await db.query(`${sql} RETURNING id`, [
@@ -647,6 +650,7 @@ app.post("/api/jobs", async (req, res) => {
       applyEnabled !== false,
       applyLink?.trim() || null,
       ["Private", "Government"].includes(jobCategory) ? jobCategory : null,
+      String(country || "in").toLowerCase(),
       lastDate?.trim() || null
     ]);
 
@@ -782,8 +786,8 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
 
     const jobResult = await db.query(
       `INSERT INTO jobs
-       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, last_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id`,
       [
         draft.title.slice(0, 300),
@@ -799,6 +803,7 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
         false,
         draft.apply_link,
         "Government",
+        "in",
         "Check official notification",
       ]
     );
@@ -906,8 +911,8 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
 
     const jobResult = await db.query(
       `INSERT INTO jobs
-       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, last_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id`,
       [
         draft.title.slice(0, 300),
@@ -923,6 +928,7 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
         false,
         draft.apply_link,
         draft.job_category === "Government" ? "Government" : "Private",
+        draft.visa_sponsorship ? "global" : "in",
         "Check company careers page",
       ]
     );
