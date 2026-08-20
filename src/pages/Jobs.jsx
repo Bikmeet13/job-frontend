@@ -581,6 +581,10 @@ if (loading) {
       Jobs
     </a>
 
+    <button onClick={() => navigate("/document-generator")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+      Documents
+    </button>
+
     {(role === "admin" || role === "superadmin") && (
   <button
     onClick={() => navigate("/admin-applications")}
@@ -704,6 +708,10 @@ localStorage.removeItem("userId");
   hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
 >
         Dashboard
+      </button>
+
+      <button onClick={() => { navigate("/document-generator"); setMenuOpen(false); }} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+        Document Generator
       </button>
 
      {(role === "admin" || role === "superadmin") && (
@@ -1384,6 +1392,12 @@ const data = await res.json();
   <li>
     <button onClick={() => navigate("/jobs")}>
       Jobs
+    </button>
+  </li>
+
+  <li>
+    <button onClick={() => navigate("/document-generator")}>
+      Document Generator
     </button>
   </li>
 
