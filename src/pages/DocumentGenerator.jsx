@@ -64,7 +64,7 @@ function DocumentGenerator() {
       <section className="overflow-hidden rounded-3xl bg-white shadow-xl shadow-indigo-950/10">
         <div className="bg-gradient-to-r from-indigo-700 to-violet-700 px-6 py-10 text-center text-white sm:px-12">
           <FileText className="mx-auto mb-3" size={40} />
-          <h1 className="text-3xl font-extrabold sm:text-4xl">Document Generator</h1>
+          <h1 className="text-3xl font-extrabold sm:text-4xl">Docs Converter</h1>
           <p className="mx-auto mt-3 max-w-2xl text-indigo-100">Convert images, PDF, Word, Excel, CSV, and text files in a few clicks.</p>
         </div>
         <div className="p-6 sm:p-10">

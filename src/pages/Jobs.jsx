@@ -581,10 +581,6 @@ if (loading) {
       Jobs
     </a>
 
-    <button onClick={() => navigate("/document-generator")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
-      Documents
-    </button>
-
     {(role === "admin" || role === "superadmin") && (
   <button
     onClick={() => navigate("/admin-applications")}
@@ -710,10 +706,6 @@ localStorage.removeItem("userId");
         Dashboard
       </button>
 
-      <button onClick={() => { navigate("/document-generator"); setMenuOpen(false); }} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
-        Document Generator
-      </button>
-
      {(role === "admin" || role === "superadmin") && (
   <button onClick={() => navigate("/admin-applications")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
   hover:bg-blue-600 hover:text-white hover:scale-105 
@@ -791,6 +783,13 @@ localStorage.removeItem("userId");
       className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
     >
       <FileText size={18} /> Build Resume
+    </button>
+
+    <button
+      onClick={() => navigate("/document-generator")}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
+    >
+      <FileText size={18} /> Docs Converter
     </button>
 
   </div>
@@ -1392,12 +1391,6 @@ const data = await res.json();
   <li>
     <button onClick={() => navigate("/jobs")}>
       Jobs
-    </button>
-  </li>
-
-  <li>
-    <button onClick={() => navigate("/document-generator")}>
-      Document Generator
     </button>
   </li>
 
