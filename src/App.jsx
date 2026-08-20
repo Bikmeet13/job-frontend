@@ -15,6 +15,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidates from "./pages/AdminCandidates";
 import ResumeBuilder from "./pages/ResumeBuilder";
+import DocumentGenerator from "./pages/DocumentGenerator";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
 
@@ -45,6 +46,7 @@ function App() {
 <Route path="/forgot-password" element={<ForgotPassword />} />
 
 <Route path="/resume-builder" element={<ResumeBuilder />} />
+<Route path="/document-generator" element={<DocumentGenerator />} />
 
       
 

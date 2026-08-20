@@ -23,6 +23,9 @@ const employmentNewsFallback = [
 ];
 const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
+const PDFDocument = require("pdfkit");
+const XLSX = require("xlsx");
+const { Document: WordDocument, Packer, Paragraph } = require("docx");
 
 const fs = require("fs");
 const axios = require("axios");
@@ -92,6 +95,33 @@ const resumeTextUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
 });
+const documentConvertUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+function createTextPdf(title, text) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50 });
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    doc.fontSize(18).text(title, { underline: true });
+    doc.moveDown();
+    doc.fontSize(10).text(String(text || "No readable text found."), { lineGap: 3 });
+    doc.end();
+  });
+}
+
+async function extractDocumentText(file) {
+  const name = String(file.originalname || "").toLowerCase();
+  if (name.endsWith(".pdf")) return (await pdfParse(file.buffer)).text;
+  if (name.endsWith(".docx")) return (await mammoth.extractRawText({ buffer: file.buffer })).value;
+  if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv")) {
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    return workbook.SheetNames.map((sheetName) => `--- ${sheetName} ---\n${XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName])}`).join("\n\n");
+  }
+  if (name.endsWith(".txt") || file.mimetype === "text/plain") return file.buffer.toString("utf8");
+  throw new Error("This output requires a PDF, Word, Excel, CSV, or text file.");
+}
 
 const app = express();
 app.use(cors({
@@ -161,6 +191,66 @@ app.post("/api/resume-builder/import", resumeTextUpload.single("document"), asyn
   } catch (error) {
     console.error("Resume builder import failed:", error.message);
     res.status(500).json({ message: "We could not read that file. Try a smaller PDF, DOCX, TXT, JPG, or PNG." });
+  }
+});
+
+app.post("/api/document-generator/convert", documentConvertUpload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    const outputFormat = String(req.body?.outputFormat || "pdf").toLowerCase();
+    if (!file) return res.status(400).json({ error: "Choose a file first." });
+    const inputName = String(file.originalname || "document");
+    const baseName = inputName.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9-_ ]/gi, "").slice(0, 80) || "document";
+    const isImage = file.mimetype.startsWith("image/") || /\.(png|jpe?g)$/i.test(inputName);
+
+    if (outputFormat === "pdf") {
+      if (/\.pdf$/i.test(inputName)) {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+        return res.send(file.buffer);
+      }
+      if (isImage) {
+        const pdf = await new Promise((resolve, reject) => {
+          const doc = new PDFDocument({ margin: 35 }); const chunks = [];
+          doc.on("data", (chunk) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject);
+          doc.image(file.buffer, 35, 35, { fit: [540, 720], align: "center", valign: "center" }); doc.end();
+        });
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+        return res.send(pdf);
+      }
+      const pdf = await createTextPdf(baseName, await extractDocumentText(file));
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+      return res.send(pdf);
+    }
+
+    const text = await extractDocumentText(file);
+    if (outputFormat === "txt") {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.txt"`);
+      return res.send(text);
+    }
+    if (outputFormat === "docx") {
+      const word = new WordDocument({ sections: [{ children: String(text).split(/\r?\n/).map((line) => new Paragraph(line || " ")) }] });
+      const buffer = await Packer.toBuffer(word);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.docx"`);
+      return res.send(buffer);
+    }
+    if (outputFormat === "xlsx") {
+      const rows = String(text).split(/\r?\n/).filter(Boolean).map((line) => [line]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.length ? rows : [["No readable text found"]]), "Converted document");
+      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.xlsx"`);
+      return res.send(buffer);
+    }
+    return res.status(400).json({ error: "Choose PDF, Word, Excel, or text as the output format." });
+  } catch (error) {
+    console.error("Document conversion failed:", error.message);
+    res.status(400).json({ error: error.message || "This file could not be converted." });
   }
 });
 
