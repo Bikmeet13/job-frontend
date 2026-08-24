@@ -758,7 +758,9 @@ app.post("/api/push/subscribe", async (req, res) => {
 });
 app.get("/api/jobs", async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM jobs");
+    // Legacy/admin jobs do not have an employer_id. Employer-submitted jobs are
+    // public only after an admin has approved them.
+    const result = await db.query("SELECT * FROM jobs WHERE employer_id IS NULL OR employer_status = 'Live' ORDER BY is_featured DESC, posted_at DESC NULLS LAST, id DESC");
 
     const jobs = result.rows.map(job => ({
       ...job,
@@ -893,6 +895,189 @@ function isSuperAdmin(req, res, next) {
   }
   next();
 }
+
+async function isEmployer(req, res, next) {
+  if (req.user.role !== "employer") return res.status(403).json({ error: "Employer access required" });
+  try {
+    const result = await db.query("SELECT employer_suspended FROM users WHERE id=$1", [req.user.id]);
+    if (result.rows[0]?.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
+    next();
+  } catch { return res.status(500).json({ error: "Could not verify employer account." }); }
+}
+
+function cleanText(value, max = 5000) {
+  return String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function makeJobSlug(title, company, id) {
+  return `${cleanText(title, 120)}-${cleanText(company, 80)}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 180) + `-${id}`;
+}
+
+const employerPostAttempts = new Map();
+function employerPostingRateLimit(req, res, next) {
+  const previous = employerPostAttempts.get(req.user.id) || 0;
+  const remaining = 60 * 1000 - (Date.now() - previous);
+  if (remaining > 0) return res.status(429).json({ error: "Please wait one minute before posting another job." });
+  employerPostAttempts.set(req.user.id, Date.now());
+  next();
+}
+
+async function ensureEmployerPostingTables() {
+  await Promise.all([
+    db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_verified BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_suspended BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS employer_id INTEGER"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS employer_status TEXT NOT NULL DEFAULT 'Live'"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_slug TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS views_count INTEGER NOT NULL DEFAULT 0"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_clicks INTEGER NOT NULL DEFAULT 0"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS featured_start_date TIMESTAMPTZ"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS featured_end_date TIMESTAMPTZ"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS plan_id TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS promotion_status TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS roles_responsibilities TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS education TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS openings INTEGER"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_method TEXT"),
+    db.query("CREATE TABLE IF NOT EXISTS employer_profiles (user_id INTEGER PRIMARY KEY, full_name TEXT, mobile TEXT, company_name TEXT NOT NULL, website TEXT, company_type TEXT, industry TEXT, company_size TEXT, description TEXT, address TEXT, city TEXT, state TEXT, logo_url TEXT, contact_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS employer_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, visitor_key TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+  ]);
+}
+
+app.post("/api/employers/register", async (req, res) => {
+  try {
+    const { fullName, email, mobile, companyName, website, companyType, industry, companySize, city, state, password } = req.body;
+    const cleanEmail = String(email || "").toLowerCase().trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || String(password || "").length < 8 || !cleanText(companyName, 200) || !cleanText(fullName, 120)) return res.status(400).json({ error: "Enter a valid work email, company name, full name, and an 8-character password." });
+    if (website && !/^https:\/\//i.test(String(website))) return res.status(400).json({ error: "Company website must start with https://" });
+    const existing = await db.query("SELECT id FROM users WHERE email = $1", [cleanEmail]);
+    if (existing.rows.length) return res.status(409).json({ error: "An account already exists for this email." });
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = (await db.query("INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,'employer',TRUE) RETURNING id, username, email, role", [cleanText(fullName, 120), cleanEmail, passwordHash])).rows[0];
+    await db.query("INSERT INTO employer_profiles (user_id, full_name, mobile, company_name, website, company_type, industry, company_size, city, state, contact_email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [user.id, cleanText(fullName,120), cleanText(mobile,30), cleanText(companyName,200), cleanText(website,300), cleanText(companyType,100), cleanText(industry,120), cleanText(companySize,80), cleanText(city,120), cleanText(state,120), cleanEmail]);
+    const token = jwt.sign({ id: user.id, email: user.email, role: "employer" }, process.env.JWT_SECRET);
+    res.status(201).json({ token, role: "employer", userId: user.id, username: user.username });
+  } catch (error) { console.error("Employer registration failed:", error.message); res.status(500).json({ error: "Could not create employer account." }); }
+});
+
+app.get("/api/jobs/slug/:slug", async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM jobs WHERE job_slug = $1 AND (employer_id IS NULL OR employer_status = 'Live')",
+      [cleanText(req.params.slug, 200)]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Job not found" });
+    const job = result.rows[0];
+    res.json({ ...job, applyLink: job.apply_link || null, chatbot_questions: Array.isArray(job.chatbot_questions) ? job.chatbot_questions : JSON.parse(job.chatbot_questions || "[]") });
+  } catch (error) {
+    console.error("Could not load job by slug:", error.message);
+    res.status(500).json({ error: "Could not load job" });
+  }
+});
+
+app.post("/api/employers/login", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").toLowerCase().trim();
+    const user = (await db.query("SELECT * FROM users WHERE email = $1 AND role = 'employer'", [email])).rows[0];
+    if (!user || !(await bcrypt.compare(String(req.body.password || ""), user.password))) return res.status(401).json({ error: "Invalid employer email or password." });
+    if (user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET);
+    res.json({ token, role: user.role, userId: user.id, username: user.username });
+  } catch { res.status(500).json({ error: "Could not sign in." }); }
+});
+
+app.get("/api/employer/profile", verifyToken, isEmployer, async (req, res) => {
+  const profile = (await db.query("SELECT * FROM employer_profiles WHERE user_id = $1", [req.user.id])).rows[0];
+  res.json(profile || {});
+});
+app.put("/api/employer/profile", verifyToken, isEmployer, async (req, res) => {
+  const fields = ["company_name", "website", "industry", "company_size", "description", "address", "city", "state", "logo_url", "contact_email", "mobile", "company_type"];
+  const values = fields.map((key) => cleanText(req.body[key], key === "description" ? 3000 : 300));
+  if (values[1] && !/^https:\/\//i.test(values[1])) return res.status(400).json({ error: "Website must start with https://" });
+  await db.query(`UPDATE employer_profiles SET (${fields.join(",")}) = (${fields.map((_, index) => `$${index + 1}`).join(",")}), updated_at = NOW() WHERE user_id = $${fields.length + 1}`, [...values, req.user.id]);
+  res.json({ message: "Employer profile updated" });
+});
+app.get("/api/employer/dashboard", verifyToken, isEmployer, async (req, res) => {
+  const stats = (await db.query(`SELECT COUNT(*)::int AS total_jobs, COUNT(*) FILTER (WHERE employer_status = 'Live')::int AS live_jobs, COUNT(*) FILTER (WHERE employer_status = 'Pending Review')::int AS pending_jobs, COUNT(*) FILTER (WHERE employer_status IN ('Closed','Expired'))::int AS closed_jobs, COALESCE(SUM(views_count),0)::int AS total_views, COALESCE(SUM(apply_clicks),0)::int AS total_apply_clicks FROM jobs WHERE employer_id = $1`, [req.user.id])).rows[0];
+  const jobs = (await db.query("SELECT id, title, location, posted_at, employer_status, views_count, apply_clicks, job_slug FROM jobs WHERE employer_id = $1 ORDER BY posted_at DESC", [req.user.id])).rows;
+  res.json({ stats, jobs });
+});
+app.get("/api/employer/jobs/:id", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("SELECT * FROM jobs WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Job not found" });
+  res.json(result.rows[0]);
+});
+app.post("/api/employer/jobs", verifyToken, isEmployer, employerPostingRateLimit, async (req, res) => {
+  try {
+    const body = req.body;
+    const required = ["title", "city", "state", "description", "applicationMethod"];
+    if (required.some((key) => !cleanText(body[key]))) return res.status(400).json({ error: "Complete the required job fields." });
+    if (body.applicationMethod === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Enter a valid application email." });
+    if (body.applicationMethod === "url" && !/^https:\/\//i.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Application URL must start with https://" });
+    const profile = (await db.query("SELECT company_name FROM employer_profiles WHERE user_id = $1", [req.user.id])).rows[0];
+    const result = await db.query(`INSERT INTO jobs (title, company, location, salary, experience, skills, description, type, mode, apply_enabled, apply_link, job_category, country, last_date, employer_id, employer_status, roles_responsibilities, education, openings, application_method) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,$10,$11,'in',$12,$13,'Pending Review',$14,$15,$16,$17) RETURNING id`, [cleanText(body.title,300), profile?.company_name || cleanText(body.companyName,200), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), cleanText(body.applicationValue,500), cleanText(body.jobCategory,120), cleanText(body.deadline,40), req.user.id, cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, cleanText(body.applicationMethod,30)]);
+    const slug = makeJobSlug(body.title, profile?.company_name || body.companyName, result.rows[0].id);
+    await db.query("UPDATE jobs SET job_slug = $1 WHERE id = $2", [slug, result.rows[0].id]);
+    res.status(201).json({ message: "Job submitted for review", id: result.rows[0].id, slug });
+  } catch (error) { console.error("Employer post job failed:", error.message); res.status(500).json({ error: "Could not submit job." }); }
+});
+app.patch("/api/employer/jobs/:id/status", verifyToken, isEmployer, async (req, res) => {
+  const status = String(req.body.status || "");
+  if (!["Paused", "Closed", "Draft"].includes(status)) return res.status(400).json({ error: "Invalid status." });
+  await db.query("UPDATE jobs SET employer_status = $1 WHERE id = $2 AND employer_id = $3", [status, req.params.id, req.user.id]);
+  res.json({ message: "Job status updated" });
+});
+app.put("/api/employer/jobs/:id", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const body = req.body;
+    if (!cleanText(body.title, 300) || !cleanText(body.city, 120) || !cleanText(body.state, 120) || !cleanText(body.description, 8000)) return res.status(400).json({ error: "Complete the required job fields." });
+    if (body.applicationMethod === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Enter a valid application email." });
+    if (body.applicationMethod === "url" && !/^https:\/\//i.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Application URL must start with https://" });
+    const update = await db.query(`UPDATE jobs SET title=$1, location=$2, salary=$3, experience=$4, skills=$5, description=$6, type=$7, mode=$8, apply_link=$9, job_category=$10, last_date=$11, roles_responsibilities=$12, education=$13, openings=$14, application_method=$15, employer_status='Pending Review' WHERE id=$16 AND employer_id=$17 RETURNING id, company`, [cleanText(body.title,300), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), cleanText(body.applicationValue,500), cleanText(body.jobCategory,120), cleanText(body.deadline,40), cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, cleanText(body.applicationMethod,30), req.params.id, req.user.id]);
+    if (!update.rows.length) return res.status(404).json({ error: "Job not found." });
+    await db.query("UPDATE jobs SET job_slug=$1 WHERE id=$2", [makeJobSlug(body.title, update.rows[0].company, req.params.id), req.params.id]);
+    res.json({ message: "Job updated and returned for review." });
+  } catch (error) { console.error("Employer update job failed:", error.message); res.status(500).json({ error: "Could not update job." }); }
+});
+app.delete("/api/employer/jobs/:id", verifyToken, isEmployer, async (req, res) => { await db.query("DELETE FROM jobs WHERE id = $1 AND employer_id = $2", [req.params.id, req.user.id]); res.json({ message: "Job deleted" }); });
+app.post("/api/employer/jobs/:id/track", async (req, res) => {
+  const type = req.body?.type === "apply" ? "apply" : "view";
+  const key = cleanText(req.body?.visitorKey, 120);
+  const recent = await db.query("SELECT id FROM employer_job_events WHERE job_id = $1 AND event_type = $2 AND visitor_key = $3 AND created_at > NOW() - INTERVAL '30 minutes'", [req.params.id, type, key]);
+  if (!recent.rows.length) { await db.query("INSERT INTO employer_job_events (job_id,event_type,visitor_key) VALUES ($1,$2,$3)", [req.params.id,type,key]); await db.query(`UPDATE jobs SET ${type === "apply" ? "apply_clicks" : "views_count"} = ${type === "apply" ? "apply_clicks" : "views_count"} + 1 WHERE id = $1`, [req.params.id]); }
+  res.json({ tracked: !recent.rows.length });
+});
+
+app.get("/api/admin/employers", verifyToken, isAdmin, async (req, res) => {
+  const result = await db.query("SELECT u.id, u.email, u.employer_verified, u.employer_suspended, p.full_name, p.company_name, p.city, p.state, p.website, p.created_at, COUNT(j.id)::int AS jobs_count FROM users u JOIN employer_profiles p ON p.user_id=u.id LEFT JOIN jobs j ON j.employer_id=u.id WHERE u.role='employer' GROUP BY u.id, p.user_id ORDER BY p.created_at DESC");
+  res.json(result.rows);
+});
+app.patch("/api/admin/employers/:id", verifyToken, isAdmin, async (req, res) => {
+  const verified = req.body.verified === true;
+  const suspended = req.body.suspended === true;
+  const result = await db.query("UPDATE users SET employer_verified=$1, employer_suspended=$2 WHERE id=$3 AND role='employer' RETURNING id, employer_verified, employer_suspended", [verified, suspended, req.params.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Employer not found" });
+  res.json(result.rows[0]);
+});
+app.get("/api/admin/employer-jobs", verifyToken, isAdmin, async (req, res) => {
+  const result = await db.query("SELECT j.*, p.company_name, u.email AS employer_email FROM jobs j JOIN employer_profiles p ON p.user_id=j.employer_id JOIN users u ON u.id=j.employer_id WHERE j.employer_id IS NOT NULL ORDER BY CASE WHEN j.employer_status='Pending Review' THEN 0 ELSE 1 END, j.posted_at DESC NULLS LAST");
+  res.json(result.rows);
+});
+app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res) => {
+  const action = String(req.body.action || "");
+  const actions = { approve: "Live", reject: "Rejected", close: "Closed", pause: "Paused" };
+  if (action === "feature") {
+    const days = Math.min(Math.max(Number(req.body.days) || 7, 1), 90);
+    const result = await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, promotion_status='featured' WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [days, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
+    return res.json({ message: "Job featured" });
+  }
+  if (!actions[action]) return res.status(400).json({ error: "Invalid moderation action" });
+  const result = await db.query("UPDATE jobs SET employer_status=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [actions[action], req.params.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
+  res.json({ message: `Job ${actions[action].toLowerCase()}` });
+});
 
 function isOfficialIndianGovernmentUrl(value) {
   try {
@@ -1905,7 +2090,7 @@ app.get("/api/jobs/:id", async (req, res) => {
 
   try {
     const result = await db.query(
-      "SELECT * FROM jobs WHERE id = $1",
+      "SELECT * FROM jobs WHERE id = $1 AND (employer_id IS NULL OR employer_status = 'Live')",
       [id]
     );
 
@@ -2486,7 +2671,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables()])
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);

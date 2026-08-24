@@ -73,7 +73,7 @@ const [country, setCountry] = useState("in");
 
     const jobUrl = job.source
       ? (job.applyLink || job.url || window.location.href)
-      : `${window.location.origin}/jobs/${job.id}`;
+      : `${window.location.origin}/jobs/${job.job_slug || job.id}`;
     const shareData = {
       title: `${job.title} at ${job.company}`,
       text: `Check out this job: ${job.title} at ${job.company}`,
@@ -580,6 +580,9 @@ if (loading) {
 >
       Jobs
     </a>
+    <button onClick={() => navigate("/employers")} className="px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+      For Employers
+    </button>
 
     {(role === "admin" || role === "superadmin") && (
   <button

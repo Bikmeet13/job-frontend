@@ -57,10 +57,26 @@ const [selectedGovernmentDraftIds, setSelectedGovernmentDraftIds] = useState([])
 const [selectedCompanyDraftIds, setSelectedCompanyDraftIds] = useState([]);
 const [bulkApprovingGovernment, setBulkApprovingGovernment] = useState(false);
 const [bulkApprovingCompany, setBulkApprovingCompany] = useState(false);
+const [employerJobs, setEmployerJobs] = useState([]);
+const [employers, setEmployers] = useState([]);
+const [showEmployerModeration, setShowEmployerModeration] = useState(false);
 
 const navigate = useNavigate();
 
 const role = localStorage.getItem("role");
+
+const loadEmployerModeration = async () => {
+  try {
+    const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+    const [employerRes, jobsRes] = await Promise.all([
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/employers", { headers }),
+      axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/employer-jobs", { headers }),
+    ]);
+    setEmployers(employerRes.data); setEmployerJobs(jobsRes.data);
+  } catch (error) { console.log("Could not load employer moderation", error); }
+};
+const moderateEmployerJob = async (id, action) => { try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/employer-jobs/${id}`, { action }, { headers:{ Authorization:`Bearer ${localStorage.getItem("token")}` } }); toast.success("Employer job updated"); loadEmployerModeration(); } catch (e) { toast.error(e.response?.data?.error || "Could not update job"); } };
+const updateEmployer = async (employer, changes) => { try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/employers/${employer.id}`, { verified: changes.verified ?? employer.employer_verified, suspended: changes.suspended ?? employer.employer_suspended }, { headers:{ Authorization:`Bearer ${localStorage.getItem("token")}` } }); toast.success("Employer updated"); loadEmployerModeration(); } catch { toast.error("Could not update employer"); } };
 
 const handleDelete = (id) => {
   const token = localStorage.getItem("token");
@@ -737,6 +753,7 @@ useEffect(() => {
     fetchGovernmentJobAgentData();
     fetchCompanyJobAgentData();
     fetchVisaJobAgentData();
+    loadEmployerModeration();
   }
 }, [role]);
 
@@ -773,6 +790,11 @@ const filteredJobs = (jobs || []).filter((job) => {
   <div className="p-10 bg-gray-100 min-h-screen">
 
     <div className="max-w-5xl mx-auto">
+
+      <section className="mb-8 rounded-2xl border border-orange-100 bg-orange-50 p-5 shadow-sm">
+        <button type="button" onClick={() => setShowEmployerModeration(!showEmployerModeration)} className="flex w-full items-center justify-between text-left text-xl font-bold text-orange-950">Employer posting moderation <span>{showEmployerModeration ? "−" : "+"}</span></button>
+        {showEmployerModeration && <><p className="mt-3 text-sm text-orange-800">Verify or suspend employer accounts, then review their pending job posts.</p><div className="mt-4 space-y-2">{employers.map((employer) => <div key={employer.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-3 text-sm"><div><b>{employer.company_name}</b> · {employer.email}<span className="ml-2 text-slate-500">{employer.jobs_count} jobs</span></div><div className="flex gap-2"><button onClick={() => updateEmployer(employer,{verified:!employer.employer_verified})} className="rounded bg-blue-100 px-3 py-1 font-semibold text-blue-800">{employer.employer_verified ? "Verified" : "Verify"}</button><button onClick={() => updateEmployer(employer,{suspended:!employer.employer_suspended})} className="rounded bg-red-100 px-3 py-1 font-semibold text-red-700">{employer.employer_suspended ? "Unsuspend" : "Suspend"}</button></div></div>)}{!employers.length&&<p className="rounded-xl bg-white p-3 text-sm">No employer accounts yet.</p>}</div><h3 className="mt-5 font-bold text-orange-950">Employer jobs ({employerJobs.length})</h3><div className="mt-2 space-y-3">{employerJobs.map((job)=><div key={job.id} className="rounded-xl bg-white p-4"><b>{job.title}</b><p className="text-sm text-slate-600">{job.company_name} · {job.location} · {job.employer_status}</p><div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>moderateEmployerJob(job.id,"approve")} className="rounded bg-green-600 px-3 py-2 text-sm font-semibold text-white">Approve</button><button onClick={()=>moderateEmployerJob(job.id,"reject")} className="rounded bg-red-100 px-3 py-2 text-sm font-semibold text-red-700">Reject</button><button onClick={()=>moderateEmployerJob(job.id,"feature")} className="rounded bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Feature 7 days</button><button onClick={()=>moderateEmployerJob(job.id,"close")} className="rounded bg-slate-200 px-3 py-2 text-sm font-semibold">Close</button></div></div>)}{!employerJobs.length&&<p className="rounded-xl bg-white p-3 text-sm">No employer jobs waiting for moderation.</p>}</div><div className="mt-5 flex justify-center"><button onClick={()=>setShowEmployerModeration(false)} className="rounded-lg border border-orange-300 bg-white px-5 py-2 font-semibold text-orange-800">Close Employer Moderation</button></div></>}
+      </section>
 
       <section className="mb-8 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
         <button type="button" onClick={() => setShowGovernmentAgent(!showGovernmentAgent)} className="flex w-full items-center justify-between text-left text-xl font-bold text-emerald-950">

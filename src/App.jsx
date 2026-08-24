@@ -16,6 +16,11 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminCandidates from "./pages/AdminCandidates";
 import ResumeBuilder from "./pages/ResumeBuilder";
 import DocumentGenerator from "./pages/DocumentGenerator";
+import EmployerLanding from "./pages/EmployerLanding";
+import EmployerAuth from "./pages/EmployerAuth";
+import EmployerDashboard from "./pages/EmployerDashboard";
+import EmployerPostJob from "./pages/EmployerPostJob";
+import EmployerProfile from "./pages/EmployerProfile";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
 
@@ -31,6 +36,12 @@ function App() {
       <Route path="/jobs" element={<Jobs />} />
 
       <Route path="/jobs/:id" element={<JobDetails />} />
+      <Route path="/employers" element={<EmployerLanding />} />
+      <Route path="/employer/register" element={<EmployerAuth />} />
+      <Route path="/employer/login" element={<EmployerAuth login />} />
+      <Route path="/employer/dashboard" element={<EmployerDashboard />} />
+      <Route path="/employer/post-job" element={<EmployerPostJob />} />
+      <Route path="/employer/profile" element={<EmployerProfile />} />
 
       <Route path="/saved-jobs" element={<SavedJobs />} />
 

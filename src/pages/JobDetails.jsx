@@ -25,10 +25,27 @@ function JobDetails() {
         const externalJobs = JSON.parse(localStorage.getItem("externalJobs") || "[]");
         const jobs = [...internalJobs, ...externalJobs];
         setAllJobs(jobs);
-        setJob(jobs.find((item) => String(item.id) === String(id)) || null);
+        const found = jobs.find((item) => String(item.id) === String(id));
+        if (found) return setJob(found);
+        axios.get(`${JOBS_API}/slug/${encodeURIComponent(id)}`).then((response) => setJob(response.data)).catch(() => setJob(null));
       })
       .catch((error) => console.log(error));
   }, [id]);
+
+  useEffect(() => {
+    if (!job) return;
+    document.title = `${job.title} at ${job.company} | MarketLence Jobs`;
+    if (job.employer_id) {
+      const key = localStorage.getItem("mlVisitorKey") || `${Date.now()}-${Math.random()}`;
+      localStorage.setItem("mlVisitorKey", key);
+      axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/employer/jobs/${job.id}/track`, { type: "view", visitorKey: key }).catch(() => {});
+    }
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.text = JSON.stringify({ "@context":"https://schema.org", "@type":"JobPosting", title:job.title, description:job.description, datePosted:job.posted_at || new Date().toISOString(), hiringOrganization:{"@type":"Organization",name:job.company}, jobLocation:{"@type":"Place",address:{"@type":"PostalAddress",addressLocality:job.location || "India",addressCountry:"IN"}}, employmentType:job.type || "FULL_TIME", validThrough:job.last_date || undefined });
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, [job]);
 
   useEffect(() => {
     if (showForm && applyFormRef.current) {
@@ -73,6 +90,15 @@ function JobDetails() {
   }
 
   const applicationsEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
+  const applyLink = job.applyLink || job.apply_link;
+  const handleExternalApply = () => {
+    if (job.employer_id) {
+      const key = localStorage.getItem("mlVisitorKey") || "anonymous";
+      axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/employer/jobs/${job.id}/track`, { type: "apply", visitorKey: key }).catch(() => {});
+    }
+    if (job.application_method === "email") window.location.href = `mailto:${applyLink}`;
+    else window.open(applyLink, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-8">
@@ -121,8 +147,8 @@ function JobDetails() {
               <p className="whitespace-pre-line leading-8 text-gray-700">{job.description || "No description available."}</p>
             </div>
 
-            {job.applyLink ? (
-              <button onClick={() => window.open(job.applyLink, "_blank", "noopener,noreferrer")} className="mt-8 inline-flex items-center justify-center rounded-xl bg-green-600 px-8 py-3 font-semibold text-white transition hover:bg-green-700">
+            {applyLink ? (
+              <button onClick={handleExternalApply} className="mt-8 inline-flex items-center justify-center rounded-xl bg-green-600 px-8 py-3 font-semibold text-white transition hover:bg-green-700">
                 Apply on Company Website
               </button>
             ) : applicationsEnabled ? (
