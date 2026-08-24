@@ -766,15 +766,8 @@ localStorage.removeItem("userId");
 
     <button
       onClick={() => {
-  const role = localStorage.getItem("role");
-
-  if (!role) {
-    navigate("/signup"); // 👈 new
-  } else if (role === "admin" || role === "superadmin") {
-    navigate("/admin"); // 👈 already admin
-  } else {
-    navigate("/signup"); // 👈 normal user
-  }
+        const role = localStorage.getItem("role");
+        navigate(role === "employer" ? "/employer/post-job" : "/employer/register");
 }}
       className="w-full rounded-2xl border border-white px-5 py-3 font-semibold transition hover:bg-white hover:text-blue-700 sm:w-auto md:px-8 md:py-4"
 >

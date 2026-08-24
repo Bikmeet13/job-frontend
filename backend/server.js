@@ -2517,7 +2517,7 @@ app.get("/api/external-jobs", async (req, res) => {
 
 app.post("/api/google-login", async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential, accountType, employerProfile = {} } = req.body;
 
     const ticket = await client.verifyIdToken({
       idToken: credential,
@@ -2537,7 +2537,27 @@ app.post("/api/google-login", async (req, res) => {
 
     let user;
 
-    if (existingUser.rows.length === 0) {
+    if (accountType === "employer") {
+      if (existingUser.rows.length && existingUser.rows[0].role !== "employer") {
+        return res.status(409).json({ error: "This Google email is already registered as a candidate. Use a different work email for your employer account." });
+      }
+      if (!existingUser.rows.length) {
+        const { fullName, mobile, companyName, website, companyType, industry, companySize, city, state } = employerProfile;
+        if (!cleanText(fullName, 120) || !cleanText(companyName, 200) || !cleanText(mobile, 30) || !cleanText(city, 120) || !cleanText(state, 120)) {
+          return res.status(400).json({ error: "Complete the employer and company details before using Google." });
+        }
+        if (website && !/^https:\/\//i.test(String(website))) return res.status(400).json({ error: "Company website must start with https://" });
+        const newEmployer = await db.query(
+          "INSERT INTO users (username, email, password, role, is_approved, employer_verified) VALUES ($1,$2,$3,'employer',TRUE,TRUE) RETURNING *",
+          [cleanText(fullName, 120), email, "google-auth-employer",]
+        );
+        user = newEmployer.rows[0];
+        await db.query("INSERT INTO employer_profiles (user_id, full_name, mobile, company_name, website, company_type, industry, company_size, city, state, contact_email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [user.id, cleanText(fullName,120), cleanText(mobile,30), cleanText(companyName,200), cleanText(website,300), cleanText(companyType,100), cleanText(industry,120), cleanText(companySize,80), cleanText(city,120), cleanText(state,120), email]);
+      } else {
+        user = existingUser.rows[0];
+        if (user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
+      }
+    } else if (existingUser.rows.length === 0) {
       const newUser = await db.query(
         `
         INSERT INTO users
