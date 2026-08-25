@@ -9,6 +9,7 @@ function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [jobAlertsEnabled, setJobAlertsEnabled] = useState(false);
     const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
@@ -72,7 +73,8 @@ const verifyOtp = async () => {
         email,
         password,
         otp,
-         isAdmin
+         isAdmin,
+         jobAlertsEnabled
       }
     );
 
@@ -128,6 +130,11 @@ const verifyOtp = async () => {
   />
   Signup as Admin 👑
 </label>
+
+        <label className="mb-4 flex items-start gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={jobAlertsEnabled} onChange={() => setJobAlertsEnabled(!jobAlertsEnabled)} className="mt-1" />
+          <span>Send me relevant job alerts by email. You can change this anytime.</span>
+        </label>
 
 
         {/* USER INPUTS */}

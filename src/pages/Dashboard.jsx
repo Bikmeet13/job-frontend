@@ -126,6 +126,8 @@ setApplications(res.data);
   Build Resume
 </button>
 
+          <button onClick={() => navigate("/candidate/job-alerts")} className="bg-violet-500 hover:bg-violet-600 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap">Job Alerts</button>
+
           {/* RIGHT */}
           <div className="flex flex-wrap justify-center gap-2">
 

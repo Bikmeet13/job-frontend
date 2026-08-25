@@ -21,6 +21,7 @@ import EmployerAuth from "./pages/EmployerAuth";
 import EmployerDashboard from "./pages/EmployerDashboard";
 import EmployerPostJob from "./pages/EmployerPostJob";
 import EmployerProfile from "./pages/EmployerProfile";
+import CandidateJobAlerts from "./pages/CandidateJobAlerts";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
 
@@ -42,6 +43,7 @@ function App() {
       <Route path="/employer/dashboard" element={<EmployerDashboard />} />
       <Route path="/employer/post-job" element={<EmployerPostJob />} />
       <Route path="/employer/profile" element={<EmployerProfile />} />
+      <Route path="/candidate/job-alerts" element={<CandidateJobAlerts />} />
 
       <Route path="/saved-jobs" element={<SavedJobs />} />
 

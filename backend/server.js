@@ -871,6 +871,7 @@ app.post("/api/jobs", async (req, res) => {
       company,
       location,
     });
+    void queueJobAlertForJob({ id: result.rows[0].id, title, company, location, salary, experience, skills, description, type, mode, job_category: jobCategory, last_date: lastDate });
     void postApprovedJobToFacebook({
       id: result.rows[0].id,
       title,
@@ -977,6 +978,49 @@ async function ensureEmployerPostingTables() {
     db.query("CREATE INDEX IF NOT EXISTS featured_job_events_lookup_idx ON featured_job_events (job_id, event_type, placement, visitor_key, created_at DESC)"),
   ]);
 }
+
+async function ensureJobAlertTables() {
+  await Promise.all([
+    db.query("CREATE TABLE IF NOT EXISTS candidate_job_alert_preferences (candidate_id INTEGER PRIMARY KEY, email_enabled BOOLEAN NOT NULL DEFAULT FALSE, frequency TEXT NOT NULL DEFAULT 'daily', preferred_locations TEXT NOT NULL DEFAULT '', preferred_categories TEXT NOT NULL DEFAULT '', preferred_titles TEXT NOT NULL DEFAULT '', min_salary TEXT, experience TEXT, work_modes TEXT NOT NULL DEFAULT '', job_types TEXT NOT NULL DEFAULT '', consent_at TIMESTAMPTZ, consent_source TEXT, unsubscribed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS job_alert_notifications (id SERIAL PRIMARY KEY, candidate_id INTEGER NOT NULL, job_id INTEGER NOT NULL, notification_type TEXT NOT NULL DEFAULT 'job_alert', match_score INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'queued', provider_message_id TEXT, sent_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(candidate_id, job_id, notification_type))"),
+    db.query("CREATE INDEX IF NOT EXISTS job_alert_preferences_enabled_idx ON candidate_job_alert_preferences (email_enabled, frequency)"),
+    db.query("CREATE INDEX IF NOT EXISTS job_alert_notifications_queue_idx ON job_alert_notifications (status, created_at)"),
+  ]);
+}
+
+const jobAlertWeights = { title: 30, skills: 25, location: 20, experience: 15, category: 10 };
+const alertWords = (value) => [...new Set(String(value || "").toLowerCase().split(/[^a-z0-9+#.]+/).filter((word) => word.length > 1))];
+const overlap = (a, b) => alertWords(a).filter((word) => alertWords(b).includes(word)).length;
+function jobAlertScore(candidate, preference, job) {
+  let score = 0;
+  const titleMatches = overlap(`${preference.preferred_titles} ${candidate.projects || ""}`, job.title);
+  const skillMatches = overlap(candidate.skills, `${job.skills} ${job.title} ${job.description}`);
+  if (titleMatches) score += Math.min(jobAlertWeights.title, titleMatches * 10);
+  if (skillMatches) score += Math.min(jobAlertWeights.skills, skillMatches * 6);
+  const locations = `${preference.preferred_locations} ${candidate.bio || ""}`.toLowerCase();
+  if (locations && alertWords(locations).some((word) => String(job.location || "").toLowerCase().includes(word))) score += jobAlertWeights.location;
+  if (preference.preferred_categories && String(job.job_category || "").toLowerCase().includes(String(preference.preferred_categories).toLowerCase())) score += jobAlertWeights.category;
+  const candidateYears = Number((String(preference.experience || candidate.experience || "").match(/\d+/) || [])[0]); const jobYears = Number((String(job.experience || "").match(/\d+/) || [])[0]);
+  if (candidateYears && jobYears && candidateYears >= jobYears) score += jobAlertWeights.experience;
+  return score;
+}
+function jobAlertUrl(job) { return `https://jobs.marketlence.com/jobs/${job.job_slug || job.id}?utm_source=email&utm_medium=job_alert`; }
+function unsubscribeToken(candidateId) { return jwt.sign({ candidateId, purpose: "job-alert-unsubscribe" }, process.env.JWT_SECRET, { expiresIn: "365d" }); }
+function jobAlertEmailHtml(candidate, jobs) { const un = encodeURIComponent(unsubscribeToken(candidate.id)); const cards = jobs.map(({ job }) => `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0"><b style="font-size:18px">${job.title}</b><p>${job.company} · ${job.location}</p><p>${job.experience || "Experience not specified"} · ${job.salary || "Salary not disclosed"}</p><a href="${jobAlertUrl(job)}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none">View Job</a></div>`).join(""); return `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto"><h1 style="color:#1d4ed8">MarketLence Jobs</h1><p>Hi ${candidate.username || "there"},</p><p>We found new opportunities that may match your profile.</p>${cards}<p><a href="https://jobs.marketlence.com/jobs">View All Matching Jobs</a></p><hr/><p style="font-size:12px;color:#64748b">You are receiving this email because you enabled job alerts on MarketLence Jobs. <a href="https://jobs.marketlence.com/candidate/job-alerts">Manage Job Alerts</a> · <a href="https://humorous-fulfillment-production-1f5e.up.railway.app/api/job-alerts/unsubscribe?token=${un}">Unsubscribe</a></p></div>`; }
+async function sendQueuedJobAlerts(frequency) {
+  if (process.env.JOB_ALERTS_ENABLED !== "true") return;
+  const queued = await db.query(`SELECT n.id AS notification_id, n.candidate_id, u.username, u.email, j.* FROM job_alert_notifications n JOIN candidate_job_alert_preferences p ON p.candidate_id=n.candidate_id JOIN users u ON u.id=n.candidate_id JOIN jobs j ON j.id=n.job_id WHERE n.status='queued' AND p.email_enabled=TRUE AND p.frequency=$1 AND (j.employer_id IS NULL OR j.employer_status='Live') ORDER BY n.created_at ASC LIMIT 500`, [frequency]);
+  const groups = new Map(); queued.rows.forEach((row) => { const list = groups.get(row.candidate_id) || []; if (list.length < 10) list.push({ job: row, id: row.notification_id }); groups.set(row.candidate_id, list); });
+  for (const [candidateId, entries] of groups) { const candidate = { ...entries[0].job, id: candidateId }; try { const response = await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: candidate.email, subject: `${candidate.username || "New"}, ${entries.length} new jobs match your profile`, html: jobAlertEmailHtml(candidate, entries) }); await db.query("UPDATE job_alert_notifications SET status='sent', sent_at=NOW(), provider_message_id=$1 WHERE id = ANY($2::int[])", [response.data?.id || null, entries.map((item) => item.id)]); } catch (error) { await db.query("UPDATE job_alert_notifications SET status='failed' WHERE id = ANY($1::int[])", [entries.map((item) => item.id)]); console.error("Job alert email failed:", error.message); } }
+}
+async function queueJobAlertForJob(job) {
+  if (process.env.JOB_ALERTS_ENABLED !== "true") return;
+  const candidates = await db.query("SELECT u.id, u.username, u.email, u.skills, u.experience, u.bio, u.projects, p.* FROM users u JOIN candidate_job_alert_preferences p ON p.candidate_id=u.id WHERE u.role='user' AND p.email_enabled=TRUE AND p.unsubscribed_at IS NULL LIMIT 1000");
+  const threshold = Math.max(20, Number(process.env.JOB_ALERT_MIN_SCORE) || 40);
+  for (const candidate of candidates.rows) { const score = jobAlertScore(candidate, candidate, job); if (score < threshold) continue; await db.query("INSERT INTO job_alert_notifications (candidate_id,job_id,match_score) VALUES ($1,$2,$3) ON CONFLICT (candidate_id,job_id,notification_type) DO NOTHING", [candidate.id, job.id, score]); }
+  await sendQueuedJobAlerts("instant");
+}
+function startJobAlertAgent() { if (process.env.JOB_ALERTS_ENABLED !== "true") return; setTimeout(() => sendQueuedJobAlerts("daily").catch(console.error), 60000); setInterval(() => sendQueuedJobAlerts("daily").catch(console.error), 24 * 60 * 60 * 1000); setInterval(() => sendQueuedJobAlerts("weekly").catch(console.error), 7 * 24 * 60 * 60 * 1000); }
 
 function optionalCandidate(req) {
   try {
@@ -1186,8 +1230,9 @@ app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res)
     return res.json({ message: "Promotion priority updated" });
   }
   if (!actions[action]) return res.status(400).json({ error: "Invalid moderation action" });
-  const result = await db.query("UPDATE jobs SET employer_status=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [actions[action], req.params.id]);
+  const result = await db.query("UPDATE jobs SET employer_status=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING *", [actions[action], req.params.id]);
   if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
+  if (action === "approve") void queueJobAlertForJob(result.rows[0]);
   res.json({ message: `Job ${actions[action].toLowerCase()}` });
 });
 
@@ -1296,6 +1341,7 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
       [draft.id]
     );
     void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: draft.state === "national" ? "India" : draft.state });
+    void queueJobAlertForJob({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: draft.state === "national" ? "India" : draft.state, salary: "As per official notification", experience: "See official notification", skills: "Government recruitment", description: `Official government recruitment notification from ${draft.source_name}`, type: "Government recruitment", mode: "Onsite", job_category: "Government" });
     void postApprovedJobToFacebook({
       id: jobResult.rows[0].id,
       title: draft.title,
@@ -1420,6 +1466,7 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
       [draft.id]
     );
     void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "See company careers page" });
+    void queueJobAlertForJob({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "See company careers page", salary: "Not disclosed", experience: "See company careers page", skills: "", description: "Opening from official company careers page", type: "Full-time", mode: "Onsite", job_category: draft.job_category });
     void postApprovedJobToFacebook({
       id: jobResult.rows[0].id,
       title: draft.title,
@@ -2293,7 +2340,7 @@ app.post("/api/send-email-otp", async (req, res) => {
 });
 
 app.post("/api/verify-email-otp", async (req, res) => {
-  const { username, email, password, otp, isAdmin } = req.body;
+  const { username, email, password, otp, isAdmin, jobAlertsEnabled = false } = req.body;
 
   const cleanEmail = email.toLowerCase().trim();
   const result = await db.query(
@@ -2342,10 +2389,11 @@ console.log("COMPARE:", String(record.otp), String(otp));
    
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await db.query(
-      "INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,$4,$5)",
+    const createdUser = await db.query(
+      "INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,$4,$5) RETURNING id",
       [username, cleanEmail, hashedPassword, role, isApproved]
     );
+    if (role === "user") await db.query("INSERT INTO candidate_job_alert_preferences (candidate_id,email_enabled,consent_at,consent_source) VALUES ($1,$2,CASE WHEN $2 THEN NOW() ELSE NULL END,$3) ON CONFLICT (candidate_id) DO NOTHING", [createdUser.rows[0].id, Boolean(jobAlertsEnabled), jobAlertsEnabled ? "signup" : null]);
 
    await db.query("DELETE FROM otps WHERE email = $1", [cleanEmail]);
 
@@ -2753,6 +2801,21 @@ app.get("/api/arbeitnow-jobs", async (req, res) => {
   }
 });
 
+app.get("/api/candidate/job-alerts", verifyToken, async (req, res) => {
+  if (req.user.role !== "user") return res.status(403).json({ error: "Candidate access required" });
+  const result = await db.query("SELECT * FROM candidate_job_alert_preferences WHERE candidate_id=$1", [req.user.id]);
+  res.json(result.rows[0] || { email_enabled: false, frequency: "daily" });
+});
+app.put("/api/candidate/job-alerts", verifyToken, async (req, res) => {
+  if (req.user.role !== "user") return res.status(403).json({ error: "Candidate access required" });
+  const body = req.body || {}; const enabled = body.emailEnabled === true; const frequency = ["instant", "daily", "weekly", "off"].includes(body.frequency) ? body.frequency : "daily";
+  await db.query("INSERT INTO candidate_job_alert_preferences (candidate_id,email_enabled,frequency,preferred_locations,preferred_categories,preferred_titles,min_salary,experience,work_modes,job_types,consent_at,consent_source,unsubscribed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CASE WHEN $2 THEN NOW() ELSE NULL END,CASE WHEN $2 THEN 'candidate-settings' ELSE NULL END,CASE WHEN $2 THEN NULL ELSE NOW() END) ON CONFLICT (candidate_id) DO UPDATE SET email_enabled=$2,frequency=$3,preferred_locations=$4,preferred_categories=$5,preferred_titles=$6,min_salary=$7,experience=$8,work_modes=$9,job_types=$10,consent_at=CASE WHEN $2 AND candidate_job_alert_preferences.email_enabled=FALSE THEN NOW() ELSE candidate_job_alert_preferences.consent_at END,unsubscribed_at=CASE WHEN $2 THEN NULL ELSE NOW() END,updated_at=NOW()", [req.user.id, enabled, enabled ? frequency : "off", cleanText(body.preferredLocations,500), cleanText(body.preferredCategories,300), cleanText(body.preferredTitles,300), cleanText(body.minSalary,80), cleanText(body.experience,80), cleanText(body.workModes,120), cleanText(body.jobTypes,120)]);
+  res.json({ message: "Job alert settings updated" });
+});
+app.get("/api/job-alerts/unsubscribe", async (req, res) => {
+  try { const payload = jwt.verify(String(req.query.token || ""), process.env.JWT_SECRET); if (payload.purpose !== "job-alert-unsubscribe") throw new Error("Invalid token"); await db.query("UPDATE candidate_job_alert_preferences SET email_enabled=FALSE, frequency='off', unsubscribed_at=NOW(), updated_at=NOW() WHERE candidate_id=$1", [payload.candidateId]); res.type("html").send("<main style='font-family:Arial;padding:40px'><h1>Job alerts turned off</h1><p>You will no longer receive MarketLence job-alert emails. You can re-enable them from your account settings anytime.</p></main>"); } catch { res.status(400).type("html").send("<p>This unsubscribe link is invalid or has expired.</p>"); }
+});
+
 function cleanNewsText(value = "") {
   return value
     .replace(/<!\[CDATA\[|\]\]>/g, "")
@@ -2812,7 +2875,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureJobAlertTables()])
   .then(async () => {
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
@@ -2821,6 +2884,7 @@ Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmen
       startGovernmentJobAgent();
       startCompanyJobAgent();
       startVisaJobAgent();
+      startJobAlertAgent();
       setInterval(() => { void deactivateExpiredFeaturedJobs(); }, 60 * 60 * 1000);
     });
   })
