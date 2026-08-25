@@ -29,6 +29,7 @@ const { Document: WordDocument, Packer, Paragraph } = require("docx");
 
 const fs = require("fs");
 const axios = require("axios");
+const crypto = require("crypto");
 
 const cloudinary = require("cloudinary").v2;
 
@@ -132,7 +133,7 @@ app.use(cors({
   "https://job-frontend-vert.vercel.app",
   "https://jobs.marketlence.com"
 ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
@@ -914,6 +915,10 @@ function makeJobSlug(title, company, id) {
 }
 
 const employerPostAttempts = new Map();
+const featuredPlans = {
+  featured_11: { id: "featured_11", name: "Featured for 11 days", amount: 29900, days: 11 },
+  featured_29: { id: "featured_29", name: "Featured for 29 days", amount: 49900, days: 29 },
+};
 function employerPostingRateLimit(req, res, next) {
   const previous = employerPostAttempts.get(req.user.id) || 0;
   const remaining = 60 * 1000 - (Date.now() - previous);
@@ -942,7 +947,18 @@ async function ensureEmployerPostingTables() {
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_method TEXT"),
     db.query("CREATE TABLE IF NOT EXISTS employer_profiles (user_id INTEGER PRIMARY KEY, full_name TEXT, mobile TEXT, company_name TEXT NOT NULL, website TEXT, company_type TEXT, industry TEXT, company_size TEXT, description TEXT, address TEXT, city TEXT, state TEXT, logo_url TEXT, contact_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, visitor_key TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS employer_feature_payments (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER NOT NULL, plan_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, duration_days INTEGER NOT NULL, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
   ]);
+}
+
+async function activateFeaturedJob(payment) {
+  if (payment.payment_status === "paid") return;
+  await db.query("UPDATE employer_feature_payments SET payment_status='paid', paid_at=NOW() WHERE id=$1", [payment.id]);
+  await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, plan_id=$2, promotion_status='featured' WHERE id=$3 AND employer_id=$4", [payment.duration_days, payment.plan_id, payment.job_id, payment.employer_id]);
+}
+
+async function deactivateExpiredFeaturedJobs() {
+  await db.query("UPDATE jobs SET is_featured=FALSE, promotion_status='expired' WHERE is_featured=TRUE AND featured_end_date IS NOT NULL AND featured_end_date <= NOW()");
 }
 
 app.post("/api/employers/register", async (req, res) => {
@@ -1002,6 +1018,39 @@ app.get("/api/employer/dashboard", verifyToken, isEmployer, async (req, res) => 
   const stats = (await db.query(`SELECT COUNT(*)::int AS total_jobs, COUNT(*) FILTER (WHERE employer_status = 'Live')::int AS live_jobs, COUNT(*) FILTER (WHERE employer_status = 'Pending Review')::int AS pending_jobs, COUNT(*) FILTER (WHERE employer_status IN ('Closed','Expired'))::int AS closed_jobs, COALESCE(SUM(views_count),0)::int AS total_views, COALESCE(SUM(apply_clicks),0)::int AS total_apply_clicks FROM jobs WHERE employer_id = $1`, [req.user.id])).rows[0];
   const jobs = (await db.query("SELECT id, title, location, posted_at, employer_status, views_count, apply_clicks, job_slug FROM jobs WHERE employer_id = $1 ORDER BY posted_at DESC", [req.user.id])).rows;
   res.json({ stats, jobs });
+});
+app.get("/api/employer/featured-plans", verifyToken, isEmployer, (req, res) => {
+  res.json(Object.values(featuredPlans).map(({ id, name, amount, days }) => ({ id, name, amount: amount / 100, days, currency: "INR" })));
+});
+app.post("/api/employer/jobs/:id/featured-order", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const plan = featuredPlans[String(req.body.planId || "")];
+    if (!plan) return res.status(400).json({ error: "Choose a valid featured plan." });
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({ error: "Payments are not configured yet. Please contact MarketLence support." });
+    const job = (await db.query("SELECT id, title FROM jobs WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id])).rows[0];
+    if (!job) return res.status(404).json({ error: "Job not found." });
+    const payment = (await db.query("INSERT INTO employer_feature_payments (employer_id, job_id, plan_id, amount_paise, duration_days) VALUES ($1,$2,$3,$4,$5) RETURNING *", [req.user.id, job.id, plan.id, plan.amount, plan.days])).rows[0];
+    const orderResponse = await axios.post("https://api.razorpay.com/v1/orders", { amount: plan.amount, currency: "INR", receipt: `mlf_${payment.id}`, notes: { payment_id: String(payment.id), employer_id: String(req.user.id), job_id: String(job.id), plan_id: plan.id } }, { auth: { username: process.env.RAZORPAY_KEY_ID, password: process.env.RAZORPAY_KEY_SECRET }, timeout: 15000 });
+    await db.query("UPDATE employer_feature_payments SET razorpay_order_id=$1 WHERE id=$2", [orderResponse.data.id, payment.id]);
+    res.status(201).json({ keyId: process.env.RAZORPAY_KEY_ID, orderId: orderResponse.data.id, amount: plan.amount, currency: "INR", plan, job: { id: job.id, title: job.title } });
+  } catch (error) {
+    console.error("Could not create featured payment order:", error.response?.data || error.message);
+    res.status(502).json({ error: "Could not start secure payment. Please try again." });
+  }
+});
+app.post("/api/employer/featured-payment/verify", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return res.status(400).json({ error: "Incomplete payment confirmation." });
+    const signature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "").update(`${razorpay_order_id}|${razorpay_payment_id}`).digest("hex");
+    if (!process.env.RAZORPAY_KEY_SECRET || signature.length !== String(razorpay_signature).length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(String(razorpay_signature)))) return res.status(400).json({ error: "Payment verification failed." });
+    const payment = (await db.query("SELECT * FROM employer_feature_payments WHERE razorpay_order_id=$1 AND employer_id=$2", [razorpay_order_id, req.user.id])).rows[0];
+    if (!payment) return res.status(404).json({ error: "Payment order not found." });
+    if (payment.razorpay_payment_id && payment.razorpay_payment_id !== razorpay_payment_id) return res.status(409).json({ error: "This payment order has already been used." });
+    await db.query("UPDATE employer_feature_payments SET razorpay_payment_id=$1 WHERE id=$2", [razorpay_payment_id, payment.id]);
+    await activateFeaturedJob(payment);
+    res.json({ message: `Your job is featured for ${payment.duration_days} days.` });
+  } catch (error) { console.error("Featured payment verification failed:", error.message); res.status(500).json({ error: "Could not activate the featured job." }); }
 });
 app.get("/api/employer/jobs/:id", verifyToken, isEmployer, async (req, res) => {
   const result = await db.query("SELECT * FROM jobs WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id]);
@@ -2692,12 +2741,14 @@ app.get("/api/employment-news", async (req, res) => {
 
 
 Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables()])
-  .then(() => {
+  .then(async () => {
+    await deactivateExpiredFeaturedJobs();
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       startGovernmentJobAgent();
       startCompanyJobAgent();
       startVisaJobAgent();
+      setInterval(() => { void deactivateExpiredFeaturedJobs(); }, 60 * 60 * 1000);
     });
   })
   .catch((error) => {
