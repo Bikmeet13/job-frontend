@@ -42,6 +42,7 @@ const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const db = require("./db");
+const { getFeaturedJobs } = require("./services/featuredJobs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");  
 
@@ -941,6 +942,7 @@ async function ensureEmployerPostingTables() {
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS featured_end_date TIMESTAMPTZ"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS plan_id TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS promotion_status TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS promotion_priority INTEGER NOT NULL DEFAULT 0"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS roles_responsibilities TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS education TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS openings INTEGER"),
@@ -948,7 +950,18 @@ async function ensureEmployerPostingTables() {
     db.query("CREATE TABLE IF NOT EXISTS employer_profiles (user_id INTEGER PRIMARY KEY, full_name TEXT, mobile TEXT, company_name TEXT NOT NULL, website TEXT, company_type TEXT, industry TEXT, company_size TEXT, description TEXT, address TEXT, city TEXT, state TEXT, logo_url TEXT, contact_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, visitor_key TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_feature_payments (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER NOT NULL, plan_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, duration_days INTEGER NOT NULL, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
+    db.query("CREATE TABLE IF NOT EXISTS featured_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, placement TEXT NOT NULL, visitor_key TEXT, candidate_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE INDEX IF NOT EXISTS featured_jobs_active_idx ON jobs (is_featured, featured_start_date, featured_end_date, employer_status)"),
+    db.query("CREATE INDEX IF NOT EXISTS featured_job_events_lookup_idx ON featured_job_events (job_id, event_type, placement, visitor_key, created_at DESC)"),
   ]);
+}
+
+function optionalCandidate(req) {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    const user = token && jwt.verify(token, process.env.JWT_SECRET);
+    return user?.role === "user" ? user : null;
+  } catch { return null; }
 }
 
 async function activateFeaturedJob(payment) {
@@ -975,6 +988,27 @@ app.post("/api/employers/register", async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email, role: "employer" }, process.env.JWT_SECRET);
     res.status(201).json({ token, role: "employer", userId: user.id, username: user.username });
   } catch (error) { console.error("Employer registration failed:", error.message); res.status(500).json({ error: "Could not create employer account." }); }
+});
+app.get("/api/featured-jobs", async (req, res) => {
+  try {
+    const candidate = optionalCandidate(req);
+    const jobs = await getFeaturedJobs({ candidateId: candidate?.id, location: cleanText(req.query.location, 120), category: cleanText(req.query.category, 120), query: cleanText(req.query.query, 200), visitorKey: cleanText(req.query.visitorKey, 120), limit: req.query.limit });
+    res.json(jobs);
+  } catch (error) { console.error("Featured recommendations failed:", error.message); res.status(500).json({ error: "Could not load featured jobs." }); }
+});
+app.post("/api/featured-jobs/:id/event", async (req, res) => {
+  try {
+    const eventType = ["impression", "click", "apply", "application"].includes(req.body?.type) ? req.body.type : null;
+    const placement = cleanText(req.body?.placement, 60);
+    const visitorKey = cleanText(req.body?.visitorKey, 120);
+    if (!eventType || !placement || !visitorKey) return res.status(400).json({ error: "Invalid featured event." });
+    const candidate = optionalCandidate(req);
+    const eligible = await db.query("SELECT id FROM jobs WHERE id=$1 AND is_featured=TRUE AND (employer_id IS NULL OR employer_status='Live') AND (featured_start_date IS NULL OR featured_start_date <= NOW()) AND (featured_end_date IS NULL OR featured_end_date > NOW())", [req.params.id]);
+    if (!eligible.rows.length) return res.status(404).json({ error: "Featured job not active." });
+    const recent = await db.query("SELECT id FROM featured_job_events WHERE job_id=$1 AND event_type=$2 AND placement=$3 AND visitor_key=$4 AND created_at > NOW() - INTERVAL '30 minutes'", [req.params.id, eventType, placement, visitorKey]);
+    if (!recent.rows.length) await db.query("INSERT INTO featured_job_events (job_id,event_type,placement,visitor_key,candidate_id) VALUES ($1,$2,$3,$4,$5)", [req.params.id, eventType, placement, visitorKey, candidate?.id || null]);
+    res.json({ tracked: !recent.rows.length });
+  } catch (error) { res.status(500).json({ error: "Could not track featured event." }); }
 });
 
 app.get("/api/jobs/slug/:slug", async (req, res) => {
@@ -1016,8 +1050,9 @@ app.put("/api/employer/profile", verifyToken, isEmployer, async (req, res) => {
 });
 app.get("/api/employer/dashboard", verifyToken, isEmployer, async (req, res) => {
   const stats = (await db.query(`SELECT COUNT(*)::int AS total_jobs, COUNT(*) FILTER (WHERE employer_status = 'Live')::int AS live_jobs, COUNT(*) FILTER (WHERE employer_status = 'Pending Review')::int AS pending_jobs, COUNT(*) FILTER (WHERE employer_status IN ('Closed','Expired'))::int AS closed_jobs, COALESCE(SUM(views_count),0)::int AS total_views, COALESCE(SUM(apply_clicks),0)::int AS total_apply_clicks FROM jobs WHERE employer_id = $1`, [req.user.id])).rows[0];
-  const jobs = (await db.query("SELECT id, title, location, posted_at, employer_status, views_count, apply_clicks, job_slug FROM jobs WHERE employer_id = $1 ORDER BY posted_at DESC", [req.user.id])).rows;
-  res.json({ stats, jobs });
+  const jobs = (await db.query("SELECT id, title, location, posted_at, employer_status, views_count, apply_clicks, job_slug, is_featured, featured_start_date, featured_end_date, plan_id FROM jobs WHERE employer_id = $1 ORDER BY posted_at DESC", [req.user.id])).rows;
+  const featuredAnalytics = (await db.query(`SELECT COUNT(*) FILTER (WHERE e.event_type='impression')::int AS impressions, COUNT(*) FILTER (WHERE e.event_type='click')::int AS clicks, COUNT(*) FILTER (WHERE e.event_type='apply')::int AS apply_clicks, COUNT(*) FILTER (WHERE e.event_type='application')::int AS applications FROM featured_job_events e JOIN jobs j ON j.id=e.job_id WHERE j.employer_id=$1`, [req.user.id])).rows[0];
+  res.json({ stats, jobs, featuredAnalytics });
 });
 app.get("/api/employer/featured-plans", verifyToken, isEmployer, (req, res) => {
   res.json(Object.values(featuredPlans).map(({ id, name, amount, days }) => ({ id, name, amount: amount / 100, days, currency: "INR" })));
@@ -1121,6 +1156,12 @@ app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res)
     const result = await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, promotion_status='featured' WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [days, req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
     return res.json({ message: "Job featured" });
+  }
+  if (action === "priority") {
+    const priority = Math.min(Math.max(Number(req.body.priority) || 0, 0), 100);
+    const result = await db.query("UPDATE jobs SET promotion_priority=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [priority, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
+    return res.json({ message: "Promotion priority updated" });
   }
   if (!actions[action]) return res.status(400).json({ error: "Invalid moderation action" });
   const result = await db.query("UPDATE jobs SET employer_status=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [actions[action], req.params.id]);
@@ -1491,6 +1532,14 @@ if (!jobId) {
     );
 
    const applicationId = result.rows[0].id;
+
+    // Attribute a completed application to an active featured placement without
+    // storing the applicant's email in the analytics event.
+    const featuredJob = await db.query("SELECT id FROM jobs WHERE id=$1 AND is_featured=TRUE AND (employer_id IS NULL OR employer_status='Live') AND (featured_end_date IS NULL OR featured_end_date > NOW())", [jobId]);
+    if (featuredJob.rows.length) {
+      const anonymousKey = crypto.createHash("sha256").update(String(email || applicationId)).digest("hex").slice(0, 32);
+      await db.query("INSERT INTO featured_job_events (job_id,event_type,placement,visitor_key) VALUES ($1,'application','apply-form',$2)", [jobId, anonymousKey]);
+    }
 
     console.log("Application saved:", applicationId);
 

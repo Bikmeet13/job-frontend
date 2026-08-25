@@ -17,6 +17,7 @@ import HomepageAd from "../components/HomepageAd";
 import JobNotificationPrompt from "../components/JobNotificationPrompt";
 import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
+import FeaturedJobsSection from "../components/FeaturedJobsSection";
 import { COUNTRIES, COUNTRY_NAMES } from "../data/countries";
 import { VISA_SPONSORSHIP_RESOURCES } from "../data/visaSponsorshipResources";
 import toast from "react-hot-toast";
@@ -429,6 +430,9 @@ localStorage.setItem(
   const allJobs = [...filteredJobs, ...visibleExternalJobs].sort((a, b) => {
     if (sortFilter === "oldest") return getPostedTime(a) - getPostedTime(b);
     if (sortFilter === "deadline") return getDeadlineTime(a) - getDeadlineTime(b);
+    // All jobs at this point have already matched the selected search/filter
+    // criteria, so a featured boost never pushes an unrelated job above results.
+    if (Boolean(a.is_featured) !== Boolean(b.is_featured)) return a.is_featured ? -1 : 1;
     return getPostedTime(b) - getPostedTime(a);
   });
 
@@ -1019,6 +1023,7 @@ localStorage.removeItem("userId");
 
       <div className="mx-auto mt-10 w-full max-w-7xl">
 
+       <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} category={jobCategoryFilter} query={search} />
        {allJobs.length === 0 ? (
 
           <p className="text-center text-gray-500">
@@ -1046,11 +1051,10 @@ localStorage.removeItem("userId");
 
   return (
     <motion.div
-     onClick={() =>
-  navigate(`/jobs/${job.id}`, {
-    state: { job }
-  })
-}
+     onClick={() => {
+  if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "click", placement: "search", visitorKey: sessionStorage.getItem("mlFeaturedVisitor") || "search" }).catch(() => {});
+  navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } });
+}}
      key={`${job.source}-${job.id}`}
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.98 }}
@@ -1068,6 +1072,7 @@ localStorage.removeItem("userId");
         <span className="block uppercase tracking-wide">Posted</span>
         {postedDate}
       </div>
+      {job.is_featured && <span className="absolute right-4 top-4 rounded-full bg-violet-700 px-3 py-1 text-xs font-black tracking-wide text-white">FEATURED</span>}
 
                 {/* 🖼️ Logo + Info */}
                 <div className="flex items-center gap-4">

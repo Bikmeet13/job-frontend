@@ -2,6 +2,7 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import FeaturedJobsSection from "../components/FeaturedJobsSection";
 
 function Dashboard() {
   const [applications, setApplications] = useState([]);
@@ -175,6 +176,10 @@ setApplications(res.data);
           <p className="text-gray-500 mt-2">Interviews</p>
         </div>
 
+      </div>
+
+      <div className="mt-10">
+        <FeaturedJobsSection placement="candidate-dashboard" limit={6} title="Featured Jobs Recommended for You" />
       </div>
 
       {/* ✅ RECENT APPLICATIONS */}

@@ -2,6 +2,7 @@ import ApplyForm from "../components/ApplyForm";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
+import FeaturedJobsSection from "../components/FeaturedJobsSection";
 
 const JOBS_API = "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs";
 
@@ -92,6 +93,7 @@ function JobDetails() {
   const applicationsEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
   const applyLink = job.applyLink || job.apply_link;
   const handleExternalApply = () => {
+    if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "apply", placement: "job-details", visitorKey: localStorage.getItem("mlVisitorKey") || "anonymous" }).catch(() => {});
     if (job.employer_id) {
       const key = localStorage.getItem("mlVisitorKey") || "anonymous";
       axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/employer/jobs/${job.id}/track`, { type: "apply", visitorKey: key }).catch(() => {});
@@ -152,7 +154,7 @@ function JobDetails() {
                 Apply on Company Website
               </button>
             ) : applicationsEnabled ? (
-              <button onClick={() => setShowForm(true)} className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 sm:w-auto">
+              <button onClick={() => { if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "apply", placement: "job-details", visitorKey: localStorage.getItem("mlVisitorKey") || "anonymous" }).catch(() => {}); setShowForm(true); }} className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 sm:w-auto">
                 Apply Now
               </button>
             ) : (
@@ -160,6 +162,7 @@ function JobDetails() {
             )}
 
             {applicationsEnabled && showForm && <div ref={applyFormRef} className="mt-10"><ApplyForm job={job} /></div>}
+            <div className="mt-10"><FeaturedJobsSection placement="job-details" limit={4} location={job.location} category={job.job_category || job.jobCategory} title="Featured Opportunities" excludeId={job.id} /></div>
           </main>
 
           <aside className="h-fit rounded-2xl bg-white p-5 shadow-sm xl:sticky xl:top-24">
