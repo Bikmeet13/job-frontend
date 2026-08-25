@@ -343,16 +343,20 @@ async function ensureGovernmentJobAgentTables() {
 }
 
 const governmentStateNames = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry"];
+const governmentStateMarkers = {
+  "Andhra Pradesh": ["andhra", "ap.gov.in", "ap.gov"], "Arunachal Pradesh": ["arunachal", "ar.gov.in"], "Assam": ["assam", "assam.gov.in"], "Bihar": ["bihar", "bihar.gov.in"], "Chhattisgarh": ["chhattisgarh", "cg.gov.in"], "Goa": ["goa.gov.in", "goa"], "Gujarat": ["gujarat", "gujarat.gov.in"], "Haryana": ["haryana", "hry.gov.in"], "Himachal Pradesh": ["himachal", "hp.gov.in"], "Jharkhand": ["jharkhand", "jharkhand.gov.in"], "Karnataka": ["karnataka", "kar.gov.in"], "Kerala": ["kerala", "kerala.gov.in"], "Madhya Pradesh": ["madhya", "mp.gov.in"], "Maharashtra": ["maharashtra", "maha.gov.in"], "Manipur": ["manipur", "manipur.gov.in"], "Meghalaya": ["meghalaya", "meghalaya.gov.in"], "Mizoram": ["mizoram", "mizoram.gov.in"], "Nagaland": ["nagaland", "nagaland.gov.in"], "Odisha": ["odisha", "orissa", "odisha.gov.in"], "Punjab": ["punjab", "punjab.gov.in"], "Rajasthan": ["rajasthan", "rajasthan.gov.in"], "Sikkim": ["sikkim", "sikkim.gov.in"], "Tamil Nadu": ["tamil nadu", "tn.gov.in", "tamilnad"], "Telangana": ["telangana", "telangana.gov.in", "tg.gov.in"], "Tripura": ["tripura", "tripura.gov.in"], "Uttar Pradesh": ["uttar pradesh", "up.gov.in", "upsssc", "uppsc"], "Uttarakhand": ["uttarakhand", "uk.gov.in"], "West Bengal": ["west bengal", "wb.gov.in"], "Delhi": ["delhi.gov.in", "nct delhi"], "Jammu and Kashmir": ["jammu", "kashmir", "jk.gov.in"], "Ladakh": ["ladakh", "ladakh.gov.in"], "Puducherry": ["puducherry", "py.gov.in"]
+};
 function governmentRegionFor(...values) {
   const text = values.join(" ").toLowerCase();
   const match = governmentStateNames.find((state) => text.includes(state.toLowerCase()));
-  return match || "national";
+  if (match) return match;
+  return Object.entries(governmentStateMarkers).find(([, markers]) => markers.some((marker) => text.includes(marker)))?.[0] || "national";
 }
 
 async function classifyExistingGovernmentJobs() {
-  const result = await db.query("SELECT id, title, company, location FROM jobs WHERE job_category='Government' AND (government_state='national' OR government_state IS NULL)");
+  const result = await db.query("SELECT j.id, j.title, j.company, j.location, s.url AS source_url, s.state AS source_state FROM jobs j LEFT JOIN government_job_sources s ON LOWER(s.name)=LOWER(j.company) WHERE j.job_category='Government' AND (j.government_state='national' OR j.government_state IS NULL)");
   await Promise.all(result.rows.map((job) => {
-    const state = governmentRegionFor(job.title, job.company, job.location);
+    const state = job.source_state && job.source_state !== "national" ? job.source_state : governmentRegionFor(job.title, job.company, job.location, job.source_url);
     return state === "national" ? Promise.resolve() : db.query("UPDATE jobs SET government_state=$1::text, location=$2::varchar WHERE id=$3", [state, state, job.id]);
   }));
 }
