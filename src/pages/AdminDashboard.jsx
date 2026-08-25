@@ -39,6 +39,7 @@ const [governmentSources, setGovernmentSources] = useState([]);
 const [governmentDrafts, setGovernmentDrafts] = useState([]);
 const [governmentSourceName, setGovernmentSourceName] = useState("");
 const [governmentSourceUrl, setGovernmentSourceUrl] = useState("");
+const [governmentSourceState, setGovernmentSourceState] = useState("national");
 const [governmentScanning, setGovernmentScanning] = useState(false);
 const [companySources, setCompanySources] = useState([]);
 const [companyDrafts, setCompanyDrafts] = useState([]);
@@ -430,11 +431,12 @@ const addGovernmentSource = async (e) => {
   try {
     await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/sources",
-      { name: governmentSourceName, url: governmentSourceUrl },
+      { name: governmentSourceName, url: governmentSourceUrl, state: governmentSourceState },
       governmentAgentHeaders()
     );
     setGovernmentSourceName("");
     setGovernmentSourceUrl("");
+    setGovernmentSourceState("national");
     toast.success("Official source added");
     fetchGovernmentJobAgentData();
   } catch (err) {
@@ -812,16 +814,17 @@ const filteredJobs = (jobs || []).filter((job) => {
           </button>
         </div>
 
-        <form onSubmit={addGovernmentSource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_auto]">
+        <form onSubmit={addGovernmentSource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_1fr_auto]">
           <input value={governmentSourceName} onChange={(e) => setGovernmentSourceName(e.target.value)} placeholder="Source name (for example, UPSC)" className="rounded-lg border p-2" required />
           <input type="url" value={governmentSourceUrl} onChange={(e) => setGovernmentSourceUrl(e.target.value)} placeholder="Official source URL ending in .gov.in or .nic.in" className="rounded-lg border p-2" required />
+          <input value={governmentSourceState} onChange={(e) => setGovernmentSourceState(e.target.value)} placeholder="State or national" className="rounded-lg border p-2" />
           <button type="submit" className="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white hover:bg-slate-900">Add source</button>
         </form>
 
         <div className="mb-5 space-y-2">
           {governmentSources.map((source) => (
             <div key={source.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <span><b>{source.name}</b> — {source.url}</span>
+              <span><b>{source.name}</b> — {source.state === "national" ? "National" : source.state} · {source.url}</span>
               <button onClick={() => removeGovernmentSource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button>
             </div>
           ))}

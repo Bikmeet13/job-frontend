@@ -304,6 +304,9 @@ async function ensureGovernmentJobAgentTables() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await db.query("ALTER TABLE government_job_sources ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'national'");
+  await db.query("ALTER TABLE government_job_drafts ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'national'");
+  await db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS government_state TEXT NOT NULL DEFAULT 'national'");
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS government_job_drafts (
@@ -337,6 +340,21 @@ async function ensureGovernmentJobAgentTables() {
   } catch (error) {
     console.log("GOVERNMENT_JOB_SOURCES must be valid JSON:", error.message);
   }
+}
+
+const governmentStateNames = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry"];
+function governmentRegionFor(...values) {
+  const text = values.join(" ").toLowerCase();
+  const match = governmentStateNames.find((state) => text.includes(state.toLowerCase()));
+  return match || "national";
+}
+
+async function classifyExistingGovernmentJobs() {
+  const result = await db.query("SELECT id, title, company, location FROM jobs WHERE job_category='Government' AND (government_state='national' OR government_state IS NULL)");
+  await Promise.all(result.rows.map((job) => {
+    const state = governmentRegionFor(job.title, job.company, job.location);
+    return state === "national" ? Promise.resolve() : db.query("UPDATE jobs SET government_state=$1, location=$1 WHERE id=$2", [state, job.id]);
+  }));
 }
 
 async function ensureCompanyJobAgentTables() {
@@ -490,7 +508,7 @@ async function hasVisaSponsorshipOnJobPage(listing) {
 
 async function scanGovernmentJobSources() {
   const { rows: sources } = await db.query(
-    "SELECT id, name, url FROM government_job_sources WHERE enabled = TRUE"
+    "SELECT id, name, url, state FROM government_job_sources WHERE enabled = TRUE"
   );
   let discovered = 0;
 
@@ -505,11 +523,11 @@ async function scanGovernmentJobSources() {
 
       for (const listing of listings) {
         const inserted = await db.query(
-          `INSERT INTO government_job_drafts (source_id, source_name, source_url, title, apply_link)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO government_job_drafts (source_id, source_name, source_url, title, apply_link, state)
+           VALUES ($1, $2, $3, $4, $5, $6)
            ON CONFLICT (apply_link) DO NOTHING
            RETURNING id`,
-          [source.id, source.name, source.url, listing.title, listing.applyLink]
+          [source.id, source.name, source.url, listing.title, listing.applyLink, source.state === "national" ? governmentRegionFor(source.name, listing.title, source.url) : source.state]
         );
         if (inserted.rows.length) discovered += 1;
       }
@@ -1188,15 +1206,15 @@ app.get("/api/government-job-agent/sources", verifyToken, isAdmin, async (req, r
 });
 
 app.post("/api/government-job-agent/sources", verifyToken, isAdmin, async (req, res) => {
-  const { name, url } = req.body;
+  const { name, url, state = "national" } = req.body;
   if (!name?.trim() || !isOfficialIndianGovernmentUrl(url)) {
     return res.status(400).json({ error: "Use a named official Indian government URL ending in .gov.in or .nic.in" });
   }
 
   try {
     const result = await db.query(
-      "INSERT INTO government_job_sources (name, url) VALUES ($1, $2) RETURNING *",
-      [name.trim(), url.trim()]
+      "INSERT INTO government_job_sources (name, url, state) VALUES ($1, $2, $3) RETURNING *",
+      [name.trim(), url.trim(), governmentStateNames.find((item) => item.toLowerCase() === String(state).trim().toLowerCase()) || "national"]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -1246,13 +1264,13 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
 
     const jobResult = await db.query(
       `INSERT INTO jobs
-       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date, government_state)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
       [
         draft.title.slice(0, 300),
         draft.source_name,
-        "India",
+        draft.state === "national" ? "India (National)" : draft.state,
         "As per official notification",
         "See official notification",
         "See official notification",
@@ -1265,6 +1283,7 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
         "Government",
         "in",
         "Check official notification",
+        draft.state || "national",
       ]
     );
 
@@ -1272,12 +1291,12 @@ app.post("/api/government-job-agent/drafts/:id/approve", verifyToken, isAdmin, a
       "UPDATE government_job_drafts SET status = 'approved', reviewed_at = NOW() WHERE id = $1",
       [draft.id]
     );
-    void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "India" });
+    void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: draft.state === "national" ? "India" : draft.state });
     void postApprovedJobToFacebook({
       id: jobResult.rows[0].id,
       title: draft.title,
       company: draft.source_name,
-      location: "India",
+      location: draft.state === "national" ? "India" : draft.state,
       salary: "As per official notification",
       lastDate: "Check official notification",
     });
@@ -2792,6 +2811,7 @@ app.get("/api/employment-news", async (req, res) => {
 Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables()])
   .then(async () => {
     await deactivateExpiredFeaturedJobs();
+    await classifyExistingGovernmentJobs();
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       startGovernmentJobAgent();

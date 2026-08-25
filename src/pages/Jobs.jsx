@@ -363,9 +363,20 @@ localStorage.setItem(
     );
   };
 
+  const governmentJobMatchesState = (job) => {
+    const isGovernment = String(job.job_category || job.jobCategory || "").toLowerCase() === "government";
+    if (!isGovernment) return true;
+    const jobState = String(job.government_state || "national").toLowerCase();
+    // National government roles remain available nationwide. State recruitment
+    // is deliberately hidden until the visitor selects/matches that state.
+    if (!jobState || jobState === "national") return true;
+    return Boolean(locationFilter) && String(locationFilter).toLowerCase().includes(jobState);
+  };
+
   const filteredJobs = Array.isArray(jobs)
   ? jobs
       .filter(internalJobMatchesCountry)
+      .filter(governmentJobMatchesState)
       .filter((job) =>
         job.title.toLowerCase().includes(search.toLowerCase())
       )
