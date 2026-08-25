@@ -353,7 +353,7 @@ async function classifyExistingGovernmentJobs() {
   const result = await db.query("SELECT id, title, company, location FROM jobs WHERE job_category='Government' AND (government_state='national' OR government_state IS NULL)");
   await Promise.all(result.rows.map((job) => {
     const state = governmentRegionFor(job.title, job.company, job.location);
-    return state === "national" ? Promise.resolve() : db.query("UPDATE jobs SET government_state=$1, location=$1 WHERE id=$2", [state, job.id]);
+    return state === "national" ? Promise.resolve() : db.query("UPDATE jobs SET government_state=$1::text, location=$2::varchar WHERE id=$3", [state, state, job.id]);
   }));
 }
 
