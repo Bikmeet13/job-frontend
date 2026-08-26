@@ -764,7 +764,7 @@ useEffect(() => {
 const filteredApplications = (applications || []).filter(app => {
 
   if (filterStatus !== "all") {
-    if ((app.status || "Pending") !== filterStatus) return false;
+    if ((app.status || "Applied") !== filterStatus) return false;
   }
 
   if (filterType === "shortlisted") {
@@ -1273,19 +1273,19 @@ const filteredJobs = (jobs || []).filter((job) => {
     All
   </button>
 
-  <button onClick={() => setFilterStatus("Approved")}
-    className={`px-3 py-1 rounded ${filterStatus==="Approved"?"bg-green-600 text-white":"bg-gray-200"}`}>
-    Approved
+  <button onClick={() => setFilterStatus("Under Review")}
+    className={`px-3 py-1 rounded ${filterStatus==="Under Review"?"bg-amber-600 text-white":"bg-gray-200"}`}>
+    Under Review
   </button>
 
-  <button onClick={() => setFilterStatus("Rejected")}
-    className={`px-3 py-1 rounded ${filterStatus==="Rejected"?"bg-red-600 text-white":"bg-gray-200"}`}>
-    Rejected
+  <button onClick={() => setFilterStatus("Not Selected")}
+    className={`px-3 py-1 rounded ${filterStatus==="Not Selected"?"bg-red-600 text-white":"bg-gray-200"}`}>
+    Not Selected
   </button>
 
-  <button onClick={() => setFilterStatus("Pending")}
-    className={`px-3 py-1 rounded ${filterStatus==="Pending"?"bg-yellow-500 text-white":"bg-gray-200"}`}>
-    Pending
+  <button onClick={() => setFilterStatus("Applied")}
+    className={`px-3 py-1 rounded ${filterStatus==="Applied"?"bg-blue-600 text-white":"bg-gray-200"}`}>
+    Applied
   </button>
 
   </div>
@@ -1379,30 +1379,37 @@ const filteredJobs = (jobs || []).filter((job) => {
   <b>Status:</b>{" "}
   <span
     className={`ml-2 px-2 py-1 rounded text-white text-sm font-semibold ${
-      app.status === "Approved"
+      app.status === "Selected"
         ? "bg-green-500"
-        : app.status === "Rejected"
+        : app.status === "Not Selected"
         ? "bg-red-500"
         : "bg-yellow-500"
     }`}
   >
-    {app.status || "Pending"}
+    {app.status || "Applied"}
   </span>
 </p>
 
             <div className="mt-2 flex gap-2">
+  <select
+    value={app.status || "Applied"}
+    onChange={(e) => updateStatus(app.id, e.target.value)}
+    className="rounded border border-gray-300 px-3 py-1 text-sm font-semibold"
+  >
+    {['Applied', 'Under Review', 'Shortlisted', 'Interview Scheduled', 'Interview Completed', 'Selected', 'Not Selected'].map((status) => <option key={status} value={status}>{status}</option>)}
+  </select>
   <button
-    onClick={() => updateStatus(app.id, "Approved")}
+    onClick={() => updateStatus(app.id, "Under Review")}
     className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
   >
-    Approve
+    Mark under review
   </button>
 
   <button
-    onClick={() => updateStatus(app.id, "Rejected")}
+    onClick={() => updateStatus(app.id, "Not Selected")}
     className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
   >
-    Reject
+    Not selected
   </button>
 
   
