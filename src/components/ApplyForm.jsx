@@ -26,9 +26,15 @@ function ApplyForm({ job }) {
   const handleSubmit = async (e) => {
   e.preventDefault();
 
+  const token = localStorage.getItem("token");
+  if (!token || localStorage.getItem("role") !== "user") {
+    alert("Please log in with a candidate account to apply and track your application.");
+    navigate("/login");
+    return;
+  }
   
 if (!file) {
-    alert("Please upload resume ❌");
+    alert("Please upload your resume as a PDF.");
     return;
   }
 
@@ -46,23 +52,16 @@ try {
   formData,
   {
     headers: {
-      "Content-Type": "multipart/form-data"
+      "Content-Type": "multipart/form-data",
+      Authorization: `Bearer ${token}`
     }
   }
 );
 
-// redirect to home
-navigate("/");
-
 localStorage.setItem(`app_${jobId}`, res.data.applicationId);
 
-  // ✅ SUCCESS FEEDBACK
-  alert("Application submitted successfully ✅");
-
-  // ✅ REDIRECT AFTER SHORT DELAY
-  setTimeout(() => {
-    navigate("/");
-  }, 1000);
+  alert("Application submitted. You can track every update in your dashboard.");
+  navigate("/dashboard");
 
   // ✅ RESET FORM
   setFile(null);
@@ -74,6 +73,7 @@ localStorage.setItem(`app_${jobId}`, res.data.applicationId);
   console.log("Backend Error:", err.response?.data);
 
   alert(
+    err.response?.data?.error ||
     err.response?.data?.message ||
     JSON.stringify(err.response?.data) ||
     "Application failed ❌"
@@ -137,7 +137,7 @@ localStorage.setItem(`app_${jobId}`, res.data.applicationId);
 
             <input
               type="file"
-              accept=".pdf"
+              accept="application/pdf,.pdf"
               onChange={(e) => setFile(e.target.files[0])}
               className="hidden"
             />

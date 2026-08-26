@@ -294,6 +294,23 @@ async function ensureJobColumns() {
   ]);
 }
 
+const applicationStatuses = ["Applied", "Under Review", "Shortlisted", "Interview Scheduled", "Interview Completed", "Selected", "Not Selected", "Withdrawn"];
+
+async function ensureApplicationTrackingTables() {
+  await Promise.all([
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS candidate_user_id INTEGER"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_note TEXT"),
+    db.query("ALTER TABLE applications ALTER COLUMN status SET DEFAULT 'Applied'"),
+    db.query("CREATE TABLE IF NOT EXISTS application_status_history (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, status TEXT NOT NULL, note TEXT, changed_by_user_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE INDEX IF NOT EXISTS applications_candidate_tracking_idx ON applications (candidate_user_id, created_at DESC)"),
+    db.query("CREATE INDEX IF NOT EXISTS application_status_history_lookup_idx ON application_status_history (application_id, created_at ASC)"),
+  ]);
+  await db.query("UPDATE applications SET status='Applied' WHERE status IS NULL OR status IN ('Pending', 'Approved')");
+  await db.query("UPDATE applications SET status='Not Selected' WHERE status='Rejected'");
+}
+
 async function ensureGovernmentJobAgentTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS government_job_sources (
@@ -1575,33 +1592,37 @@ app.get("/api/admin-requests", verifyToken, isSuperAdmin, async (req, res) => {
 });
 
 
-app.post("/api/apply", upload.single("resume"), async (req, res) => {
+app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) => {
 
   try {
+    if (req.user.role !== "user") return res.status(403).json({ error: "Please use a candidate account to apply." });
 
-     console.log("jobId type:", typeof req.body.jobId);
-    console.log("jobId value:", req.body.jobId);
+    const name = cleanText(req.user.username, 120);
+    const email = String(req.user.email || "").toLowerCase().trim();
+    const jobId = parseInt(req.body.jobId);
 
-    const name = req.body.name;
-const email = req.body.email;
-const jobId = parseInt(req.body.jobId);
-
-if (!jobId) {
-  return res.status(400).json({ error: "Job ID missing ❌" });
-}
- // 🔥 FIX
+    if (!jobId) return res.status(400).json({ error: "Job ID is missing." });
+    if (!req.file || (req.file.mimetype !== "application/pdf" && !String(req.file.originalname || "").toLowerCase().endsWith(".pdf"))) return res.status(400).json({ error: "Please upload your resume as a PDF." });
 
     const resume = req.file ? req.file.path : null;
 
-   // ✅ INSERT + RETURN ID
+    const job = await db.query("SELECT id, title, company, apply_enabled, apply_link, employer_id, employer_status FROM jobs WHERE id=$1", [jobId]);
+    if (!job.rows.length || job.rows[0].apply_enabled === false || job.rows[0].apply_link || (job.rows[0].employer_id && job.rows[0].employer_status !== "Live")) {
+      return res.status(400).json({ error: "This job is not accepting applications on Marketlence Jobs." });
+    }
+
+    const previous = await db.query("SELECT id FROM applications WHERE jobid=$1 AND (candidate_user_id=$2 OR (candidate_user_id IS NULL AND email=$3)) AND status <> 'Withdrawn' LIMIT 1", [jobId, req.user.id, email]);
+    if (previous.rows.length) return res.status(409).json({ error: "You have already applied for this job." });
+
     const result = await db.query(
-      `INSERT INTO applications (name, email, jobid, resume)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO applications (name, email, jobid, resume, candidate_user_id, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 'Applied', NOW(), NOW())
        RETURNING id`,
-      [name, email, jobId, resume]
+      [name, email, jobId, resume, req.user.id]
     );
 
-   const applicationId = result.rows[0].id;
+    const applicationId = result.rows[0].id;
+    await db.query("INSERT INTO application_status_history (application_id, status, note, changed_by_user_id) VALUES ($1, 'Applied', 'Application submitted', $2)", [applicationId, req.user.id]);
 
     // Attribute a completed application to an active featured placement without
     // storing the applicant's email in the analytics event.
@@ -1629,8 +1650,8 @@ if (!jobId) {
       html: `
         <h2>Application Received ✅</h2>
         <p>Hello ${name},</p>
-        <p>Your application has been submitted successfully.</p>
-        <p>We will contact you soon.</p>
+        <p>Your application for <b>${cleanText(job.rows[0].title, 300)}</b> at <b>${cleanText(job.rows[0].company, 200)}</b> has been submitted successfully.</p>
+        <p>You can follow its progress from your Marketlence Jobs dashboard.</p>
         <br/>
         <p>Marketlence Team</p>
       `
@@ -1650,10 +1671,21 @@ app.delete("/api/applications/:id", verifyToken, async (req, res) => {
  const id = parseInt(req.params.id);
 
   try {
-    const sql = "DELETE FROM applications WHERE id = $1";
-    await db.query(sql, [id]);
+    const application = await db.query("SELECT id, candidate_user_id, email, status FROM applications WHERE id=$1", [id]);
+    if (!application.rows.length) return res.status(404).json({ error: "Application not found." });
+    const isAdminUser = ["admin", "superadmin"].includes(req.user.role);
+    const isOwner = application.rows[0].candidate_user_id === req.user.id || (!application.rows[0].candidate_user_id && application.rows[0].email === req.user.email);
+    if (!isAdminUser && !isOwner) return res.status(403).json({ error: "You cannot change this application." });
 
-    res.send("Application deleted ✅");
+    if (isAdminUser) {
+      await db.query("DELETE FROM applications WHERE id=$1", [id]);
+      return res.json({ message: "Application deleted." });
+    }
+
+    if (application.rows[0].status === "Withdrawn") return res.status(400).json({ error: "This application is already withdrawn." });
+    await db.query("UPDATE applications SET status='Withdrawn', updated_at=NOW() WHERE id=$1", [id]);
+    await db.query("INSERT INTO application_status_history (application_id, status, note, changed_by_user_id) VALUES ($1, 'Withdrawn', 'Withdrawn by candidate', $2)", [id, req.user.id]);
+    res.json({ message: "Application withdrawn.", status: "Withdrawn" });
   } catch (err) {
     console.log(err);
     res.status(500).send("Error deleting application");
@@ -1761,17 +1793,30 @@ app.delete("/api/unsave-job", async (req, res) => {
   }
 });
 
-app.put("/api/applications/:id", async (req, res) => {
-  const { status } = req.body;
+app.put("/api/applications/:id", verifyToken, isAdmin, async (req, res) => {
+  const { status, note } = req.body;
   const id = req.params.id;
 
   try {
-    await db.query(
-      "UPDATE applications SET status=$1 WHERE id=$2",
-      [status, id]
+    if (!applicationStatuses.includes(status)) return res.status(400).json({ error: "Choose a valid application status." });
+    const updated = await db.query(
+      `UPDATE applications SET status=$1, status_note=$2, updated_at=NOW() WHERE id=$3
+       RETURNING id, name, email, jobid, status, status_note`,
+      [status, cleanText(note, 1000) || null, id]
     );
+    if (!updated.rows.length) return res.status(404).json({ error: "Application not found." });
+    const application = updated.rows[0];
+    await db.query("INSERT INTO application_status_history (application_id, status, note, changed_by_user_id) VALUES ($1,$2,$3,$4)", [application.id, status, application.status_note, req.user.id]);
+    res.json({ message: "Status updated.", application });
 
-    res.send("Status updated ✅");
+    (async () => {
+      try {
+        const job = await db.query("SELECT title, company FROM jobs WHERE id=$1", [application.jobid]);
+        const title = job.rows[0]?.title || "your application";
+        const company = job.rows[0]?.company || "the employer";
+        await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: application.email, subject: `Application update: ${title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px"><h2>Application update</h2><p>Hello ${cleanText(application.name, 120) || "there"},</p><p>Your application for <b>${cleanText(title, 300)}</b> at <b>${cleanText(company, 200)}</b> is now: <b>${status}</b>.</p>${application.status_note ? `<p><b>Note:</b> ${cleanText(application.status_note, 1000)}</p>` : ""}<p>Sign in to Marketlence Jobs to view your application tracker.</p></div>` });
+      } catch (error) { console.error("Application status email failed:", error.message); }
+    })();
   } catch (err) {
     console.log(err);
     res.status(500).send("Error updating status");
@@ -2001,7 +2046,7 @@ app.get("/api/dashboard-stats/:userId", verifyToken, async (req, res) => {
 });
 
 
-app.get("/api/recent-applications", async (req, res) => {
+app.get("/api/recent-applications", verifyToken, isAdmin, async (req, res) => {
 
   try {
 
@@ -2232,7 +2277,20 @@ app.post("/api/shortlist", async (req, res) => {
 });
 
 
-app.get("/api/applications/:id", async (req, res) => {
+app.get("/api/applications/:id/history", verifyToken, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const application = await db.query("SELECT id, candidate_user_id, email FROM applications WHERE id=$1", [id]);
+    if (!application.rows.length) return res.status(404).json({ error: "Application not found." });
+    const isAdminUser = ["admin", "superadmin"].includes(req.user.role);
+    const isOwner = application.rows[0].candidate_user_id === req.user.id || (!application.rows[0].candidate_user_id && application.rows[0].email === req.user.email);
+    if (!isAdminUser && !isOwner) return res.status(403).json({ error: "You cannot view this application." });
+    const history = await db.query("SELECT status, note, created_at FROM application_status_history WHERE application_id=$1 ORDER BY created_at ASC", [id]);
+    res.json(history.rows);
+  } catch (err) { console.error("Application history error:", err); res.status(500).json({ error: "Could not load application history." }); }
+});
+
+app.get("/api/applications/:id", verifyToken, async (req, res) => {
   const id = req.params.id;
 
   try {
@@ -2245,7 +2303,11 @@ app.get("/api/applications/:id", async (req, res) => {
       return res.status(404).json({ error: "Application not found" });
     }
 
-    res.json(result.rows[0]);
+    const application = result.rows[0];
+    const isAdminUser = ["admin", "superadmin"].includes(req.user.role);
+    const isOwner = application.candidate_user_id === req.user.id || (!application.candidate_user_id && application.email === req.user.email);
+    if (!isAdminUser && !isOwner) return res.status(403).json({ error: "You cannot view this application." });
+    res.json(application);
 
   } catch (err) {
     console.log(err);
@@ -2485,14 +2547,16 @@ app.get("/api/applications", verifyToken, async (req, res) => {
       SELECT
         applications.*,
         COALESCE(jobs.title, 'Deleted Job') AS title,
-        COALESCE(jobs.company, 'Unknown Company') AS company
+        COALESCE(jobs.company, 'Unknown Company') AS company,
+        COALESCE(applications.created_at, NOW()) AS created_at,
+        COALESCE(applications.updated_at, applications.created_at, NOW()) AS updated_at
       FROM applications
       LEFT JOIN jobs
       ON applications.jobid = jobs.id
-      WHERE applications.email = $1
-      ORDER BY applications.id DESC
+      WHERE applications.candidate_user_id = $1 OR (applications.candidate_user_id IS NULL AND applications.email = $2)
+      ORDER BY applications.updated_at DESC NULLS LAST, applications.id DESC
       `,
-      [req.user.email]
+      [req.user.id, req.user.email]
     );
 
     res.json(result.rows);
@@ -2875,7 +2939,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureJobAlertTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureJobAlertTables()])
   .then(async () => {
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
