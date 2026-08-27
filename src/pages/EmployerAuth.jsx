@@ -21,10 +21,12 @@ export default function EmployerAuth({ login = false }) {
     setForm((current) => ({ ...current, [name]: value }));
     if (name === "email") { setOtp(""); setVerificationToken(""); }
   };
-  const finishSignIn = (data, message) => {
+  const finishSignIn = (data, message, startFresh = false) => {
     localStorage.setItem("token", data.token); localStorage.setItem("role", "employer"); localStorage.setItem("userId", data.userId); localStorage.setItem("username", data.username || "");
     if (data.email) localStorage.setItem("email", data.email);
-    toast.success(message); navigate("/employer/dashboard");
+    toast.success(message);
+    if (startFresh) window.location.assign("/employer/dashboard");
+    else navigate("/employer/dashboard");
   };
   const sendVerificationCode = async () => {
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) return toast.error("Enter your work email first.");
@@ -47,7 +49,7 @@ export default function EmployerAuth({ login = false }) {
     try {
       const body = login ? { email: form.email, password: form.password } : { ...form, emailVerificationToken: verificationToken };
       const { data } = await axios.post(`${API}/employers/${login ? "login" : "register"}`, body);
-      finishSignIn(data, login ? "Welcome back" : "Employer account created");
+      finishSignIn(data, login ? "Welcome back" : "Employer account created", !login);
     } catch (error) { toast.error(error.response?.data?.error || "Please try again."); }
     finally { setSubmitting(false); }
   };
@@ -55,7 +57,7 @@ export default function EmployerAuth({ login = false }) {
     try {
       if (!login && (!form.fullName || !form.companyName || !form.mobile || !form.city || !form.state)) return toast.error("Complete your company details before continuing with Google.");
       const { data } = await axios.post(`${API}/google-login`, { credential: credentialResponse.credential, accountType: "employer", employerProfile: form });
-      finishSignIn(data, "Employer account ready");
+      finishSignIn(data, "Employer account ready", !login);
     } catch (error) { toast.error(error.response?.data?.error || "Google sign-in failed. Please try again."); }
   };
 
