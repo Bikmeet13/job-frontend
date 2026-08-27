@@ -4,6 +4,12 @@ console.log("DB URL:", process.env.DATABASE_URL);
 
 const lastRequest = {};
 const otpStore = {};
+// Employer registration codes are intentionally kept separate from candidate
+// signup/reset-password codes. They are short-lived and stored only as hashes.
+const employerEmailOtps = new Map();
+const EMPLOYER_EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
+const EMPLOYER_EMAIL_OTP_RESEND_MS = 60 * 1000;
+const EMPLOYER_EMAIL_OTP_MAX_ATTEMPTS = 5;
 let employmentNewsCache = { items: [], expiresAt: 0 };
 let companyJobScanRunning = false;
 let visaJobScanRunning = false;
@@ -1097,6 +1103,8 @@ async function ensureEmployerPostingTables() {
   await Promise.all([
     db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_verified BOOLEAN NOT NULL DEFAULT FALSE"),
     db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_suspended BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_email_verified BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS employer_email_verified_at TIMESTAMPTZ"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS employer_id INTEGER"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS employer_status TEXT NOT NULL DEFAULT 'Live'"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_slug TEXT"),
@@ -1182,16 +1190,81 @@ async function deactivateExpiredFeaturedJobs() {
   await db.query("UPDATE jobs SET is_featured=FALSE, promotion_status='expired' WHERE is_featured=TRUE AND featured_end_date IS NOT NULL AND featured_end_date <= NOW()");
 }
 
+function employerOtpHash(code) {
+  return crypto.createHash("sha256").update(String(code)).digest("hex");
+}
+
+function safeOtpMatch(code, expectedHash) {
+  const supplied = Buffer.from(employerOtpHash(code), "hex");
+  const expected = Buffer.from(expectedHash, "hex");
+  return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+}
+
+app.post("/api/employers/send-email-otp", async (req, res) => {
+  const email = String(req.body?.email || "").toLowerCase().trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email address." });
+  if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "Email verification is not configured yet. Please contact support." });
+
+  const previous = employerEmailOtps.get(email);
+  if (previous && Date.now() - previous.sentAt < EMPLOYER_EMAIL_OTP_RESEND_MS) {
+    return res.status(429).json({ error: "Please wait one minute before requesting another code." });
+  }
+
+  const code = crypto.randomInt(100000, 1000000).toString();
+  employerEmailOtps.set(email, {
+    codeHash: employerOtpHash(code),
+    expiresAt: Date.now() + EMPLOYER_EMAIL_OTP_TTL_MS,
+    sentAt: Date.now(),
+    attempts: 0,
+  });
+
+  try {
+    await resend.emails.send({
+      from: "Marketlence Jobs <care@marketlence.com>",
+      to: email,
+      subject: "Verify your Marketlence employer email",
+      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h2>Verify your work email</h2><p>Use this code to finish creating your Marketlence Jobs employer account:</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. Do not share it with anyone.</p></div>`,
+    });
+    res.json({ message: "Verification code sent. Please check your inbox." });
+  } catch (error) {
+    employerEmailOtps.delete(email);
+    console.error("Employer verification email failed:", error.message);
+    res.status(502).json({ error: "We could not send the verification code. Please try again." });
+  }
+});
+
+app.post("/api/employers/verify-email-otp", (req, res) => {
+  const email = String(req.body?.email || "").toLowerCase().trim();
+  const code = String(req.body?.code || "").trim();
+  const record = employerEmailOtps.get(email);
+  if (!record) return res.status(400).json({ error: "Request a new verification code first." });
+  if (Date.now() > record.expiresAt) {
+    employerEmailOtps.delete(email);
+    return res.status(400).json({ error: "This verification code has expired. Request a new one." });
+  }
+  if (!/^\d{6}$/.test(code) || !safeOtpMatch(code, record.codeHash)) {
+    record.attempts += 1;
+    if (record.attempts >= EMPLOYER_EMAIL_OTP_MAX_ATTEMPTS) employerEmailOtps.delete(email);
+    return res.status(400).json({ error: record.attempts >= EMPLOYER_EMAIL_OTP_MAX_ATTEMPTS ? "Too many incorrect attempts. Request a new code." : "That verification code is not correct." });
+  }
+  employerEmailOtps.delete(email);
+  const verificationToken = jwt.sign({ purpose: "employer-email-verification", email }, process.env.JWT_SECRET, { expiresIn: "15m" });
+  res.json({ message: "Email verified successfully.", verificationToken });
+});
+
 app.post("/api/employers/register", async (req, res) => {
   try {
-    const { fullName, email, mobile, companyName, website, companyType, industry, companySize, city, state, password } = req.body;
+    const { fullName, email, mobile, companyName, website, companyType, industry, companySize, city, state, password, emailVerificationToken } = req.body;
     const cleanEmail = String(email || "").toLowerCase().trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || String(password || "").length < 8 || !cleanText(companyName, 200) || !cleanText(fullName, 120)) return res.status(400).json({ error: "Enter a valid work email, company name, full name, and an 8-character password." });
     if (website && !/^https:\/\//i.test(String(website))) return res.status(400).json({ error: "Company website must start with https://" });
+    let verification;
+    try { verification = jwt.verify(String(emailVerificationToken || ""), process.env.JWT_SECRET); } catch { return res.status(400).json({ error: "Verify your work email before creating an employer account." }); }
+    if (verification?.purpose !== "employer-email-verification" || verification.email !== cleanEmail) return res.status(400).json({ error: "Verify this work email before creating an employer account." });
     const existing = await db.query("SELECT id FROM users WHERE email = $1", [cleanEmail]);
     if (existing.rows.length) return res.status(409).json({ error: "An account already exists for this email." });
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = (await db.query("INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,'employer',TRUE) RETURNING id, username, email, role", [cleanText(fullName, 120), cleanEmail, passwordHash])).rows[0];
+    const user = (await db.query("INSERT INTO users (username, email, password, role, is_approved, employer_email_verified, employer_email_verified_at) VALUES ($1,$2,$3,'employer',TRUE,TRUE,NOW()) RETURNING id, username, email, role", [cleanText(fullName, 120), cleanEmail, passwordHash])).rows[0];
     await db.query("INSERT INTO employer_profiles (user_id, full_name, mobile, company_name, website, company_type, industry, company_size, city, state, contact_email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [user.id, cleanText(fullName,120), cleanText(mobile,30), cleanText(companyName,200), cleanText(website,300), cleanText(companyType,100), cleanText(industry,120), cleanText(companySize,80), cleanText(city,120), cleanText(state,120), cleanEmail]);
     const token = jwt.sign({ id: user.id, email: user.email, role: "employer" }, process.env.JWT_SECRET);
     res.status(201).json({ token, role: "employer", userId: user.id, username: user.username });
@@ -2920,7 +2993,7 @@ app.post("/api/google-login", async (req, res) => {
         }
         if (website && !/^https:\/\//i.test(String(website))) return res.status(400).json({ error: "Company website must start with https://" });
         const newEmployer = await db.query(
-          "INSERT INTO users (username, email, password, role, is_approved, employer_verified) VALUES ($1,$2,$3,'employer',TRUE,TRUE) RETURNING *",
+          "INSERT INTO users (username, email, password, role, is_approved, employer_verified, employer_email_verified, employer_email_verified_at) VALUES ($1,$2,$3,'employer',TRUE,TRUE,TRUE,NOW()) RETURNING *",
           [cleanText(fullName, 120), email, "google-auth-employer",]
         );
         user = newEmployer.rows[0];
