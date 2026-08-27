@@ -443,6 +443,21 @@ async function ensureCompanyJobAgentTables() {
     WHERE LOWER(j.company)=LOWER(s.name) AND j.employer_id IS NULL
       AND j.job_category='Private' AND (j.country IS NULL OR j.country IN ('', 'in', 'global'))
       AND s.country <> 'global'`);
+
+  // Keep a small, verified correction list for resources whose old careers
+  // endpoint has moved. More links can be added after official verification.
+  await db.query(
+    "UPDATE company_job_sources SET url=$1, enabled=TRUE, last_scan_error=NULL, scan_failure_count=0 WHERE name='ALDI Sud Germany'",
+    ["https://jobs.aldi-sued.de/viewalljobs/?locale=de_DE"]
+  );
+
+  // Do not repeatedly hit endpoints that are conclusively unavailable or
+  // unsafe. They remain visible in the dashboard and can be retried later.
+  await db.query(`UPDATE company_job_sources
+    SET enabled=FALSE,
+        last_scan_error=CASE WHEN last_scan_error LIKE 'Paused:%' THEN last_scan_error ELSE 'Paused: unavailable or unsafe resource. ' || last_scan_error END
+    WHERE enabled=TRUE AND last_scan_error IS NOT NULL
+      AND last_scan_error ~* 'status code 404|enotfound|certificate has expired|self-signed certificate|unable to verify the first certificate|hostname/ip does not match certificate|unsupported protocol'`);
 }
 
 function inferSourceCountry(...values) {
