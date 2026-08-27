@@ -412,6 +412,7 @@ async function ensureCompanyJobAgentTables() {
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_scan_at TIMESTAMPTZ"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_scan_error TEXT"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_found_count INTEGER NOT NULL DEFAULT 0"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS scan_failure_count INTEGER NOT NULL DEFAULT 0"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'global'"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE"),
   ]);
@@ -660,6 +661,27 @@ function isSafeCompanySourceUrl(value) {
   }
 }
 
+function companySourceFailurePolicy(errorMessage) {
+  const message = String(errorMessage || "").toLowerCase();
+  const permanentlyUnavailable = /status code 404|enotfound|certificate has expired|self-signed certificate|unable to verify the first certificate|hostname\/ip does not match certificate|unsupported protocol/.test(message);
+  const blockedOrUnreliable = /status code 403|status code 405|status code 406|status code 429|timeout|econnreset|econnrefused|eproto|socket hang up|maximum number of redirects/.test(message);
+  return { pauseAfter: permanentlyUnavailable ? 1 : blockedOrUnreliable ? 3 : 4, reason: permanentlyUnavailable ? "unavailable" : blockedOrUnreliable ? "blocked or unreliable" : "repeated scan failure" };
+}
+
+async function markCompanySourceScanFailure(source, error) {
+  const message = cleanText(error?.message || "Could not reach this resource.", 500);
+  const policy = companySourceFailurePolicy(message);
+  const failures = Number(source.scan_failure_count || 0) + 1;
+  const paused = failures >= policy.pauseAfter;
+  await db.query(
+    `UPDATE company_job_sources
+     SET last_scan_at=NOW(), last_scan_error=$1, last_found_count=0,
+         scan_failure_count=$2, enabled=CASE WHEN $3 THEN FALSE ELSE enabled END
+     WHERE id=$4`,
+    [paused ? `Paused: ${policy.reason}. ${message}` : message, failures, paused, source.id]
+  );
+}
+
 async function scanCompanyJobSources() {
   if (companyJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0, unavailable: 0 };
 
@@ -667,7 +689,7 @@ async function scanCompanyJobSources() {
 
   try {
     const { rows: sources } = await db.query(
-      "SELECT id, name, url, job_category, country FROM company_job_sources WHERE enabled = TRUE"
+      "SELECT id, name, url, job_category, country, scan_failure_count FROM company_job_sources WHERE enabled = TRUE"
     );
     let discovered = 0;
     let unavailable = 0;
@@ -709,12 +731,12 @@ async function scanCompanyJobSources() {
             );
             if (inserted.rows[0]?.was_inserted) found += 1;
           }
-          await db.query("UPDATE company_job_sources SET last_scan_at=NOW(), last_scan_error=NULL, last_found_count=$1 WHERE id=$2", [found, source.id]);
+          await db.query("UPDATE company_job_sources SET last_scan_at=NOW(), last_scan_error=NULL, last_found_count=$1, scan_failure_count=0 WHERE id=$2", [found, source.id]);
           return { found, unavailable: false };
         } catch (error) {
           // A careers website may block automated access, move its page, or
           // have a certificate problem. Skip it and continue with all others.
-          await db.query("UPDATE company_job_sources SET last_scan_at=NOW(), last_scan_error=$1, last_found_count=0 WHERE id=$2", [cleanText(error.message, 500), source.id]).catch(() => {});
+          await markCompanySourceScanFailure(source, error).catch(() => {});
           return { found: 0, unavailable: true };
         }
       }));
@@ -1512,6 +1534,18 @@ app.delete("/api/company-job-agent/sources/:id", verifyToken, isAdmin, async (re
   } catch (error) {
     res.status(500).json({ error: "Could not remove company job source" });
   }
+});
+
+app.patch("/api/company-job-agent/sources/:id", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true;
+    const result = await db.query(
+      "UPDATE company_job_sources SET enabled=$1, scan_failure_count=CASE WHEN $1 THEN 0 ELSE scan_failure_count END, last_scan_error=CASE WHEN $1 THEN NULL ELSE last_scan_error END WHERE id=$2 RETURNING *",
+      [enabled, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Source not found" });
+    res.json(result.rows[0]);
+  } catch (error) { res.status(500).json({ error: "Could not update company source" }); }
 });
 
 app.get("/api/company-job-agent/drafts", verifyToken, isAdmin, async (req, res) => {

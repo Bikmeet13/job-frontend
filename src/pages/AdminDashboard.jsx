@@ -627,6 +627,18 @@ const removeCompanySource = async (id) => {
   }
 };
 
+const setCompanySourceEnabled = async (source, enabled) => {
+  try {
+    await axios.patch(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/sources/${source.id}`,
+      { enabled },
+      governmentAgentHeaders()
+    );
+    toast.success(enabled ? "Source re-enabled for the next scan" : "Source paused");
+    fetchCompanyJobAgentData();
+  } catch (err) { toast.error("Could not update this source"); }
+};
+
 const fetchVisaJobAgentData = async () => {
   try {
     const [sources, drafts] = await Promise.all([
@@ -926,7 +938,7 @@ const filteredJobs = (jobs || []).filter((job) => {
           {companySources.map((source) => (
             <div key={source.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
               <span><b>{source.name}</b> ({source.job_category} · {(COUNTRIES.find((country) => country.code === source.country)?.name) || "Global"}) — {source.url}<small className={`block mt-1 ${source.last_scan_error ? "text-red-600" : "text-gray-500"}`}>{source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"}</small></span>
-              <button onClick={() => removeCompanySource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button>
+              <div className="flex gap-3"><button onClick={() => setCompanySourceEnabled(source, !source.enabled)} className="font-semibold text-blue-700 hover:text-blue-900">{source.enabled ? "Pause" : "Retry"}</button><button onClick={() => removeCompanySource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button></div>
             </div>
           ))}
           {companySources.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">Add an official company careers page first, then scan it.</p>}
