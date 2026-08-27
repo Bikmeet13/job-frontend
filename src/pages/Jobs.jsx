@@ -548,7 +548,7 @@ if (loading) {
 
     {token && (
   <div
-    onClick={() => navigate("/profile")}
+    onClick={() => navigate(role === "employer" ? "/employer/dashboard" : "/profile")}
     className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition"
   >
     <img
@@ -563,7 +563,7 @@ if (loading) {
 
     {/* ❌ Only hide THIS on mobile */}
     <span className="font-semibold text-blue-600 hidden md:block">
-      {username}
+      {role === "employer" ? `${username || "Employer"} · Employer` : username}
     </span>
   </div>
 )}
@@ -615,7 +615,7 @@ if (loading) {
     {token ? (
   <>
     <button
-      onClick={() => navigate("/dashboard")}
+      onClick={() => navigate(role === "employer" ? "/employer/dashboard" : "/dashboard")}
       className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
   hover:bg-blue-600 hover:text-white hover:scale-105 
   hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
@@ -628,6 +628,9 @@ if (loading) {
         localStorage.removeItem("token");
 localStorage.removeItem("role");
 localStorage.removeItem("userId");
+localStorage.removeItem("username");
+localStorage.removeItem("email");
+localStorage.removeItem("profilePic");
          toast.success("Logged out 👋");
 
   window.location.href = "/login";
@@ -708,21 +711,21 @@ localStorage.removeItem("userId");
 )}
 
       <button
-  onClick={() => navigate("/profile")}
+  onClick={() => navigate(role === "employer" ? "/employer/dashboard" : "/profile")}
   className={`px-4 py-2 rounded-xl font-medium transition-all duration-300
   hover:bg-blue-600 hover:text-white hover:scale-105 
   hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]
   ${darkMode ? "text-gray-200" : "text-gray-700"}`}
 >
-  Profile
+  {role === "employer" ? "Employer Dashboard" : "Profile"}
 </button>
 
-      <button onClick={() => navigate("/dashboard")}
+      <button onClick={() => navigate(role === "employer" ? "/employer/dashboard" : "/dashboard")}
          className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
   hover:bg-blue-600 hover:text-white hover:scale-105 
   hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
 >
-        Dashboard
+        {role === "employer" ? "Post & manage jobs" : "Dashboard"}
       </button>
 
      {(role === "admin" || role === "superadmin") && (

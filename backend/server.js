@@ -1268,7 +1268,7 @@ app.post("/api/employers/register", async (req, res) => {
     const user = (await db.query("INSERT INTO users (username, email, password, role, is_approved, employer_email_verified, employer_email_verified_at) VALUES ($1,$2,$3,'employer',TRUE,TRUE,NOW()) RETURNING id, username, email, role", [cleanText(fullName, 120), cleanEmail, passwordHash])).rows[0];
     await db.query("INSERT INTO employer_profiles (user_id, full_name, mobile, company_name, website, company_type, industry, company_size, city, state, contact_email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [user.id, cleanText(fullName,120), cleanText(mobile,30), cleanText(companyName,200), cleanText(website,300), cleanText(companyType,100), cleanText(industry,120), cleanText(companySize,80), cleanText(city,120), cleanText(state,120), cleanEmail]);
     const token = jwt.sign({ id: user.id, email: user.email, role: "employer" }, process.env.JWT_SECRET);
-    res.status(201).json({ token, role: "employer", userId: user.id, username: user.username });
+    res.status(201).json({ token, role: "employer", userId: user.id, username: user.username, email: user.email });
   } catch (error) { console.error("Employer registration failed:", error.message); res.status(500).json({ error: "Could not create employer account." }); }
 });
 app.get("/api/featured-jobs", async (req, res) => {
@@ -1315,7 +1315,7 @@ app.post("/api/employers/login", async (req, res) => {
     if (!user || !(await bcrypt.compare(String(req.body.password || ""), user.password))) return res.status(401).json({ error: "Invalid employer email or password." });
     if (user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET);
-    res.json({ token, role: user.role, userId: user.id, username: user.username });
+    res.json({ token, role: user.role, userId: user.id, username: user.username, email: user.email });
   } catch { res.status(500).json({ error: "Could not sign in." }); }
 });
 

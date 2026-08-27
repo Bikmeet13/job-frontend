@@ -22,8 +22,10 @@ export default function EmployerAuth({ login = false }) {
     if (name === "email") { setOtp(""); setVerificationToken(""); }
   };
   const finishSignIn = (data, message, startFresh = false) => {
+    // An employer session must not inherit a previous candidate's profile data.
+    localStorage.removeItem("profilePic");
     localStorage.setItem("token", data.token); localStorage.setItem("role", "employer"); localStorage.setItem("userId", data.userId); localStorage.setItem("username", data.username || "");
-    if (data.email) localStorage.setItem("email", data.email);
+    localStorage.setItem("email", data.email || "");
     toast.success(message);
     if (startFresh) window.location.assign("/employer/dashboard");
     else navigate("/employer/dashboard");
