@@ -407,7 +407,56 @@ async function ensureCompanyJobAgentTables() {
 
   // Existing Railway databases already have this table, so add the new
   // classification field safely during startup as well.
-  await db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE");
+  await Promise.all([
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'global'"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_scan_at TIMESTAMPTZ"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_scan_error TEXT"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_found_count INTEGER NOT NULL DEFAULT 0"),
+    db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'global'"),
+    db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE"),
+  ]);
+
+  // Sources added before country tracking existed are repaired during startup.
+  const sources = await db.query("SELECT id, name, url, country FROM company_job_sources");
+  for (const source of sources.rows) {
+    const inferredCountry = inferSourceCountry(source.name, source.url);
+    if ((source.country === "global" || !source.country) && inferredCountry !== "global") {
+      await db.query("UPDATE company_job_sources SET country=$1 WHERE id=$2", [inferredCountry, source.id]);
+    }
+  }
+  await db.query(`UPDATE company_job_drafts d SET country=s.country
+    FROM company_job_sources s
+    WHERE d.source_id=s.id AND (d.country IS NULL OR d.country='global') AND s.country <> 'global'`);
+  await db.query(`UPDATE jobs j SET country=s.country
+    FROM company_job_sources s
+    WHERE LOWER(j.company)=LOWER(s.name) AND j.employer_id IS NULL
+      AND j.job_category='Private' AND (j.country IS NULL OR j.country IN ('', 'in', 'global'))
+      AND s.country <> 'global'`);
+}
+
+function inferSourceCountry(...values) {
+  const text = values.join(" ").toLowerCase();
+  const namedCountries = [
+    ["united states", "us"], ["usa", "us"], ["united kingdom", "gb"], [" uk ", "gb"],
+    ["germany", "de"], ["deutschland", "de"], ["canada", "ca"], ["australia", "au"],
+    ["new zealand", "nz"], ["ireland", "ie"], ["france", "fr"], ["spain", "es"], ["italy", "it"],
+    ["netherlands", "nl"], ["poland", "pl"], ["finland", "fi"], ["denmark", "dk"], ["sweden", "se"],
+    ["norway", "no"], ["belgium", "be"], ["switzerland", "ch"], ["austria", "at"], ["portugal", "pt"],
+    ["india", "in"], ["japan", "jp"], ["south korea", "kr"], ["korea", "kr"], ["singapore", "sg"],
+    ["malaysia", "my"], ["indonesia", "id"], ["philippines", "ph"], ["vietnam", "vn"], ["thailand", "th"],
+    ["china", "cn"], ["taiwan", "tw"], ["pakistan", "pk"], ["bangladesh", "bd"], ["brazil", "br"],
+    ["mexico", "mx"], ["argentina", "ar"], ["colombia", "co"], ["chile", "cl"], ["peru", "pe"],
+    ["south africa", "za"], ["nigeria", "ng"], ["kenya", "ke"], ["egypt", "eg"], ["saudi", "sa"],
+    ["united arab emirates", "ae"], ["uae", "ae"], ["turkey", "tr"], ["türkiye", "tr"], ["russia", "ru"],
+  ];
+  const named = namedCountries.find(([name]) => text.includes(name));
+  if (named) return named[1];
+  try {
+    const host = new URL(values.find((value) => String(value || "").startsWith("http")) || "").hostname.toLowerCase();
+    if (host.endsWith(".co.uk")) return "gb";
+    const tld = host.split(".").pop();
+    return /^[a-z]{2}$/.test(tld) && !["io", "ai", "tv"].includes(tld) ? tld : "global";
+  } catch { return "global"; }
 }
 
 const visaJobDefaultSources = [
@@ -450,11 +499,33 @@ const visaJobDefaultSources = [
   ["Belgium Actiris", "https://www.actiris.brussels/en/citizens/jobseekers/", "be"],
 ];
 
+// These are official national or public job boards expressly intended to help
+// overseas applicants find work. Individual listings often do not repeat the
+// phrase "visa sponsorship", so rejecting them solely on that phrase leaves
+// their country with no results (notably Germany's official Make it in Germany board).
+const trustedVisaListingSources = new Set([
+  "Canada Job Bank", "Make it in Germany", "UK Find a Job", "Workforce Australia",
+  "JobsIreland", "Work in Finland", "Work in Denmark", "France Travail",
+  "Netherlands Werk.nl", "Sweden Platsbanken", "Singapore MyCareersFuture",
+  "EURES European Job Network", "New Zealand Government Jobs", "Poland ePraca",
+  "Brazil Emprega Brasil", "South African Government Jobs", "South Africa SITA eRecruitment",
+  "India National Career Service", "Japan Hello Work", "Philippines PhilJobNet",
+  "Malaysia MYFutureJobs", "Portugal IEFP Online", "Italy Cliclavoro", "Norway NAV Jobs",
+  "Estonia Unemployment Insurance Fund", "Croatia Employment Service", "Latvia State Employment Agency",
+  "Lithuania Employment Service", "Romania National Employment Agency", "Greece Public Employment Service",
+  "Türkiye İşkur", "Spain Empléate", "Belgium Actiris",
+]);
+
 async function ensureVisaJobAgentTables() {
   await db.query(`CREATE TABLE IF NOT EXISTS visa_job_sources (
     id SERIAL PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL UNIQUE,
     country TEXT NOT NULL DEFAULT 'global', enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await Promise.all([
+    db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS last_scan_at TIMESTAMPTZ"),
+    db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS last_scan_error TEXT"),
+    db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS last_found_count INTEGER NOT NULL DEFAULT 0"),
+  ]);
   await db.query(`CREATE TABLE IF NOT EXISTS visa_job_drafts (
     id SERIAL PRIMARY KEY, source_id INTEGER, source_name TEXT NOT NULL, source_url TEXT NOT NULL,
     country TEXT NOT NULL DEFAULT 'global', title TEXT NOT NULL, apply_link TEXT NOT NULL UNIQUE,
@@ -586,7 +657,7 @@ async function scanCompanyJobSources() {
 
   try {
     const { rows: sources } = await db.query(
-      "SELECT id, name, url, job_category FROM company_job_sources WHERE enabled = TRUE"
+      "SELECT id, name, url, job_category, country FROM company_job_sources WHERE enabled = TRUE"
     );
     let discovered = 0;
     let unavailable = 0;
@@ -617,21 +688,23 @@ async function scanCompanyJobSources() {
             const visaSponsorship = visaMatches.get(listing.applyLink)
               || hasVisaSponsorship(`${listing.title} ${listing.applyLink} ${listing.context}`);
             const inserted = await db.query(
-              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, title, apply_link, visa_sponsorship)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
+              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, country, title, apply_link, visa_sponsorship)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                ON CONFLICT (apply_link) DO UPDATE
                SET visa_sponsorship = TRUE
                WHERE company_job_drafts.status = 'pending'
                  AND EXCLUDED.visa_sponsorship = TRUE
                RETURNING id, (xmax = 0) AS was_inserted`,
-              [source.id, source.name, source.url, source.job_category, listing.title, listing.applyLink, visaSponsorship]
+              [source.id, source.name, source.url, source.job_category, source.country || inferSourceCountry(source.name, source.url), listing.title, listing.applyLink, visaSponsorship]
             );
             if (inserted.rows[0]?.was_inserted) found += 1;
           }
+          await db.query("UPDATE company_job_sources SET last_scan_at=NOW(), last_scan_error=NULL, last_found_count=$1 WHERE id=$2", [found, source.id]);
           return { found, unavailable: false };
         } catch (error) {
           // A careers website may block automated access, move its page, or
           // have a certificate problem. Skip it and continue with all others.
+          await db.query("UPDATE company_job_sources SET last_scan_at=NOW(), last_scan_error=$1, last_found_count=0 WHERE id=$2", [cleanText(error.message, 500), source.id]).catch(() => {});
           return { found: 0, unavailable: true };
         }
       }));
@@ -670,15 +743,21 @@ async function scanVisaJobSources() {
           await Promise.all(listings.slice(0, 8).map(async (listing) => checks.set(listing.applyLink, await hasVisaSponsorshipOnJobPage(listing))));
           let found = 0;
           for (const listing of listings) {
-            const sponsored = checks.get(listing.applyLink) || hasVisaSponsorship(`${listing.title} ${listing.context} ${listing.applyLink}`);
+            const sponsored = trustedVisaListingSources.has(source.name)
+              || checks.get(listing.applyLink)
+              || hasVisaSponsorship(`${listing.title} ${listing.context} ${listing.applyLink}`);
             if (!sponsored) continue;
             const inserted = await db.query(`INSERT INTO visa_job_drafts (source_id, source_name, source_url, country, title, apply_link)
               VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (apply_link) DO NOTHING RETURNING id`,
               [source.id, source.name, source.url, source.country, listing.title, listing.applyLink]);
             if (inserted.rows.length) found += 1;
           }
+          await db.query("UPDATE visa_job_sources SET last_scan_at=NOW(), last_scan_error=NULL, last_found_count=$1 WHERE id=$2", [found, source.id]);
           return found;
-        } catch { return 0; }
+        } catch (error) {
+          await db.query("UPDATE visa_job_sources SET last_scan_at=NOW(), last_scan_error=$1, last_found_count=0 WHERE id=$2", [cleanText(error.message, 500), source.id]).catch(() => {});
+          return 0;
+        }
       }));
       discovered += results.reduce((total, value) => total + value, 0);
     }
@@ -1397,16 +1476,17 @@ app.get("/api/company-job-agent/sources", verifyToken, isAdmin, async (req, res)
 });
 
 app.post("/api/company-job-agent/sources", verifyToken, isAdmin, async (req, res) => {
-  const { name, url, jobCategory = "Private" } = req.body;
+  const { name, url, jobCategory = "Private", country } = req.body;
   if (!name?.trim() || !isSafeCompanySourceUrl(url)) {
     return res.status(400).json({ error: "Use a verified HTTPS company careers URL" });
   }
   const category = jobCategory === "Government" ? "Government" : "Private";
+  const sourceCountry = /^[a-z]{2}$/i.test(String(country || "")) ? String(country).toLowerCase() : inferSourceCountry(name, url);
 
   try {
     const result = await db.query(
-      "INSERT INTO company_job_sources (name, url, job_category) VALUES ($1, $2, $3) RETURNING *",
-      [name.trim(), url.trim(), category]
+      "INSERT INTO company_job_sources (name, url, job_category, country) VALUES ($1, $2, $3, $4) RETURNING *",
+      [name.trim(), url.trim(), category, sourceCountry]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -1474,7 +1554,7 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
         false,
         draft.apply_link,
         draft.job_category === "Government" ? "Government" : "Private",
-        draft.visa_sponsorship ? "global" : "in",
+        draft.country || inferSourceCountry(draft.source_name, draft.source_url),
         "Check company careers page",
       ]
     );

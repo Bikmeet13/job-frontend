@@ -46,6 +46,7 @@ const [companyDrafts, setCompanyDrafts] = useState([]);
 const [companySourceName, setCompanySourceName] = useState("");
 const [companySourceUrl, setCompanySourceUrl] = useState("");
 const [companySourceCategory, setCompanySourceCategory] = useState("Private");
+const [companySourceCountry, setCompanySourceCountry] = useState("global");
 const [companyScanning, setCompanyScanning] = useState(false);
 const [visaSources, setVisaSources] = useState([]);
 const [visaDrafts, setVisaDrafts] = useState([]);
@@ -536,12 +537,13 @@ const addCompanySource = async (e) => {
   try {
     await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/sources",
-      { name: companySourceName, url: companySourceUrl, jobCategory: companySourceCategory },
+      { name: companySourceName, url: companySourceUrl, jobCategory: companySourceCategory, country: companySourceCountry },
       governmentAgentHeaders()
     );
     setCompanySourceName("");
     setCompanySourceUrl("");
     setCompanySourceCategory("Private");
+    setCompanySourceCountry("global");
     toast.success("Company careers source added");
     fetchCompanyJobAgentData();
   } catch (err) {
@@ -875,11 +877,11 @@ const filteredJobs = (jobs || []).filter((job) => {
         </button>
         {showVisaAgent && <>
           <div className="mb-4 mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-violet-800">Official public resources and specialist visa-job sources are scanned separately. Only openings with clear visa wording are added for review.</p>
+            <p className="text-sm text-violet-800">Official international job resources are scanned separately. Listings from trusted public work-visa resources are sent for your review; always confirm visa eligibility on the official listing.</p>
             <button onClick={scanVisaSources} disabled={visaScanning || !visaSources.length} className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{visaScanning ? "Scanning sponsored jobs..." : "Scan visa resources"}</button>
           </div>
           <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="block text-xs text-gray-500">{source.country.toUpperCase()} · Job resource ↗</span></a>)}
+            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="block text-xs text-gray-500">{source.country.toUpperCase()} · {source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"} ↗</span></a>)}
           </div>
           <h3 className="mb-2 font-bold text-violet-950">Visa openings waiting for review ({visaDrafts.length})</h3>
           <div className="space-y-3">
@@ -906,12 +908,16 @@ const filteredJobs = (jobs || []).filter((job) => {
           </button>
         </div>
 
-        <form onSubmit={addCompanySource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_150px_auto]">
+        <form onSubmit={addCompanySource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_160px_150px_auto]">
           <input value={companySourceName} onChange={(e) => setCompanySourceName(e.target.value)} placeholder="Company name (for example, TCS)" className="rounded-lg border p-2" required />
           <input type="url" value={companySourceUrl} onChange={(e) => setCompanySourceUrl(e.target.value)} placeholder="Verified HTTPS company careers page" className="rounded-lg border p-2" required />
           <select value={companySourceCategory} onChange={(e) => setCompanySourceCategory(e.target.value)} className="rounded-lg border p-2">
             <option value="Private">Private company</option>
             <option value="Government">PSU / public-sector</option>
+          </select>
+          <select value={companySourceCountry} onChange={(e) => setCompanySourceCountry(e.target.value)} className="rounded-lg border p-2" aria-label="Country for this resource">
+            <option value="global">Global / multiple countries</option>
+            {COUNTRIES.map(({ code, name }) => <option key={code} value={code}>{name}</option>)}
           </select>
           <button type="submit" className="rounded-lg bg-slate-800 px-4 py-2 font-semibold text-white hover:bg-slate-900">Add source</button>
         </form>
@@ -919,7 +925,7 @@ const filteredJobs = (jobs || []).filter((job) => {
         <div className="mb-5 space-y-2">
           {companySources.map((source) => (
             <div key={source.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <span><b>{source.name}</b> ({source.job_category}) — {source.url}</span>
+              <span><b>{source.name}</b> ({source.job_category} · {(COUNTRIES.find((country) => country.code === source.country)?.name) || "Global"}) — {source.url}<small className={`block mt-1 ${source.last_scan_error ? "text-red-600" : "text-gray-500"}`}>{source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"}</small></span>
               <button onClick={() => removeCompanySource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button>
             </div>
           ))}
