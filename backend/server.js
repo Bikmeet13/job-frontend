@@ -1053,7 +1053,6 @@ function employerPostingRateLimit(req, res, next) {
   const previous = employerPostAttempts.get(req.user.id) || 0;
   const remaining = 60 * 1000 - (Date.now() - previous);
   if (remaining > 0) return res.status(429).json({ error: "Please wait one minute before posting another job." });
-  employerPostAttempts.set(req.user.id, Date.now());
   next();
 }
 
@@ -1275,6 +1274,7 @@ app.post("/api/employer/jobs", verifyToken, isEmployer, employerPostingRateLimit
     const result = await db.query(`INSERT INTO jobs (title, company, location, salary, experience, skills, description, type, mode, apply_enabled, apply_link, job_category, country, last_date, employer_id, employer_status, roles_responsibilities, education, openings, application_method) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,$10,$11,'in',$12,$13,'Pending Review',$14,$15,$16,$17) RETURNING id`, [cleanText(body.title,300), profile?.company_name || cleanText(body.companyName,200), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), cleanText(body.applicationValue,500), cleanText(body.jobCategory,120), cleanText(body.deadline,40), req.user.id, cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, cleanText(body.applicationMethod,30)]);
     const slug = makeJobSlug(body.title, profile?.company_name || body.companyName, result.rows[0].id);
     await db.query("UPDATE jobs SET job_slug = $1 WHERE id = $2", [slug, result.rows[0].id]);
+    employerPostAttempts.set(req.user.id, Date.now());
     res.status(201).json({ message: "Job submitted for review", id: result.rows[0].id, slug });
   } catch (error) { console.error("Employer post job failed:", error.message); res.status(500).json({ error: "Could not submit job." }); }
 });
