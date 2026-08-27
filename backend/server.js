@@ -427,6 +427,16 @@ async function ensureCompanyJobAgentTables() {
   await db.query(`UPDATE company_job_drafts d SET country=s.country
     FROM company_job_sources s
     WHERE d.source_id=s.id AND (d.country IS NULL OR d.country='global') AND s.country <> 'global'`);
+  // The public country selector uses ISO "gb" (not the legacy "uk" value).
+  // EU-wide resources are intentionally available to every country filter.
+  await Promise.all([
+    db.query("UPDATE company_job_sources SET country='gb' WHERE country='uk'"),
+    db.query("UPDATE company_job_drafts SET country='gb' WHERE country='uk'"),
+    db.query("UPDATE jobs SET country='gb' WHERE country='uk'"),
+    db.query("UPDATE company_job_sources SET country='global' WHERE country='eu'"),
+    db.query("UPDATE company_job_drafts SET country='global' WHERE country='eu'"),
+    db.query("UPDATE jobs SET country='global' WHERE country='eu'"),
+  ]);
   await db.query(`UPDATE jobs j SET country=s.country
     FROM company_job_sources s
     WHERE LOWER(j.company)=LOWER(s.name) AND j.employer_id IS NULL

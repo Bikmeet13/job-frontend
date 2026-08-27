@@ -340,9 +340,10 @@ localStorage.setItem(
   const internalJobMatchesCountry = (job) => {
     const jobCountry = String(job.country || job.country_code || "").toLowerCase();
 
-    // Agent-detected sponsored roles can be open to international applicants
-    // even when the source does not publish one destination country.
-    if (jobCountry === "global" && job.mode === "Visa") return true;
+    // International and EU-wide resources can be relevant regardless of the
+    // visitor's selected country. Individual listings still link to the
+    // official source so candidates can confirm eligibility.
+    if (jobCountry === "global") return true;
 
     // Existing internal jobs were created for India before a country field existed.
     if (!jobCountry) return country === "in";
