@@ -9,7 +9,7 @@ export default function EmployerLanding() {
         <p className="mb-3 font-semibold text-blue-100">FOR EMPLOYERS</p>
         <h1 className="max-w-3xl text-4xl font-black leading-tight md:text-6xl">Hire Faster with MarketLence Jobs</h1>
         <p className="mt-5 max-w-2xl text-lg text-blue-50">Post your vacancies for free and connect with job seekers across India.</p>
-        <div className="mt-8 flex flex-wrap gap-4"><button onClick={() => navigate("/employer/register")} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 shadow hover:bg-blue-50">Post a Job Free</button><button onClick={() => navigate("/employer/login")} className="rounded-xl border border-white/80 px-6 py-3 font-bold hover:bg-white/10">Employer Login</button></div>
+        <div className="mt-8 flex flex-wrap gap-4"><button onClick={() => navigate(localStorage.getItem("role") === "employer" ? "/employer/post-job" : "/employer/register")} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 shadow hover:bg-blue-50">Post a Job Free</button><button onClick={() => navigate(localStorage.getItem("role") === "employer" ? "/employer/dashboard" : "/employer/login")} className="rounded-xl border border-white/80 px-6 py-3 font-bold hover:bg-white/10">{localStorage.getItem("role") === "employer" ? "Employer Dashboard" : "Employer Login"}</button></div>
       </section>
       <section className="mt-10 grid gap-5 md:grid-cols-3">
         {["Post jobs at no cost", "Reach active job seekers", "Review views and application clicks"].map((item) => <div key={item} className="rounded-2xl bg-white p-6 shadow-sm"><div className="text-2xl">✓</div><p className="mt-3 font-bold">{item}</p></div>)}
