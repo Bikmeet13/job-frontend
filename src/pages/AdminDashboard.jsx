@@ -915,9 +915,7 @@ const filteredJobs = (jobs || []).filter((job) => {
           <div>
             <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it.</p>
           </div>
-          <button onClick={scanCompanySources} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">
-            {companyScanning ? "Scanning company sources..." : "Scan company sources"}
-          </button>
+          <button onClick={scanCompanySources} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">{companyScanning ? "Scanning all company resources..." : "Scan all resources (restart paused)"}</button>
         </div>
 
         <form onSubmit={addCompanySource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_160px_150px_auto]">

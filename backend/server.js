@@ -1753,10 +1753,14 @@ app.post("/api/company-job-agent/scan", verifyToken, isAdmin, async (req, res) =
     return res.status(202).json({ started: false, message: "A company job scan is already running" });
   }
 
+  // A scan is an explicit admin request to retry every resource. Sources that
+  // remain unavailable will be paused again by the normal failure policy.
+  const restarted = await db.query("UPDATE company_job_sources SET enabled=TRUE, scan_failure_count=0, last_scan_error=NULL WHERE enabled=FALSE RETURNING id");
+
   // Do not keep the browser request open while hundreds of sources are read.
   // Railway can otherwise end the request before the scan has finished.
   scanCompanyJobSources().catch((error) => console.log("Company job scan failed:", error.message));
-  res.status(202).json({ started: true, message: "Company job scan started in the background" });
+  res.status(202).json({ started: true, restarted: restarted.rows.length, message: `Company job scan started. ${restarted.rows.length} paused resource(s) restarted automatically.` });
 });
 
 app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {
