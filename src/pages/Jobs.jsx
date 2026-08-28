@@ -1063,6 +1063,9 @@ localStorage.removeItem("profilePic");
   const postedDate = postedValue && !Number.isNaN(new Date(postedValue).getTime())
     ? new Date(postedValue).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : "Recently";
+  // A feature selected during posting should be visibly premium while the
+  // promotion request is being completed, not look like an ordinary job card.
+  const isPremiumJob = Boolean(job.is_featured || job.feature_requested_plan || job.featureRequestedPlan);
 
   return (
     <motion.div
@@ -1076,14 +1079,14 @@ localStorage.removeItem("profilePic");
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-       className={`relative rounded-2xl p-6 pt-20 shadow-lg flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${job.is_featured ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "bg-gray-800 text-white" : "bg-white text-black"}`}
+       className={`relative rounded-2xl p-6 pt-20 shadow-lg flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${isPremiumJob ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "bg-gray-800 text-white" : "bg-white text-black"}`}
      >
 
       <div className="absolute left-4 top-4 -rotate-2 rounded-sm bg-amber-200 px-3 py-2 text-center text-xs font-bold text-amber-950 shadow-md ring-1 ring-amber-300">
         <span className="block uppercase tracking-wide">Posted</span>
         {postedDate}
       </div>
-      {job.is_featured && <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 px-3 py-1.5 text-xs font-black tracking-wide text-amber-950 shadow-lg shadow-amber-300/70">✦ PREMIUM FEATURED</span>}
+      {isPremiumJob && <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 px-3 py-1.5 text-xs font-black tracking-wide text-amber-950 shadow-lg shadow-amber-300/80">✦ PREMIUM FEATURED</span>}
 
                 {/* 🖼️ Logo + Info */}
                 <div className="flex items-center gap-4">
