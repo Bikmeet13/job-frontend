@@ -1449,6 +1449,7 @@ const data = await res.json();
       <p className="text-gray-400">
         care@marketlence.com
       </p>
+      <a href="tel:+919996810408" className="mt-2 block text-gray-400 hover:text-white">+91 99968 10408</a>
       <button onClick={() => navigate("/contact-us")} className="mt-3 font-semibold text-blue-300 hover:text-white">Contact Us</button>
     </div>
 
