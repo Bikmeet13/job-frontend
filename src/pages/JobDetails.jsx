@@ -131,6 +131,7 @@ function JobDetails() {
           </aside>
 
           <main className="rounded-3xl bg-white p-6 shadow-xl md:p-10">
+            {job.is_featured && <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 px-4 py-2 text-xs font-black tracking-wider text-amber-950 shadow-lg shadow-amber-300/70">✦ PREMIUM FEATURED JOB <span className="rounded-full bg-white/50 px-2 py-0.5 text-[10px]">PRIORITY LISTING</span></div>}
             <h1 className="break-words text-3xl font-bold text-gray-800 md:text-5xl">{job.title}</h1>
             <p className="mt-4 text-xl text-blue-600 md:text-2xl">{job.company}</p>
             <p className="mt-2 text-gray-500">Location: {job.location || "Not specified"}</p>
