@@ -1526,7 +1526,9 @@ app.patch("/api/admin/employers/:id", verifyToken, isAdmin, async (req, res) => 
   res.json(result.rows[0]);
 });
 app.get("/api/admin/employer-jobs", verifyToken, isAdmin, async (req, res) => {
-  const result = await db.query("SELECT j.*, p.company_name, u.email AS employer_email FROM jobs j JOIN employer_profiles p ON p.user_id=j.employer_id JOIN users u ON u.id=j.employer_id WHERE j.employer_id IS NOT NULL ORDER BY CASE WHEN j.employer_status='Pending Review' THEN 0 ELSE 1 END, j.posted_at DESC NULLS LAST");
+  // This is the moderation queue, not a history list. Once approved or rejected,
+  // a job must leave this queue immediately.
+  const result = await db.query("SELECT j.*, p.company_name, u.email AS employer_email FROM jobs j JOIN employer_profiles p ON p.user_id=j.employer_id JOIN users u ON u.id=j.employer_id WHERE j.employer_id IS NOT NULL AND j.employer_status='Pending Review' ORDER BY j.posted_at DESC NULLS LAST");
   res.json(result.rows);
 });
 app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res) => {
