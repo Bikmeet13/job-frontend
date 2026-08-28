@@ -440,11 +440,13 @@ localStorage.setItem(
   };
 
   const allJobs = [...filteredJobs, ...visibleExternalJobs].sort((a, b) => {
+    // Premium active jobs and jobs with a selected featured plan always lead
+    // the results, regardless of the selected secondary sort order.
+    const aPremium = Boolean(a.is_featured || a.feature_requested_plan || a.featureRequestedPlan);
+    const bPremium = Boolean(b.is_featured || b.feature_requested_plan || b.featureRequestedPlan);
+    if (aPremium !== bPremium) return aPremium ? -1 : 1;
     if (sortFilter === "oldest") return getPostedTime(a) - getPostedTime(b);
     if (sortFilter === "deadline") return getDeadlineTime(a) - getDeadlineTime(b);
-    // All jobs at this point have already matched the selected search/filter
-    // criteria, so a featured boost never pushes an unrelated job above results.
-    if (Boolean(a.is_featured) !== Boolean(b.is_featured)) return a.is_featured ? -1 : 1;
     return getPostedTime(b) - getPostedTime(a);
   });
 
@@ -1371,7 +1373,7 @@ const data = await res.json();
 {/* 🌙 Footer */}
 <footer className="bg-gray-900 text-white mt-20 rounded-2xl p-10">
 
-  <div className="grid md:grid-cols-3 gap-10">
+  <div className="grid gap-10 md:grid-cols-4">
 
     {/* Logo */}
     <div>
@@ -1420,6 +1422,21 @@ const data = await res.json();
       Signup
     </button>
   </li>
+  <li>
+    <button onClick={() => navigate("/privacy-policy")}>
+      Privacy Policy
+    </button>
+  </li>
+  <li>
+    <button onClick={() => navigate("/terms-and-conditions")}>
+      Terms & Conditions
+    </button>
+  </li>
+  <li>
+    <button onClick={() => navigate("/refund-cancellation-policy")}>
+      Refund & Cancellation
+    </button>
+  </li>
 </ul>
     </div>
 
@@ -1430,8 +1447,9 @@ const data = await res.json();
       </h3>
 
       <p className="text-gray-400">
-        support@marketlence.com
+        care@marketlence.com
       </p>
+      <button onClick={() => navigate("/contact-us")} className="mt-3 font-semibold text-blue-300 hover:text-white">Contact Us</button>
     </div>
 
   </div>

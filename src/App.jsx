@@ -23,6 +23,7 @@ import EmployerPostJob from "./pages/EmployerPostJob";
 import EmployerProfile from "./pages/EmployerProfile";
 import EmployerApplications from "./pages/EmployerApplications";
 import CandidateJobAlerts from "./pages/CandidateJobAlerts";
+import LegalPolicies from "./pages/LegalPolicies";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
 
@@ -46,6 +47,10 @@ function App() {
       <Route path="/employer/profile" element={<EmployerProfile />} />
       <Route path="/employer/applications" element={<EmployerApplications />} />
       <Route path="/candidate/job-alerts" element={<CandidateJobAlerts />} />
+      <Route path="/privacy-policy" element={<LegalPolicies />} />
+      <Route path="/terms-and-conditions" element={<LegalPolicies />} />
+      <Route path="/refund-cancellation-policy" element={<LegalPolicies />} />
+      <Route path="/contact-us" element={<LegalPolicies />} />
 
       <Route path="/saved-jobs" element={<SavedJobs />} />
 
