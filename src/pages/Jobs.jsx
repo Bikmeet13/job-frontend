@@ -62,6 +62,7 @@ const [sortFilter, setSortFilter] = useState("newest");
 const [appliedJobs, setAppliedJobs] = useState([]);
   
   const [selectedJob, setSelectedJob] = useState(null);
+  const [showContactDetails, setShowContactDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1453,14 +1454,10 @@ const data = await res.json();
       </h3>
 
       <p className="text-gray-400">
-        This website is operated by Bikramjeet Singh.
+        This website is operated by Bikramjeet Singh &amp; Team.
       </p>
-      <p className="mt-2 text-sm text-gray-400">426 Derapindoria, Kaithal Road, Assandh, Karnal, Haryana 132039, India</p>
-      <p className="mt-2 text-gray-400">
-        care@marketlence.com
-      </p>
-      <a href="tel:+919996810408" className="mt-2 block text-gray-400 hover:text-white">+91 99968 10408</a>
-      <button onClick={() => navigate("/contact-us")} className="mt-3 font-semibold text-blue-300 hover:text-white">Contact Us</button>
+      <button onClick={() => setShowContactDetails((visible) => !visible)} className="mt-3 font-semibold text-blue-300 hover:text-white">{showContactDetails ? "Hide details" : "More details"}</button>
+      {showContactDetails && <div className="mt-3 space-y-2 border-l border-gray-700 pl-3 text-sm text-gray-400"><p>426 Derapindoria, Kaithal Road, Assandh, Karnal, Haryana 132039, India</p><a href="mailto:care@marketlence.com" className="block hover:text-white">care@marketlence.com</a><a href="tel:+919996810408" className="block hover:text-white">+91 99968 10408</a><button onClick={() => navigate("/contact-us")} className="font-semibold text-blue-300 hover:text-white">Open Contact Us</button></div>}
     </div>
   </div>
 
