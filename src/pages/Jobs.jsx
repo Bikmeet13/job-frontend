@@ -1053,7 +1053,7 @@ localStorage.removeItem("profilePic");
 
         ) : (
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
 
            {allJobs.map((job) => {
             const appId = localStorage.getItem(`app_${job.id}`);
@@ -1085,7 +1085,7 @@ localStorage.removeItem("profilePic");
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-       className={`relative flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-6 pt-20 shadow-md transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${isPremiumJob ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-100 bg-white text-slate-900"}`}
+       className={`relative min-w-0 flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-5 pt-20 shadow-md transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-6 sm:pt-20 ${isPremiumJob ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-100 bg-white text-slate-900"}`}
      >
 
       <div className="absolute left-5 top-5 -rotate-2 rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] font-bold text-amber-950 shadow-sm ring-1 ring-amber-300">
@@ -1095,7 +1095,7 @@ localStorage.removeItem("profilePic");
       {isPremiumJob && <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 px-3 py-1.5 text-xs font-black tracking-wide text-amber-950 shadow-lg shadow-amber-300/80">✦ PREMIUM FEATURED</span>}
 
                 {/* 🖼️ Logo + Info */}
-                <div className="flex items-start gap-4">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                   
                   <img
                     src={
@@ -1106,12 +1106,12 @@ localStorage.removeItem("profilePic");
     : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 }
                     alt="logo"
-                    className="h-14 w-14 rounded-2xl bg-slate-100 object-cover p-1 shadow-sm ring-1 ring-slate-200"
+                    className="h-12 w-12 shrink-0 rounded-2xl bg-slate-100 object-cover p-1 shadow-sm ring-1 ring-slate-200 sm:h-14 sm:w-14"
                   />
 
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h2
-  className={`line-clamp-2 text-xl font-black leading-tight ${
+  className={`line-clamp-2 break-words text-xl font-black leading-tight ${
     darkMode
       ? "text-white"
       : "text-gray-800"
@@ -1120,17 +1120,17 @@ localStorage.removeItem("profilePic");
                       {job.title}
                     </h2>
 
-                    <div className={`mt-2 flex items-center gap-2 text-sm font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    <div className={`mt-2 flex min-w-0 items-center gap-2 text-sm font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
   <Briefcase size={16} />
-  <p>{job.company}</p>
+  <p className="min-w-0 break-words">{job.company}</p>
 </div>
 
-<div className={`mt-1 flex items-center gap-2 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+<div className={`mt-1 flex min-w-0 items-center gap-2 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
   <MapPin size={16} />
-  <p>{job.location}</p>
+  <p className="min-w-0 break-words">{job.location}</p>
 </div>
 <p
-  className={`mt-4 line-clamp-3 text-sm leading-6 ${
+  className={`mt-4 break-words line-clamp-3 text-sm leading-6 ${
     darkMode
       ? "text-gray-300"
       : "text-gray-500"
@@ -1261,7 +1261,7 @@ localStorage.removeItem("profilePic");
   <input
   type="file"
   accept=".pdf"
-  className="mb-3 w-full text-sm"
+  className="mb-3 block min-w-0 max-w-full text-sm"
 
   onClick={(e) => e.stopPropagation()}
 
