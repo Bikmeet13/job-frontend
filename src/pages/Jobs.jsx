@@ -47,9 +47,12 @@ const [userLocation, setUserLocation] = useState("");
   localStorage.getItem("jobLocation") || ""
 );
 
-const [modeFilter, setModeFilter] = useState(
-  localStorage.getItem("jobMode") || ""
-);
+const [modeFilter, setModeFilter] = useState(() => {
+  // Visa is a one-time discovery filter. Do not leave visitors stuck in the
+  // sponsored-only view after they refresh the page.
+  const savedMode = localStorage.getItem("jobMode") || "";
+  return savedMode === "Visa" ? "" : savedMode;
+});
 
 const [experienceFilter, setExperienceFilter] = useState("");
 
