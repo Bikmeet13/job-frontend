@@ -1085,17 +1085,17 @@ localStorage.removeItem("profilePic");
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-       className={`relative rounded-2xl p-6 pt-20 shadow-lg flex flex-col justify-between hover:-translate-y-2 hover:shadow-2xl transition duration-500 ${isPremiumJob ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "bg-gray-800 text-white" : "bg-white text-black"}`}
+       className={`relative flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-6 pt-20 shadow-md transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${isPremiumJob ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-100 bg-white text-slate-900"}`}
      >
 
-      <div className="absolute left-4 top-4 -rotate-2 rounded-sm bg-amber-200 px-3 py-2 text-center text-xs font-bold text-amber-950 shadow-md ring-1 ring-amber-300">
-        <span className="block uppercase tracking-wide">Posted</span>
+      <div className="absolute left-5 top-5 -rotate-2 rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] font-bold text-amber-950 shadow-sm ring-1 ring-amber-300">
+        <span className="block text-[9px] uppercase tracking-wider">Posted</span>
         {postedDate}
       </div>
       {isPremiumJob && <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 px-3 py-1.5 text-xs font-black tracking-wide text-amber-950 shadow-lg shadow-amber-300/80">✦ PREMIUM FEATURED</span>}
 
                 {/* 🖼️ Logo + Info */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-start gap-4">
                   
                   <img
                     src={
@@ -1106,12 +1106,12 @@ localStorage.removeItem("profilePic");
     : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 }
                     alt="logo"
-                    className="rounded-xl w-14 h-14"
+                    className="h-14 w-14 rounded-2xl bg-slate-100 object-cover p-1 shadow-sm ring-1 ring-slate-200"
                   />
 
                   <div>
                     <h2
-  className={`text-2xl font-bold ${
+  className={`line-clamp-2 text-xl font-black leading-tight ${
     darkMode
       ? "text-white"
       : "text-gray-800"
@@ -1120,17 +1120,17 @@ localStorage.removeItem("profilePic");
                       {job.title}
                     </h2>
 
-                    <div className="flex items-center gap-2 text-gray-600 mt-1">
+                    <div className={`mt-2 flex items-center gap-2 text-sm font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
   <Briefcase size={16} />
   <p>{job.company}</p>
 </div>
 
-<div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+<div className={`mt-1 flex items-center gap-2 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
   <MapPin size={16} />
   <p>{job.location}</p>
 </div>
 <p
-  className={`mt-3 line-clamp-4 ${
+  className={`mt-4 line-clamp-3 text-sm leading-6 ${
     darkMode
       ? "text-gray-300"
       : "text-gray-500"
@@ -1138,31 +1138,24 @@ localStorage.removeItem("profilePic");
 >
   {job.description || "No description available"}
 </p>
-<p className="text-sm text-green-600 font-semibold mt-2">
-  💰 {job.salary}
-</p>
-
-<p className="text-sm text-gray-500">
-  🧠 {job.experience}
-</p>
-<p className="text-sm text-blue-500 mt-1">
-  🛠️ {job.skills}
-</p>
-<p className="mt-2 inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200">
-  Last date: {lastDateLabel}
-</p>
+<div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+  <p className="rounded-lg bg-emerald-50 px-2.5 py-2 font-semibold text-emerald-700"><span className="block text-[10px] uppercase tracking-wide text-emerald-600">Salary</span>{job.salary || "Not disclosed"}</p>
+  <p className={`rounded-lg px-2.5 py-2 font-semibold ${darkMode ? "bg-slate-700 text-slate-200" : "bg-slate-50 text-slate-600"}`}><span className="block text-[10px] uppercase tracking-wide text-slate-400">Experience</span>{job.experience || "Not specified"}</p>
+</div>
+{job.skills && <p className={`mt-3 line-clamp-1 text-xs ${darkMode ? "text-sky-300" : "text-sky-700"}`}><span className="font-bold">Skills:</span> {job.skills}</p>}
+<p className="mt-3 inline-flex w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200">Last date: {lastDateLabel}</p>
                   </div>
 
                 </div>
 
                 {/* 🏷️ Tags */}
-                <div className="flex gap-2 mt-4">
+                <div className="mt-5 flex flex-wrap gap-2">
 
-                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">
+                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
                     {job.type || "Full-time"}
                   </span>
 
-                  <span className={`px-3 py-1 rounded-full text-xs ${job.mode === "Visa" ? "bg-violet-100 font-bold text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-violet-100 font-bold text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
                     {job.mode || "Onsite"}
                   </span>
 
@@ -1171,7 +1164,7 @@ localStorage.removeItem("profilePic");
                 {/* 🔘 Apply Button */}
                
 {completed ? (
-  <button className="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_0_18px_rgba(16,185,129,0.65)]"
+  <button className="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg"
 >
     Application Completed ✅
   </button>
@@ -1181,34 +1174,35 @@ localStorage.removeItem("profilePic");
       e.stopPropagation();
       navigate(`/chatbot?applicationId=${appId}&jobId=${job.id}`);
     }}
-    className="mt-5 w-full rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_0_18px_rgba(59,130,246,0.7)]"
+    className="mt-6 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
 >
     Start Interview 🚀
   </button>
 ) : job.applyLink ? (
-  <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-green-600 px-4 py-3 font-bold text-white shadow-md shadow-green-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-[0_0_18px_rgba(34,197,94,0.7)]">
-    Apply on Company Website
+  <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+    Apply on Official Job Page
   </span>
 ) : applicationEnabled ? (
-  <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_0_18px_rgba(59,130,246,0.7)]"
+  <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
 >
     Check Details & Apply </span>
 ) : (
-  <span className="mt-5 flex w-full cursor-pointer items-center justify-center rounded-xl bg-slate-200 px-4 py-3 font-bold text-slate-600 transition hover:bg-slate-300">
+  <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-slate-200 px-4 py-3 font-bold text-slate-600 transition hover:bg-slate-300">
     View Details — Applications Closed
   </span>
 )}
 
+                <div className="mt-3 grid grid-cols-2 gap-3">
                 <button
                   onClick={(event) => shareJob(event, job)}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-500 py-2 font-semibold text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 py-2.5 text-sm font-semibold text-blue-700 transition hover:border-blue-600 hover:bg-blue-600 hover:text-white"
                 >
                   <Share2 size={18} />
                   Share Job
                 </button>
 
                 <button
-  className={`mt-3 w-full py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2
+  className={`w-full rounded-xl py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2
     ${
       savedJobs.includes(job.id)
         ? "bg-red-500 text-white"
@@ -1259,6 +1253,7 @@ localStorage.removeItem("profilePic");
   <Heart size={18} />
   {savedJobs.includes(job.id) ? "Saved ❤️" : "Save Job"}
 </button>
+                </div>
 
 {/* 🤖 Resume Match */}
 <div className="mt-3">
