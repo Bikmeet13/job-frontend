@@ -1423,20 +1423,26 @@ const data = await res.json();
     </button>
   </li>
   <li>
-    <button onClick={() => navigate("/privacy-policy")}>
-      Privacy Policy
+    <button onClick={() => navigate("/about-us")}>
+      About Us
     </button>
   </li>
   <li>
-    <button onClick={() => navigate("/terms-and-conditions")}>
-      Terms & Conditions
+    <button onClick={() => navigate("/services-pricing")}>
+      Services & Pricing
     </button>
   </li>
-  <li>
-    <button onClick={() => navigate("/refund-cancellation-policy")}>
-      Refund & Cancellation
-    </button>
-  </li>
+</ul>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-lg mb-3">Legal</h3>
+      <ul className="space-y-2 text-gray-400">
+  <li><button onClick={() => navigate("/privacy-policy")}>Privacy Policy</button></li>
+  <li><button onClick={() => navigate("/terms-and-conditions")}>Terms & Conditions</button></li>
+  <li><button onClick={() => navigate("/return-refund-policy")}>Return & Refund Policy</button></li>
+  <li><button onClick={() => navigate("/cancellation-policy")}>Cancellation Policy</button></li>
+  <li><button onClick={() => navigate("/shipping-policy")}>Shipping / Delivery Policy</button></li>
 </ul>
     </div>
 
@@ -1447,12 +1453,15 @@ const data = await res.json();
       </h3>
 
       <p className="text-gray-400">
+        This website is operated by Bikramjeet Singh.
+      </p>
+      <p className="mt-2 text-sm text-gray-400">426 Derapindoria, Kaithal Road, Assandh, Karnal, Haryana 132039, India</p>
+      <p className="mt-2 text-gray-400">
         care@marketlence.com
       </p>
       <a href="tel:+919996810408" className="mt-2 block text-gray-400 hover:text-white">+91 99968 10408</a>
       <button onClick={() => navigate("/contact-us")} className="mt-3 font-semibold text-blue-300 hover:text-white">Contact Us</button>
     </div>
-
   </div>
 
   <div className="border-t border-gray-700 mt-10 pt-5 text-center text-gray-500">

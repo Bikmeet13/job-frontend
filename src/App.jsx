@@ -50,6 +50,11 @@ function App() {
       <Route path="/privacy-policy" element={<LegalPolicies />} />
       <Route path="/terms-and-conditions" element={<LegalPolicies />} />
       <Route path="/refund-cancellation-policy" element={<LegalPolicies />} />
+      <Route path="/return-refund-policy" element={<LegalPolicies />} />
+      <Route path="/cancellation-policy" element={<LegalPolicies />} />
+      <Route path="/shipping-policy" element={<LegalPolicies />} />
+      <Route path="/about-us" element={<LegalPolicies />} />
+      <Route path="/services-pricing" element={<LegalPolicies />} />
       <Route path="/contact-us" element={<LegalPolicies />} />
 
       <Route path="/saved-jobs" element={<SavedJobs />} />
