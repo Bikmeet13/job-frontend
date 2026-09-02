@@ -1177,6 +1177,13 @@ async function queueJobAlertForJob(job) {
 }
 function startJobAlertAgent() { if (process.env.JOB_ALERTS_ENABLED !== "true") return; setTimeout(() => sendQueuedJobAlerts("daily").catch(console.error), 60000); setInterval(() => sendQueuedJobAlerts("daily").catch(console.error), 24 * 60 * 60 * 1000); setInterval(() => sendQueuedJobAlerts("weekly").catch(console.error), 7 * 24 * 60 * 60 * 1000); }
 
+async function ensureFreelanceTables() {
+  await Promise.all([
+    db.query("CREATE TABLE IF NOT EXISTS freelancer_profiles (user_id INTEGER PRIMARY KEY, headline VARCHAR(180), bio TEXT, skills TEXT, hourly_rate VARCHAR(80), location VARCHAR(180), portfolio_url TEXT, availability VARCHAR(80) NOT NULL DEFAULT 'Available', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS freelance_projects (id SERIAL PRIMARY KEY, client_id INTEGER NOT NULL, title VARCHAR(250) NOT NULL, description TEXT NOT NULL, skills TEXT, budget VARCHAR(120), duration VARCHAR(120), location VARCHAR(180), status VARCHAR(50) NOT NULL DEFAULT 'Open', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+  ]);
+}
+
 function optionalCandidate(req) {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -3197,6 +3204,36 @@ app.get("/api/job-alerts/unsubscribe", async (req, res) => {
   try { const payload = jwt.verify(String(req.query.token || ""), process.env.JWT_SECRET); if (payload.purpose !== "job-alert-unsubscribe") throw new Error("Invalid token"); await db.query("UPDATE candidate_job_alert_preferences SET email_enabled=FALSE, frequency='off', unsubscribed_at=NOW(), updated_at=NOW() WHERE candidate_id=$1", [payload.candidateId]); res.type("html").send("<main style='font-family:Arial;padding:40px'><h1>Job alerts turned off</h1><p>You will no longer receive MarketLence job-alert emails. You can re-enable them from your account settings anytime.</p></main>"); } catch { res.status(400).type("html").send("<p>This unsubscribe link is invalid or has expired.</p>"); }
 });
 
+app.get("/api/freelance/projects", async (_req, res) => {
+  try {
+    const result = await db.query("SELECT p.*, u.username AS client_name FROM freelance_projects p JOIN users u ON u.id=p.client_id WHERE p.status='Open' ORDER BY p.created_at DESC LIMIT 100");
+    res.json(result.rows);
+  } catch { res.status(500).json({ error: "Could not load freelance projects." }); }
+});
+
+app.post("/api/freelance/projects", verifyToken, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const title = cleanText(body.title, 250); const description = cleanText(body.description, 8000);
+    if (!title || !description) return res.status(400).json({ error: "Project title and description are required." });
+    const result = await db.query("INSERT INTO freelance_projects (client_id,title,description,skills,budget,duration,location) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *", [req.user.id, title, description, cleanText(body.skills, 1000), cleanText(body.budget, 120), cleanText(body.duration, 120), cleanText(body.location, 180)]);
+    res.status(201).json(result.rows[0]);
+  } catch { res.status(500).json({ error: "Could not post this project." }); }
+});
+
+app.get("/api/freelance/profile", verifyToken, async (req, res) => {
+  const result = await db.query("SELECT * FROM freelancer_profiles WHERE user_id=$1", [req.user.id]);
+  res.json(result.rows[0] || {});
+});
+
+app.put("/api/freelance/profile", verifyToken, async (req, res) => {
+  try {
+    const body = req.body || {};
+    await db.query("INSERT INTO freelancer_profiles (user_id,headline,bio,skills,hourly_rate,location,portfolio_url,availability) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (user_id) DO UPDATE SET headline=$2,bio=$3,skills=$4,hourly_rate=$5,location=$6,portfolio_url=$7,availability=$8,updated_at=NOW()", [req.user.id, cleanText(body.headline,180), cleanText(body.bio,5000), cleanText(body.skills,1000), cleanText(body.hourlyRate,80), cleanText(body.location,180), cleanText(body.portfolioUrl,500), cleanText(body.availability,80) || "Available"]);
+    res.json({ message: "Freelancer profile saved." });
+  } catch { res.status(500).json({ error: "Could not save freelancer profile." }); }
+});
+
 function cleanNewsText(value = "") {
   return value
     .replace(/<!\[CDATA\[|\]\]>/g, "")
@@ -3256,7 +3293,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureJobAlertTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureJobAlertTables(), ensureFreelanceTables()])
   .then(async () => {
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
