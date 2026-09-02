@@ -813,6 +813,9 @@ localStorage.removeItem("profilePic");
       <FileText size={18} /> Docs Converter
     </button>
 
+    <button onClick={() => navigate("/freelance/hire")} className="w-full rounded-2xl bg-cyan-300 px-5 py-3 font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 sm:w-auto md:px-8 md:py-4">Hire Freelancers</button>
+    <button onClick={() => navigate("/freelance/work")} className="w-full rounded-2xl bg-violet-500 px-5 py-3 font-black text-white shadow-lg shadow-violet-500/30 transition hover:-translate-y-0.5 hover:bg-violet-400 sm:w-auto md:px-8 md:py-4">Work as Freelancer</button>
+
   </div>
 
 </div>
