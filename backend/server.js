@@ -1093,7 +1093,7 @@ function makeJobSlug(title, company, id) {
 
 const employerPostAttempts = new Map();
 const featuredPlans = {
-  featured_11: { id: "featured_11", name: "Featured for 7 days", amount: 29900, days: 7 },
+  featured_11: { id: "featured_11", name: "Featured for 11 days", amount: 29900, days: 11 },
   featured_29: { id: "featured_29", name: "Featured for 29 days", amount: 49900, days: 29 },
 };
 function employerPostingRateLimit(req, res, next) {
