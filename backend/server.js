@@ -427,6 +427,46 @@ async function ensureCompanyJobAgentTables() {
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE"),
   ]);
 
+  // A country-diverse set of official employer career pages. These are added
+  // only when their URL is not already present, so sources managed from the
+  // admin dashboard always remain untouched.
+  const companyJobDefaultSources = [
+    ["Amazon Careers", "https://www.amazon.jobs/en/", "global"],
+    ["Microsoft Careers", "https://apply.careers.microsoft.com/careers", "global"],
+    ["Accenture Careers", "https://www.accenture.com/us-en/careers/jobsearch", "global"],
+    ["Tata Consultancy Services", "https://www.tcs.com/careers", "in"],
+    ["Reliance Industries Careers", "https://careers.ril.com/", "in"],
+    ["Emirates Group Careers", "https://www.emiratesgroupcareers.com/search-and-apply/", "ae"],
+    ["Qantas Careers", "https://careers.qantas.com/", "au"],
+    ["Shopify Careers", "https://www.shopify.com/careers", "ca"],
+    ["Siemens Careers", "https://jobs.siemens.com/careers", "de"],
+    ["IKEA Careers", "https://www.ikea.com/global/en/work-with-us/", "se"],
+    ["L'Oreal Careers", "https://careers.loreal.com/en_US/jobs", "fr"],
+    ["Philips Careers", "https://www.careers.philips.com/", "nl"],
+    ["Tesco Careers", "https://careers.tesco.com/", "gb"],
+    ["Allegro Careers", "https://jobs.allegro.eu/", "pl"],
+    ["Nokia Careers", "https://www.nokia.com/about-us/careers/", "fi"],
+    ["Grab Careers", "https://www.grab.careers/", "sg"],
+    ["AirAsia Careers", "https://careers.airasia.com/", "my"],
+    ["Samsung Careers", "https://www.samsung.com/us/careers/", "kr"],
+    ["Toyota Careers", "https://careers.toyota.com/", "jp"],
+    ["GCash Careers", "https://www.gcash.com/careers", "ph"],
+    ["Viettel Careers", "https://tuyendung.viettel.vn/", "vn"],
+    ["PTT Careers", "https://www.pttplc.com/en/Careers.aspx", "th"],
+    ["Saudi Aramco Careers", "https://www.aramco.com/en/careers", "sa"],
+    ["Standard Bank Careers", "https://careers.standardbank.com/", "za"],
+    ["Safaricom Careers", "https://www.safaricom.co.ke/careers", "ke"],
+    ["Mercado Libre Careers", "https://careers-meli.mercadolibre.com/", "ar"],
+    ["Nubank Careers", "https://international.nubank.com.br/careers/", "br"],
+    ["Turkcell Careers", "https://www.turkcell.com.tr/en/aboutus/careers", "tr"],
+  ];
+  for (const [name, url, country] of companyJobDefaultSources) {
+    await db.query(
+      "INSERT INTO company_job_sources (name, url, job_category, country) VALUES ($1, $2, 'Private', $3) ON CONFLICT (url) DO NOTHING",
+      [name, url, country]
+    );
+  }
+
   // Sources added before country tracking existed are repaired during startup.
   const sources = await db.query("SELECT id, name, url, country FROM company_job_sources");
   for (const source of sources.rows) {
