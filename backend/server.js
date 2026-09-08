@@ -1168,6 +1168,7 @@ async function ensureEmployerPostingTables() {
     db.query("CREATE TABLE IF NOT EXISTS employer_profiles (user_id INTEGER PRIMARY KEY, full_name TEXT, mobile TEXT, company_name TEXT NOT NULL, website TEXT, company_type TEXT, industry TEXT, company_size TEXT, description TEXT, address TEXT, city TEXT, state TEXT, logo_url TEXT, contact_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, visitor_key TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_feature_payments (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER NOT NULL, plan_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, duration_days INTEGER NOT NULL, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
+    db.query("CREATE TABLE IF NOT EXISTS employer_notifications (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER, notification_type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, action_url TEXT, read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(employer_id, job_id, notification_type))"),
     db.query("CREATE TABLE IF NOT EXISTS featured_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, placement TEXT NOT NULL, visitor_key TEXT, candidate_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS featured_jobs_active_idx ON jobs (is_featured, featured_start_date, featured_end_date, employer_status)"),
     db.query("CREATE INDEX IF NOT EXISTS featured_job_events_lookup_idx ON featured_job_events (job_id, event_type, placement, visitor_key, created_at DESC)"),
@@ -1236,6 +1237,47 @@ async function activateFeaturedJob(payment) {
   if (payment.payment_status === "paid") return;
   await db.query("UPDATE employer_feature_payments SET payment_status='paid', paid_at=NOW() WHERE id=$1", [payment.id]);
   await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, plan_id=$2, promotion_status='featured' WHERE id=$3 AND employer_id=$4", [payment.duration_days, payment.plan_id, payment.job_id, payment.employer_id]);
+}
+
+function escapeEmailHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+}
+
+async function notifyEmployerJobApproval(job) {
+  if (!job?.employer_id) return;
+
+  const employer = (await db.query("SELECT username, email FROM users WHERE id=$1 AND role='employer'", [job.employer_id])).rows[0];
+  if (!employer?.email) return;
+
+  const isFeaturedRequest = Boolean(job.feature_requested_plan);
+  const is29Days = job.feature_requested_plan === "featured_29";
+  const planText = is29Days ? "29 days for ₹499" : "11 days for ₹299";
+  const dashboardUrl = `https://jobs.marketlence.com/employer/dashboard${isFeaturedRequest ? `?payment_job=${job.id}` : ""}`;
+  const notificationTitle = isFeaturedRequest ? "Your featured job is approved — payment ready" : "Your job is approved and live";
+  const notificationMessage = isFeaturedRequest
+    ? `Your job “${job.title}” is approved. Complete secure payment for ${planText} to activate featured placement.`
+    : `Your job “${job.title}” is approved and is now live on MarketLence Jobs.`;
+
+  await db.query(
+    "INSERT INTO employer_notifications (employer_id, job_id, notification_type, title, message, action_url) VALUES ($1,$2,'job_approved',$3,$4,$5) ON CONFLICT (employer_id, job_id, notification_type) DO NOTHING",
+    [job.employer_id, job.id, notificationTitle, notificationMessage, dashboardUrl]
+  );
+
+  const safeName = escapeEmailHtml(employer.username || "there");
+  const safeTitle = escapeEmailHtml(job.title);
+  const actionCopy = isFeaturedRequest ? "Complete secure payment" : "Open employer dashboard";
+  const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#172033"><h1 style="color:#2563eb">MarketLence Jobs</h1><p>Hi ${safeName},</p><h2>${isFeaturedRequest ? "Your featured job is approved" : "Your job is approved"}</h2><p>Your job <b>${safeTitle}</b> has been approved and is now live.</p>${isFeaturedRequest ? `<p>You selected featured placement for <b>${planText}</b>. Complete payment to activate its premium placement at the top of the job listings.</p>` : ""}<p><a href="${dashboardUrl}" style="display:inline-block;background:#6d28d9;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">${actionCopy}</a></p><p style="font-size:12px;color:#64748b">If you did not submit this job, please contact care@marketlence.com.</p></div>`;
+
+  try {
+    await resend.emails.send({
+      from: "Marketlence Jobs <care@marketlence.com>",
+      to: employer.email,
+      subject: isFeaturedRequest ? `Payment ready: featured listing for ${job.title}` : `Your job is approved: ${job.title}`,
+      html: emailHtml,
+    });
+  } catch (error) {
+    console.error("Employer approval email failed:", error.message);
+  }
 }
 
 async function deactivateExpiredFeaturedJobs() {
@@ -1475,6 +1517,18 @@ app.get("/api/employer/dashboard", verifyToken, isEmployer, async (req, res) => 
   const featuredAnalytics = (await db.query(`SELECT COUNT(*) FILTER (WHERE e.event_type='impression')::int AS impressions, COUNT(*) FILTER (WHERE e.event_type='click')::int AS clicks, COUNT(*) FILTER (WHERE e.event_type='apply')::int AS apply_clicks, COUNT(*) FILTER (WHERE e.event_type='application')::int AS applications FROM featured_job_events e JOIN jobs j ON j.id=e.job_id WHERE j.employer_id=$1`, [req.user.id])).rows[0];
   res.json({ stats, jobs, featuredAnalytics });
 });
+app.get("/api/employer/notifications", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query(
+    "SELECT id, job_id, notification_type, title, message, action_url, read_at, created_at FROM employer_notifications WHERE employer_id=$1 ORDER BY created_at DESC LIMIT 20",
+    [req.user.id]
+  );
+  res.json(result.rows);
+});
+app.patch("/api/employer/notifications/:id/read", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("UPDATE employer_notifications SET read_at=COALESCE(read_at, NOW()) WHERE id=$1 AND employer_id=$2 RETURNING id, read_at", [req.params.id, req.user.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Notification not found" });
+  res.json(result.rows[0]);
+});
 app.get("/api/employer/featured-plans", verifyToken, isEmployer, (req, res) => {
   res.json(Object.values(featuredPlans).map(({ id, name, amount, days }) => ({ id, name, amount: amount / 100, days, currency: "INR" })));
 });
@@ -1596,7 +1650,10 @@ app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res)
   if (!actions[action]) return res.status(400).json({ error: "Invalid moderation action" });
   const result = await db.query("UPDATE jobs SET employer_status=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING *", [actions[action], req.params.id]);
   if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
-  if (action === "approve") void queueJobAlertForJob(result.rows[0]);
+  if (action === "approve") {
+    void queueJobAlertForJob(result.rows[0]);
+    void notifyEmployerJobApproval(result.rows[0]);
+  }
   res.json({ message: `Job ${actions[action].toLowerCase()}` });
 });
 
