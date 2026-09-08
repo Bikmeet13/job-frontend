@@ -1175,6 +1175,17 @@ async function ensureEmployerPostingTables() {
   ]);
 }
 
+async function ensureHrServiceTables() {
+  await Promise.all([
+    db.query("CREATE TABLE IF NOT EXISTS hr_employees (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, full_name VARCHAR(180) NOT NULL, work_email VARCHAR(255), mobile VARCHAR(40), department VARCHAR(120), job_title VARCHAR(160), employment_type VARCHAR(80) NOT NULL DEFAULT 'Full-time', employment_status VARCHAR(50) NOT NULL DEFAULT 'Active', joining_date DATE, manager_name VARCHAR(180), notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(employer_id, work_email))"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_leave_requests (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, leave_type VARCHAR(80) NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, reason TEXT, status VARCHAR(40) NOT NULL DEFAULT 'Pending', manager_note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), reviewed_at TIMESTAMPTZ)"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_employee_documents (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, document_name VARCHAR(180) NOT NULL, document_type VARCHAR(100), file_url TEXT, expiry_date DATE, status VARCHAR(50) NOT NULL DEFAULT 'Current', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE INDEX IF NOT EXISTS hr_employees_employer_idx ON hr_employees (employer_id, employment_status)"),
+    db.query("CREATE INDEX IF NOT EXISTS hr_leave_requests_employer_idx ON hr_leave_requests (employer_id, status, created_at DESC)"),
+    db.query("CREATE INDEX IF NOT EXISTS hr_employee_documents_employer_idx ON hr_employee_documents (employer_id, employee_id)"),
+  ]);
+}
+
 async function ensureJobAlertTables() {
   await Promise.all([
     db.query("CREATE TABLE IF NOT EXISTS candidate_job_alert_preferences (candidate_id INTEGER PRIMARY KEY, email_enabled BOOLEAN NOT NULL DEFAULT FALSE, frequency TEXT NOT NULL DEFAULT 'daily', preferred_locations TEXT NOT NULL DEFAULT '', preferred_categories TEXT NOT NULL DEFAULT '', preferred_titles TEXT NOT NULL DEFAULT '', min_salary TEXT, experience TEXT, work_modes TEXT NOT NULL DEFAULT '', job_types TEXT NOT NULL DEFAULT '', consent_at TIMESTAMPTZ, consent_source TEXT, unsubscribed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
@@ -1515,6 +1526,81 @@ app.put("/api/employer/profile", verifyToken, isEmployer, async (req, res) => {
   if (values[1] && !/^https:\/\//i.test(values[1])) return res.status(400).json({ error: "Website must start with https://" });
   await db.query(`UPDATE employer_profiles SET (${fields.join(",")}) = (${fields.map((_, index) => `$${index + 1}`).join(",")}), updated_at = NOW() WHERE user_id = $${fields.length + 1}`, [...values, req.user.id]);
   res.json({ message: "Employer profile updated" });
+});
+const hrEmployeeStatuses = new Set(["Active", "On leave", "Inactive"]);
+const hrLeaveStatuses = new Set(["Pending", "Approved", "Rejected", "Cancelled"]);
+const isHrDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+
+app.get("/api/employer/hr/overview", verifyToken, isEmployer, async (req, res) => {
+  const [employees, leaves, documents] = await Promise.all([
+    db.query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE employment_status='Active')::int AS active FROM hr_employees WHERE employer_id=$1", [req.user.id]),
+    db.query("SELECT COUNT(*) FILTER (WHERE status='Pending')::int AS pending, COUNT(*) FILTER (WHERE status='Approved' AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE)::int AS on_leave FROM hr_leave_requests WHERE employer_id=$1", [req.user.id]),
+    db.query("SELECT COUNT(*) FILTER (WHERE expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE + INTERVAL '30 days')::int AS expiring FROM hr_employee_documents WHERE employer_id=$1", [req.user.id]),
+  ]);
+  res.json({ employees: employees.rows[0], leave: leaves.rows[0], documents: documents.rows[0] });
+});
+app.get("/api/employer/hr/employees", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("SELECT * FROM hr_employees WHERE employer_id=$1 ORDER BY employment_status='Active' DESC, full_name ASC", [req.user.id]);
+  res.json(result.rows);
+});
+app.post("/api/employer/hr/employees", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {};
+  const fullName = cleanText(body.fullName, 180);
+  const email = String(body.workEmail || "").toLowerCase().trim();
+  if (!fullName) return res.status(400).json({ error: "Employee name is required." });
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email." });
+  if (body.joiningDate && !isHrDate(body.joiningDate)) return res.status(400).json({ error: "Use a valid joining date." });
+  try {
+    const result = await db.query("INSERT INTO hr_employees (employer_id,full_name,work_email,mobile,department,job_title,employment_type,employment_status,joining_date,manager_name,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *", [req.user.id, fullName, email || null, cleanText(body.mobile,40) || null, cleanText(body.department,120) || null, cleanText(body.jobTitle,160) || null, cleanText(body.employmentType,80) || "Full-time", hrEmployeeStatuses.has(body.employmentStatus) ? body.employmentStatus : "Active", body.joiningDate || null, cleanText(body.managerName,180) || null, cleanText(body.notes,3000) || null]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this work email already exists." }); res.status(500).json({ error: "Could not add employee." }); }
+});
+app.patch("/api/employer/hr/employees/:id", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {};
+  const fullName = cleanText(body.fullName, 180);
+  if (!fullName) return res.status(400).json({ error: "Employee name is required." });
+  const email = String(body.workEmail || "").toLowerCase().trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email." });
+  if (body.joiningDate && !isHrDate(body.joiningDate)) return res.status(400).json({ error: "Use a valid joining date." });
+  try {
+    const result = await db.query("UPDATE hr_employees SET full_name=$1,work_email=$2,mobile=$3,department=$4,job_title=$5,employment_type=$6,employment_status=$7,joining_date=$8,manager_name=$9,notes=$10,updated_at=NOW() WHERE id=$11 AND employer_id=$12 RETURNING *", [fullName, email || null, cleanText(body.mobile,40) || null, cleanText(body.department,120) || null, cleanText(body.jobTitle,160) || null, cleanText(body.employmentType,80) || "Full-time", hrEmployeeStatuses.has(body.employmentStatus) ? body.employmentStatus : "Active", body.joiningDate || null, cleanText(body.managerName,180) || null, cleanText(body.notes,3000) || null, req.params.id, req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Employee not found." });
+    res.json(result.rows[0]);
+  } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this work email already exists." }); res.status(500).json({ error: "Could not update employee." }); }
+});
+app.get("/api/employer/hr/leave-requests", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("SELECT l.*, e.full_name, e.department FROM hr_leave_requests l JOIN hr_employees e ON e.id=l.employee_id AND e.employer_id=l.employer_id WHERE l.employer_id=$1 ORDER BY CASE WHEN l.status='Pending' THEN 0 ELSE 1 END, l.created_at DESC", [req.user.id]);
+  res.json(result.rows);
+});
+app.post("/api/employer/hr/leave-requests", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {};
+  if (!body.employeeId || !cleanText(body.leaveType,80) || !isHrDate(body.startDate) || !isHrDate(body.endDate) || String(body.endDate) < String(body.startDate)) return res.status(400).json({ error: "Choose an employee, leave type, and valid leave dates." });
+  const employee = (await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [body.employeeId, req.user.id])).rows[0];
+  if (!employee) return res.status(404).json({ error: "Employee not found." });
+  const result = await db.query("INSERT INTO hr_leave_requests (employer_id,employee_id,leave_type,start_date,end_date,reason) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *", [req.user.id, employee.id, cleanText(body.leaveType,80), body.startDate, body.endDate, cleanText(body.reason,2000) || null]);
+  res.status(201).json(result.rows[0]);
+});
+app.patch("/api/employer/hr/leave-requests/:id", verifyToken, isEmployer, async (req, res) => {
+  const status = cleanText(req.body?.status,40);
+  if (!hrLeaveStatuses.has(status)) return res.status(400).json({ error: "Choose a valid leave status." });
+  const result = await db.query("UPDATE hr_leave_requests SET status=$1,manager_note=$2,reviewed_at=NOW() WHERE id=$3 AND employer_id=$4 RETURNING *", [status, cleanText(req.body?.managerNote,2000) || null, req.params.id, req.user.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Leave request not found." });
+  res.json(result.rows[0]);
+});
+app.get("/api/employer/hr/documents", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("SELECT d.*, e.full_name, e.department FROM hr_employee_documents d JOIN hr_employees e ON e.id=d.employee_id AND e.employer_id=d.employer_id WHERE d.employer_id=$1 ORDER BY d.expiry_date ASC NULLS LAST, d.created_at DESC", [req.user.id]);
+  res.json(result.rows);
+});
+app.post("/api/employer/hr/documents", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {};
+  if (!body.employeeId || !cleanText(body.documentName,180)) return res.status(400).json({ error: "Choose an employee and document name." });
+  if (body.expiryDate && !isHrDate(body.expiryDate)) return res.status(400).json({ error: "Use a valid expiry date." });
+  const fileUrl = cleanText(body.fileUrl,1000);
+  if (fileUrl && !/^https:\/\//i.test(fileUrl)) return res.status(400).json({ error: "Document link must start with https://" });
+  const employee = (await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [body.employeeId, req.user.id])).rows[0];
+  if (!employee) return res.status(404).json({ error: "Employee not found." });
+  const result = await db.query("INSERT INTO hr_employee_documents (employer_id,employee_id,document_name,document_type,file_url,expiry_date,status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *", [req.user.id, employee.id, cleanText(body.documentName,180), cleanText(body.documentType,100) || null, fileUrl || null, body.expiryDate || null, cleanText(body.status,50) || "Current"]);
+  res.status(201).json(result.rows[0]);
 });
 app.get("/api/employer/dashboard", verifyToken, isEmployer, async (req, res) => {
   const stats = (await db.query(`SELECT COUNT(*)::int AS total_jobs, COUNT(*) FILTER (WHERE employer_status = 'Live')::int AS live_jobs, COUNT(*) FILTER (WHERE employer_status = 'Pending Review')::int AS pending_jobs, COUNT(*) FILTER (WHERE employer_status IN ('Closed','Expired'))::int AS closed_jobs, COALESCE(SUM(views_count),0)::int AS total_views, COALESCE(SUM(apply_clicks),0)::int AS total_apply_clicks FROM jobs WHERE employer_id = $1`, [req.user.id])).rows[0];
@@ -3395,7 +3481,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureJobAlertTables(), ensureFreelanceTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureHrServiceTables(), ensureJobAlertTables(), ensureFreelanceTables()])
   .then(async () => {
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
