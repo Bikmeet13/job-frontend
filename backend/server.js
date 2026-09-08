@@ -977,7 +977,7 @@ app.get("/api/jobs", async (req, res) => {
   try {
     // Legacy/admin jobs do not have an employer_id. Employer-submitted jobs are
     // public only after an admin has approved them.
-    const result = await db.query("SELECT * FROM jobs WHERE employer_id IS NULL OR employer_status = 'Live' ORDER BY is_featured DESC, posted_at DESC NULLS LAST, id DESC");
+    const result = await db.query("SELECT * FROM jobs WHERE (employer_id IS NULL OR employer_status = 'Live') AND (employer_id IS NULL OR COALESCE(feature_requested_plan, '') = '' OR is_featured = TRUE) ORDER BY is_featured DESC, posted_at DESC NULLS LAST, id DESC");
 
     const jobs = result.rows.map(job => ({
       ...job,
@@ -1205,7 +1205,7 @@ function unsubscribeToken(candidateId) { return jwt.sign({ candidateId, purpose:
 function jobAlertEmailHtml(candidate, jobs) { const un = encodeURIComponent(unsubscribeToken(candidate.id)); const cards = jobs.map(({ job }) => `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0"><b style="font-size:18px">${job.title}</b><p>${job.company} · ${job.location}</p><p>${job.experience || "Experience not specified"} · ${job.salary || "Salary not disclosed"}</p><a href="${jobAlertUrl(job)}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none">View Job</a></div>`).join(""); return `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto"><h1 style="color:#1d4ed8">MarketLence Jobs</h1><p>Hi ${candidate.username || "there"},</p><p>We found new opportunities that may match your profile.</p>${cards}<p><a href="https://jobs.marketlence.com/jobs">View All Matching Jobs</a></p><hr/><p style="font-size:12px;color:#64748b">You are receiving this email because you enabled job alerts on MarketLence Jobs. <a href="https://jobs.marketlence.com/candidate/job-alerts">Manage Job Alerts</a> · <a href="https://humorous-fulfillment-production-1f5e.up.railway.app/api/job-alerts/unsubscribe?token=${un}">Unsubscribe</a></p></div>`; }
 async function sendQueuedJobAlerts(frequency) {
   if (process.env.JOB_ALERTS_ENABLED !== "true") return;
-  const queued = await db.query(`SELECT n.id AS notification_id, n.candidate_id, u.username, u.email, j.* FROM job_alert_notifications n JOIN candidate_job_alert_preferences p ON p.candidate_id=n.candidate_id JOIN users u ON u.id=n.candidate_id JOIN jobs j ON j.id=n.job_id WHERE n.status='queued' AND p.email_enabled=TRUE AND p.frequency=$1 AND (j.employer_id IS NULL OR j.employer_status='Live') ORDER BY n.created_at ASC LIMIT 500`, [frequency]);
+  const queued = await db.query(`SELECT n.id AS notification_id, n.candidate_id, u.username, u.email, j.* FROM job_alert_notifications n JOIN candidate_job_alert_preferences p ON p.candidate_id=n.candidate_id JOIN users u ON u.id=n.candidate_id JOIN jobs j ON j.id=n.job_id WHERE n.status='queued' AND p.email_enabled=TRUE AND p.frequency=$1 AND (j.employer_id IS NULL OR j.employer_status='Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '')='' OR j.is_featured=TRUE) ORDER BY n.created_at ASC LIMIT 500`, [frequency]);
   const groups = new Map(); queued.rows.forEach((row) => { const list = groups.get(row.candidate_id) || []; if (list.length < 10) list.push({ job: row, id: row.notification_id }); groups.set(row.candidate_id, list); });
   for (const [candidateId, entries] of groups) { const candidate = { ...entries[0].job, id: candidateId }; try { const response = await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: candidate.email, subject: `${candidate.username || "New"}, ${entries.length} new jobs match your profile`, html: jobAlertEmailHtml(candidate, entries) }); await db.query("UPDATE job_alert_notifications SET status='sent', sent_at=NOW(), provider_message_id=$1 WHERE id = ANY($2::int[])", [response.data?.id || null, entries.map((item) => item.id)]); } catch (error) { await db.query("UPDATE job_alert_notifications SET status='failed' WHERE id = ANY($1::int[])", [entries.map((item) => item.id)]); console.error("Job alert email failed:", error.message); } }
 }
@@ -1236,7 +1236,12 @@ function optionalCandidate(req) {
 async function activateFeaturedJob(payment) {
   if (payment.payment_status === "paid") return;
   await db.query("UPDATE employer_feature_payments SET payment_status='paid', paid_at=NOW() WHERE id=$1", [payment.id]);
-  await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, plan_id=$2, promotion_status='featured' WHERE id=$3 AND employer_id=$4", [payment.duration_days, payment.plan_id, payment.job_id, payment.employer_id]);
+  const activated = await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, plan_id=$2, promotion_status='featured' WHERE id=$3 AND employer_id=$4 RETURNING *", [payment.duration_days, payment.plan_id, payment.job_id, payment.employer_id]);
+  const job = activated.rows[0];
+  if (job) {
+    void queueJobAlertForJob(job);
+    void sendNewJobNotification(job);
+  }
 }
 
 function escapeEmailHtml(value) {
@@ -1389,7 +1394,7 @@ app.post("/api/featured-jobs/:id/event", async (req, res) => {
 app.get("/api/jobs/slug/:slug", async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT * FROM jobs WHERE job_slug = $1 AND (employer_id IS NULL OR employer_status = 'Live')",
+      "SELECT * FROM jobs WHERE job_slug = $1 AND (employer_id IS NULL OR employer_status = 'Live') AND (employer_id IS NULL OR COALESCE(feature_requested_plan, '') = '' OR is_featured = TRUE)",
       [cleanText(req.params.slug, 200)]
     );
     if (!result.rows.length) return res.status(404).json({ error: "Job not found" });
@@ -1651,7 +1656,7 @@ app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res)
   const result = await db.query("UPDATE jobs SET employer_status=$1 WHERE id=$2 AND employer_id IS NOT NULL RETURNING *", [actions[action], req.params.id]);
   if (!result.rows.length) return res.status(404).json({ error: "Employer job not found" });
   if (action === "approve") {
-    void queueJobAlertForJob(result.rows[0]);
+    if (!result.rows[0].feature_requested_plan) void queueJobAlertForJob(result.rows[0]);
     void notifyEmployerJobApproval(result.rows[0]);
   }
   res.json({ message: `Job ${actions[action].toLowerCase()}` });
@@ -2741,7 +2746,7 @@ app.get("/api/jobs/:id", async (req, res) => {
 
   try {
     const result = await db.query(
-      "SELECT * FROM jobs WHERE id = $1 AND (employer_id IS NULL OR employer_status = 'Live')",
+      "SELECT * FROM jobs WHERE id = $1 AND (employer_id IS NULL OR employer_status = 'Live') AND (employer_id IS NULL OR COALESCE(feature_requested_plan, '') = '' OR is_featured = TRUE)",
       [id]
     );
 
