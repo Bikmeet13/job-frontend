@@ -13,7 +13,6 @@ import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import ApplyForm from "../components/ApplyForm";
-import HomepageAd from "../components/HomepageAd";
 import JobNotificationPrompt from "../components/JobNotificationPrompt";
 import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
@@ -846,13 +845,7 @@ localStorage.removeItem("profilePic");
         🚀 Job Listings
       </h1>
       {/* 🔍 Search Bar */}
-<div className="xl:grid xl:grid-cols-[minmax(160px,1fr)_minmax(0,42rem)_minmax(160px,1fr)] xl:items-start xl:gap-6 mb-10">
-
-  <div className="hidden xl:block pt-1">
-    {location.pathname === "/" && <HomepageAd />}
-  </div>
-
-<div className="max-w-2xl mx-auto w-full relative">
+<div className="max-w-2xl mx-auto w-full relative mb-10">
 
   <Search
     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
@@ -898,12 +891,6 @@ localStorage.removeItem("profilePic");
 </button>
 
 <EmploymentNews darkMode={darkMode} />
-
-</div>
-
-  <div className="hidden xl:block pt-1">
-    {location.pathname === "/" && <HomepageAd />}
-  </div>
 
 </div>
 
