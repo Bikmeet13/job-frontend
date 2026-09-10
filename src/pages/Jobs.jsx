@@ -1045,7 +1045,7 @@ localStorage.removeItem("profilePic");
 
       <div className="mx-auto mt-10 w-full max-w-7xl">
 
-       <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} category={jobCategoryFilter} query={search} />
+       <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />
        {allJobs.length === 0 ? (
 
           <p className="text-center text-gray-500">

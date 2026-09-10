@@ -37,8 +37,31 @@ function rotation(job, context) {
 async function getFeaturedJobs(context = {}) {
   const limit = Math.min(Math.max(Number(context.limit) || 8, 1), 10);
   const candidate = context.candidateId ? (await db.query("SELECT id, bio, skills, experience FROM users WHERE id=$1 AND role='user'", [context.candidateId])).rows[0] : null;
-  const query = `SELECT j.* FROM jobs j LEFT JOIN users e ON e.id=j.employer_id WHERE j.is_featured=TRUE AND (j.employer_id IS NULL OR j.employer_status='Live') AND (j.featured_start_date IS NULL OR j.featured_start_date <= NOW()) AND (j.featured_end_date IS NULL OR j.featured_end_date > NOW()) AND (e.id IS NULL OR e.employer_suspended=FALSE) AND CASE WHEN j.last_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN j.last_date::date >= CURRENT_DATE ELSE TRUE END ORDER BY j.featured_end_date ASC NULLS LAST LIMIT 80`;
-  const jobs = (await db.query(query)).rows;
+  const location = String(context.location || "").trim();
+  const country = String(context.country || "").trim().toLowerCase();
+  const countryName = String(context.countryName || "").trim().toLowerCase();
+  const values = [];
+  const where = [
+    "j.is_featured=TRUE",
+    "(j.employer_id IS NULL OR j.employer_status='Live')",
+    "(j.featured_start_date IS NULL OR j.featured_start_date <= NOW())",
+    "(j.featured_end_date IS NULL OR j.featured_end_date > NOW())",
+    "(e.id IS NULL OR e.employer_suspended=FALSE)",
+    "CASE WHEN j.last_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN j.last_date::date >= CURRENT_DATE ELSE TRUE END",
+  ];
+
+  // A state/city selection is more specific than a country. Otherwise show
+  // featured roles only from the selected country, never global promotions.
+  if (location) {
+    values.push(location);
+    where.push(`LOWER(COALESCE(j.location, '')) LIKE '%' || LOWER($${values.length}) || '%'`);
+  } else if (country) {
+    values.push(country, countryName);
+    where.push(`(COALESCE(NULLIF(LOWER(j.country), ''), 'in') = $${values.length - 1} OR ($${values.length} <> '' AND LOWER(COALESCE(j.location, '')) LIKE '%' || $${values.length} || '%'))`);
+  }
+
+  const query = `SELECT j.* FROM jobs j LEFT JOIN users e ON e.id=j.employer_id WHERE ${where.join(" AND ")} ORDER BY j.featured_end_date ASC NULLS LAST LIMIT 80`;
+  const jobs = (await db.query(query, values)).rows;
   return jobs.map((job) => ({ ...job, applyLink: job.apply_link || null, featured: true, featured_score: candidateScore(job, candidate, context) + rotation(job, context) })).filter((job) => job.featured_score > -500).sort((a, b) => b.featured_score - a.featured_score).slice(0, limit);
 }
 

@@ -1383,7 +1383,7 @@ app.post("/api/employers/register", async (req, res) => {
 app.get("/api/featured-jobs", async (req, res) => {
   try {
     const candidate = optionalCandidate(req);
-    const jobs = await getFeaturedJobs({ candidateId: candidate?.id, location: cleanText(req.query.location, 120), category: cleanText(req.query.category, 120), query: cleanText(req.query.query, 200), visitorKey: cleanText(req.query.visitorKey, 120), limit: req.query.limit });
+    const jobs = await getFeaturedJobs({ candidateId: candidate?.id, location: cleanText(req.query.location, 120), country: cleanText(req.query.country, 12), countryName: cleanText(req.query.countryName, 120), category: cleanText(req.query.category, 120), query: cleanText(req.query.query, 200), visitorKey: cleanText(req.query.visitorKey, 120), limit: req.query.limit });
     res.json(jobs);
   } catch (error) { console.error("Featured recommendations failed:", error.message); res.status(500).json({ error: "Could not load featured jobs." }); }
 });
