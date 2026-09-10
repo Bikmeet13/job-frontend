@@ -870,6 +870,9 @@ localStorage.removeItem("profilePic");
 }`}
   />
 
+  </div>
+  </div>
+
   {userLocation && (
   <p className="text-green-600 font-medium mb-4">
     📍 Showing jobs near {userLocation}
@@ -1036,10 +1039,7 @@ localStorage.removeItem("profilePic");
 
 </div>
 
-</div>
-
       {/* 📋 Job List */}
-      </div>
 
       <div className="mx-auto mt-10 w-full max-w-7xl">
 
