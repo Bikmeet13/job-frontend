@@ -928,7 +928,7 @@ localStorage.removeItem("profilePic");
 </section>
 
 <div
-  className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-24 md:z-40 ${
+  className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-[196px] md:z-30 ${
     darkMode
       ? "border-gray-700 bg-gray-900/95"
       : "border-white/80 bg-white/95"
