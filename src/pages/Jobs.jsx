@@ -518,7 +518,7 @@ if (loading) {
 
        {/* 🔝 Navbar */}
 <div
-  className={`sticky top-0 z-50 backdrop-blur-xl border border-white/10 shadow-lg px-6 py-4 mb-10 flex items-center justify-between rounded-2xl transition-all duration-300 ${
+  className={`fixed inset-x-3 top-3 z-50 flex items-center justify-between rounded-2xl border border-white/10 px-6 py-4 shadow-lg backdrop-blur-xl transition-all duration-300 sm:inset-x-6 sm:top-6 md:inset-x-10 md:top-10 ${
     darkMode
       ? "bg-gray-900/70"
       : "bg-white/70"
@@ -697,6 +697,9 @@ localStorage.removeItem("profilePic");
 
 </div>
 
+{/* Keeps page content below the fixed navigation on every screen size. */}
+<div className="mb-10 h-[68px] md:h-[76px]" aria-hidden="true" />
+
 {/* 📱 Mobile Dropdown Menu */}
 {menuOpen && (
 
@@ -847,7 +850,7 @@ localStorage.removeItem("profilePic");
       {/* 🔍 Search Bar */}
 <div className="contents">
 
-  <div className={`sticky top-[76px] z-40 -mx-3 px-3 py-2 sm:-mx-6 sm:px-6 md:top-[92px] md:-mx-10 md:px-10 ${darkMode ? "bg-gray-900/95" : "bg-gray-100/95"}`}>
+  <div className={`sticky top-[88px] z-40 -mx-3 px-3 py-2 sm:-mx-6 sm:px-6 md:top-[124px] md:-mx-10 md:px-10 ${darkMode ? "bg-gray-900/95" : "bg-gray-100/95"}`}>
   <div className="max-w-2xl mx-auto w-full relative">
 
   <Search
