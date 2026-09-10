@@ -506,7 +506,7 @@ if (loading) {
 }
   return (
     <div
-  className={`min-h-screen overflow-x-hidden p-3 sm:p-6 md:p-10 transition-all duration-500 ${
+  className={`min-h-screen overflow-x-clip p-3 sm:p-6 md:p-10 transition-all duration-500 ${
     darkMode
       ? "bg-gray-900 text-white"
       : "bg-gradient-to-b from-gray-100 to-gray-200 text-black"
@@ -845,7 +845,10 @@ localStorage.removeItem("profilePic");
         🚀 Job Listings
       </h1>
       {/* 🔍 Search Bar */}
-<div className="max-w-2xl mx-auto w-full relative mb-10">
+<div className="contents">
+
+  <div className={`sticky top-[76px] z-40 -mx-3 px-3 py-2 sm:-mx-6 sm:px-6 md:top-[92px] md:-mx-10 md:px-10 ${darkMode ? "bg-gray-900/95" : "bg-gray-100/95"}`}>
+  <div className="max-w-2xl mx-auto w-full relative">
 
   <Search
     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
@@ -1024,6 +1027,9 @@ localStorage.removeItem("profilePic");
     : "bg-white text-black border-gray-300"
 }`}
   />
+
+  </div>
+  </div>
 
 </div>
 
