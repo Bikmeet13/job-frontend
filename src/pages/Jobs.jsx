@@ -873,6 +873,7 @@ localStorage.removeItem("profilePic");
   </div>
   </div>
 
+  <div className="mx-auto w-full max-w-2xl">
   {userLocation && (
   <p className="text-green-600 font-medium mb-4">
     📍 Showing jobs near {userLocation}
@@ -898,6 +899,7 @@ localStorage.removeItem("profilePic");
 >
   {locating ? "📡 Detecting Location..." : "📍 Use My Location"}
 </button>
+  </div>
 
 <EmploymentNews darkMode={darkMode} />
 
