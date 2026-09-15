@@ -176,3 +176,13 @@ html, body, #root {
 @keyframes profileDrift { from { transform: translate3d(-1rem, -1rem, 0) scale(1); } to { transform: translate3d(2rem, 2rem, 0) scale(1.1); } }
 @media (max-width: 520px) { .profile-completion-card { align-self: flex-start; }.profile-avatar { width: 5.5rem; height: 5.5rem; }.profile-cover { min-height: 6.5rem; } }
 @media (prefers-reduced-motion: reduce) { .profile-ambient::before, .profile-ambient::after { animation: none; } }
+
+/* Hero title on the jobs discovery page */
+.jobs-title-showcase { position: relative; isolation: isolate; padding: 1.1rem 1rem .25rem; overflow: hidden; }
+.jobs-title-showcase::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 47%; width: min(42rem, 95vw); height: 9rem; transform: translate(-50%, -50%); background: radial-gradient(ellipse, rgb(99 102 241 / .2), transparent 68%); filter: blur(12px); }
+.jobs-title-kicker { display: inline-flex; align-items: center; gap: .45rem; color: #6366f1; font-size: .69rem; font-weight: 900; letter-spacing: .17em; }.jobs-title-kicker span { width: 1.6rem; height: 1px; background: currentColor; opacity: .5; }
+.jobs-title-gradient { margin: .6rem 0 0; font-size: clamp(2.15rem, 5vw, 4.45rem); font-weight: 950; letter-spacing: -.065em; line-height: .94; color: #172554; background: linear-gradient(105deg, #0f2147 10%, #3347a7 47%, #8b36c7 90%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-wrap: balance; }.jobs-title-dark { background: linear-gradient(105deg, #f8fafc 10%, #a5b4fc 48%, #e9b6ff 90%); -webkit-background-clip: text; background-clip: text; }
+.jobs-title-orbit { position: absolute; z-index: -1; display: grid; place-items: center; border: 1px solid rgb(99 102 241 / .25); border-radius: 999px; color: #7c3aed; background: rgb(255 255 255 / .55); box-shadow: 0 8px 22px rgb(67 56 202 / .12); animation: jobsTitleFloat 4s ease-in-out infinite alternate; }.jobs-title-orbit-left { left: max(7%, calc(50% - 23rem)); top: 52%; width: 2.5rem; height: 2.5rem; }.jobs-title-orbit-right { right: max(8%, calc(50% - 23rem)); top: 30%; width: 2.1rem; height: 2.1rem; animation-delay: -2s; }.dark .jobs-title-orbit { background: rgb(30 41 59 / .65); border-color: rgb(165 180 252 / .32); color: #c4b5fd; }
+@keyframes jobsTitleFloat { to { transform: translateY(-9px) rotate(13deg); } }
+@media (max-width: 520px) { .jobs-title-showcase { padding-top: .6rem; }.jobs-title-orbit { display: none; }.jobs-title-gradient { font-size: 2.25rem; } }
+@media (prefers-reduced-motion: reduce) { .jobs-title-orbit { animation: none; } }

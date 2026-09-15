@@ -6,7 +6,9 @@ import {
   Menu,
   Share2,
   BellRing,
-  FileText
+  FileText,
+  Sparkles,
+  Rocket
 } from "lucide-react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
@@ -884,15 +886,13 @@ localStorage.removeItem("profilePic");
   </section>
 )}
 
-      <h1
-  className={`text-5xl font-bold text-center mb-5 ${
-    darkMode
-      ? "text-white"
-      : "text-gray-800"
-  }`}
->
-        🚀 Job Listings
-      </h1>
+      <section className="jobs-title-showcase mb-6 text-center" aria-label="Job listings">
+        <div className="jobs-title-orbit jobs-title-orbit-left" aria-hidden="true"><Sparkles size={16} /></div>
+        <div className="jobs-title-orbit jobs-title-orbit-right" aria-hidden="true"><Sparkles size={13} /></div>
+        <div className="jobs-title-kicker"><span /><Rocket size={15} /> MARKETLENCE OPPORTUNITIES <span /></div>
+        <h1 className={`jobs-title-gradient ${darkMode ? "jobs-title-dark" : ""}`}>Find work that<br className="hidden sm:block" /> moves you forward.</h1>
+        <p className={`mx-auto mt-3 max-w-xl text-sm sm:text-base ${darkMode ? "text-slate-300" : "text-slate-500"}`}>Curated opportunities, one smart search away.</p>
+      </section>
 <EmploymentNews darkMode={darkMode} />
 
 <section className={`mx-auto mb-8 max-w-5xl rounded-2xl border p-4 shadow-sm ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-indigo-50/70"}`}>
