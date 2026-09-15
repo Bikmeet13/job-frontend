@@ -3080,57 +3080,45 @@ app.get("/api/applications", verifyToken, async (req, res) => {
 
 app.post(
   "/api/extract-resume",
-  upload.single("resume"),
+  resumeTextUpload.single("resume"),
   async (req, res) => {
     try {
-      const fileUrl = req.file.path;
+      if (!req.file) return res.status(400).json({ message: "Please choose a resume first." });
 
-      const response = await axios.get(fileUrl, {
-        responseType: "arraybuffer"
+      const file = req.file;
+      const filename = String(file.originalname || "").toLowerCase();
+      let text = "";
+
+      if (file.mimetype === "application/pdf" || filename.endsWith(".pdf")) {
+        text = (await pdfParse(file.buffer)).text;
+      } else if (file.mimetype.includes("wordprocessingml") || filename.endsWith(".docx")) {
+        text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+      } else if (file.mimetype === "text/plain" || filename.endsWith(".txt")) {
+        text = file.buffer.toString("utf8");
+      } else {
+        return res.status(400).json({ message: "Please upload a PDF, DOCX, or TXT resume." });
+      }
+
+      if (!text.trim()) return res.status(400).json({ message: "No readable text was found in this resume." });
+      if (!process.env.OPENAI_API_KEY) return res.status(503).json({ message: "Resume auto-fill is not configured yet." });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: "Extract resume information into JSON only. Use keys skills (array or comma-separated text), education, experience, and projects (array or text). Keep the values concise and do not invent information."
+          },
+          { role: "user", content: text.slice(0, 18000) }
+        ]
       });
 
-      const pdfData = await pdfParse(
-        Buffer.from(response.data)
-      );
-
-      const text = pdfData.text;
-
-      const completion =
-  await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `
-Extract resume information and return ONLY valid JSON.
-
-{
-  "skills": [],
-  "education": "",
-  "experience": "",
-  "projects": []
-}
-`
-      },
-      {
-        role: "user",
-        content: text
-      }
-    ]
-  });
-
-const extracted = JSON.parse(
-  completion.choices[0].message.content
-);
-
-res.json({
-  ...extracted,
-  text
-});
-
+      const extracted = JSON.parse(completion.choices?.[0]?.message?.content || "{}");
+      res.json({ ...extracted, text });
     } catch (err) {
-      console.log(err);
-      res.status(500).send("Extraction failed");
+      console.error("Profile resume extraction failed:", err.message);
+      res.status(500).json({ message: "We could not read that resume. Try a text-based PDF, DOCX, or TXT file." });
     }
   }
 );
