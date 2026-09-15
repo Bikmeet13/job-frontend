@@ -14,6 +14,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import ApplyForm from "../components/ApplyForm";
 import JobNotificationPrompt from "../components/JobNotificationPrompt";
+import JobMatchAssistant from "../components/JobMatchAssistant";
 import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
 import FeaturedJobsSection from "../components/FeaturedJobsSection";
@@ -514,6 +515,7 @@ if (loading) {
 >
       <div className="jobs-ambient" aria-hidden="true" />
       <JobNotificationPrompt />
+      <JobMatchAssistant />
 
      
 
