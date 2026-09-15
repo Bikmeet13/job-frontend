@@ -506,12 +506,13 @@ if (loading) {
 }
   return (
     <div
-  className={`min-h-screen overflow-x-clip p-3 sm:p-6 md:p-10 transition-all duration-500 ${
+  className={`relative isolate min-h-screen overflow-x-clip p-3 sm:p-6 md:p-10 transition-all duration-500 ${
     darkMode
       ? "bg-gray-900 text-white"
       : "bg-gradient-to-b from-gray-100 to-gray-200 text-black"
   }`}
 >
+      <div className="jobs-ambient" aria-hidden="true" />
       <JobNotificationPrompt />
 
      
@@ -548,8 +549,30 @@ if (loading) {
 
   </div>
 
+  <div className="hidden min-w-0 flex-1 items-center gap-2 px-5 xl:flex">
+    <div className="relative min-w-0 flex-1">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+      <input
+        type="search"
+        aria-label="Search jobs"
+        placeholder="Search jobs..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className={`w-full rounded-xl border py-2.5 pl-10 pr-3 text-sm outline-none transition focus:ring-2 focus:ring-blue-500 ${darkMode ? "border-white/10 bg-slate-800/70 text-white placeholder:text-slate-400" : "border-white/70 bg-white/75 text-slate-900 placeholder:text-slate-400"}`}
+      />
+    </div>
+    <button
+      type="button"
+      onClick={async () => { setLocating(true); await getUserLocation(); setLocating(false); }}
+      disabled={locating}
+      className="shrink-0 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+    >
+      {locating ? "Locating..." : "📍 Locate me"}
+    </button>
+  </div>
+
   {/* 💻 Desktop Links */}
-  <div className="hidden md:flex items-center gap-4">
+  <div className="hidden xl:flex items-center gap-2">
 
     {token && (
   <div
@@ -671,7 +694,7 @@ localStorage.removeItem("profilePic");
   </div>
 
   {/* 📱 Mobile Right Side */}
-  <div className="flex items-center gap-3 md:hidden">
+  <div className="flex items-center gap-3 xl:hidden">
 
     {/* Dark Mode */}
     <button
@@ -704,7 +727,7 @@ localStorage.removeItem("profilePic");
 {menuOpen && (
 
   <div
-    className={`md:hidden rounded-2xl p-6 mb-6 shadow-lg ${
+    className={`xl:hidden rounded-2xl p-6 mb-6 shadow-lg ${
       darkMode
         ? "bg-gray-800 text-white"
         : "bg-white text-black"
@@ -712,6 +735,27 @@ localStorage.removeItem("profilePic");
   >
 
     <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200/70 bg-white/60 p-2 backdrop-blur dark:border-slate-700 dark:bg-slate-900/60">
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="search"
+            aria-label="Search jobs"
+            placeholder="Search jobs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={`w-full rounded-lg border py-2.5 pl-9 pr-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-900"}`}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={async () => { setLocating(true); await getUserLocation(); setLocating(false); }}
+          disabled={locating}
+          className="shrink-0 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:bg-slate-400"
+        >
+          {locating ? "..." : "📍 Locate me"}
+        </button>
+      </div>
       {token && (
   <p className="font-semibold text-blue-600">
     👋 {username}
@@ -847,63 +891,7 @@ localStorage.removeItem("profilePic");
 >
         🚀 Job Listings
       </h1>
-      {/* 🔍 Search Bar */}
-<div className="contents">
-
-  <div className={`sticky top-[88px] z-40 -mx-3 px-3 py-2 sm:-mx-6 sm:px-6 md:top-[124px] md:-mx-10 md:px-10 ${darkMode ? "bg-gray-900/95" : "bg-gray-100/95"}`}>
-  <div className="max-w-2xl mx-auto w-full relative">
-
-  <Search
-    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-    size={20}
-  />
-
-  <input
-    type="text"
-    placeholder="Search jobs..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    className={`w-full pl-12 p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-  darkMode
-    ? "bg-gray-800 text-white border-gray-700 placeholder-gray-400"
-    : "bg-white text-black border-gray-300"
-}`}
-  />
-
-  </div>
-  </div>
-
-  <div className="mx-auto w-full max-w-2xl">
-  {userLocation && (
-  <p className="text-green-600 font-medium mb-4">
-    📍 Showing jobs near {userLocation}
-  </p>
-)}
-
-<button
-  onClick={async () => {
-    setLocating(true);
-    await getUserLocation();
-    setLocating(false);
-  }}
-  disabled={locating}
-  className={`
-    px-5 py-3 rounded-xl font-semibold text-white
-    transition-all duration-300
-    ${
-      locating
-        ? "bg-gray-400 cursor-not-allowed"
-        : "bg-blue-600 hover:bg-blue-700 hover:scale-105"
-    }
-  `}
->
-  {locating ? "📡 Detecting Location..." : "📍 Use My Location"}
-</button>
-  </div>
-
 <EmploymentNews darkMode={darkMode} />
-
-</div>
 
 <section className={`mx-auto mb-8 max-w-5xl rounded-2xl border p-4 shadow-sm ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-indigo-50/70"}`}>
   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1086,7 +1074,7 @@ localStorage.removeItem("profilePic");
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-       className={`relative min-w-0 flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-5 pt-20 shadow-md transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-6 sm:pt-20 ${isPremiumJob ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-white to-violet-50 text-slate-900 shadow-amber-200/70" : darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-100 bg-white text-slate-900"}`}
+       className={`relative min-w-0 flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-5 pt-20 shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-6 sm:pt-20 ${isPremiumJob ? "border-2 border-amber-300/90 bg-gradient-to-br from-amber-50/90 via-white/80 to-violet-50/80 text-slate-900 shadow-amber-200/60" : darkMode ? "border-white/10 bg-slate-800/60 text-white shadow-slate-950/30" : "border-white/80 bg-white/65 text-slate-900 shadow-slate-300/50"}`}
      >
 
       <div className="absolute left-5 top-5 -rotate-2 rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] font-bold text-amber-950 shadow-sm ring-1 ring-amber-300">
@@ -1107,7 +1095,7 @@ localStorage.removeItem("profilePic");
     : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 }
                     alt="logo"
-                    className="h-12 w-12 shrink-0 rounded-2xl bg-slate-100 object-cover p-1 shadow-sm ring-1 ring-slate-200 sm:h-14 sm:w-14"
+                    className="h-12 w-12 shrink-0 rounded-2xl bg-white/75 object-cover p-1 shadow-md ring-1 ring-white/80 sm:h-14 sm:w-14"
                   />
 
                   <div className="min-w-0 flex-1">
@@ -1140,8 +1128,8 @@ localStorage.removeItem("profilePic");
   {job.description || "No description available"}
 </p>
 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-  <p className="rounded-lg bg-emerald-50 px-2.5 py-2 font-semibold text-emerald-700"><span className="block text-[10px] uppercase tracking-wide text-emerald-600">Salary</span>{job.salary || "Not disclosed"}</p>
-  <p className={`rounded-lg px-2.5 py-2 font-semibold ${darkMode ? "bg-slate-700 text-slate-200" : "bg-slate-50 text-slate-600"}`}><span className="block text-[10px] uppercase tracking-wide text-slate-400">Experience</span>{job.experience || "Not specified"}</p>
+  <p className="rounded-xl border border-emerald-100/70 bg-emerald-50/70 px-2.5 py-2 font-semibold text-emerald-700 backdrop-blur"><span className="block text-[10px] uppercase tracking-wide text-emerald-600">Salary</span>{job.salary || "Not disclosed"}</p>
+  <p className={`rounded-xl border px-2.5 py-2 font-semibold backdrop-blur ${darkMode ? "border-white/10 bg-slate-700/60 text-slate-200" : "border-white/70 bg-white/55 text-slate-600"}`}><span className="block text-[10px] uppercase tracking-wide text-slate-400">Experience</span>{job.experience || "Not specified"}</p>
 </div>
 {job.skills && <p className={`mt-3 line-clamp-1 text-xs ${darkMode ? "text-sky-300" : "text-sky-700"}`}><span className="font-bold">Skills:</span> {job.skills}</p>}
 <p className="mt-3 inline-flex w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200">Last date: {lastDateLabel}</p>

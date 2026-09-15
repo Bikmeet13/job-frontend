@@ -34,3 +34,51 @@ html, body, #root {
 .animate-fadeIn {
   animation: fadeIn 0.3s ease;
 }
+
+@keyframes jobsFloatOne {
+  0%, 100% { transform: translate3d(-8%, -4%, 0) scale(1); }
+  50% { transform: translate3d(9%, 8%, 0) scale(1.12); }
+}
+
+@keyframes jobsFloatTwo {
+  0%, 100% { transform: translate3d(7%, 5%, 0) scale(1.04); }
+  50% { transform: translate3d(-10%, -7%, 0) scale(0.93); }
+}
+
+.jobs-ambient {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.jobs-ambient::before,
+.jobs-ambient::after {
+  content: "";
+  position: absolute;
+  width: min(48vw, 620px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.24;
+}
+
+.jobs-ambient::before {
+  top: 11rem;
+  left: -16rem;
+  background: #60a5fa;
+  animation: jobsFloatOne 22s ease-in-out infinite;
+}
+
+.jobs-ambient::after {
+  top: 38rem;
+  right: -18rem;
+  background: #a78bfa;
+  animation: jobsFloatTwo 27s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jobs-ambient::before,
+  .jobs-ambient::after { animation: none; }
+}
