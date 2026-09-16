@@ -186,3 +186,9 @@ html, body, #root {
 @keyframes jobsTitleFloat { to { transform: translateY(-9px) rotate(13deg); } }
 @media (max-width: 520px) { .jobs-title-showcase { padding-top: .6rem; }.jobs-title-orbit { display: none; }.jobs-title-gradient { font-size: 2.25rem; } }
 @media (prefers-reduced-motion: reduce) { .jobs-title-orbit { animation: none; } }
+
+/* Fixed quick navigation for long job-search pages */
+.home-scroll-controls { position: fixed; z-index: 45; right: 1rem; bottom: 1.2rem; display: grid; gap: .55rem; }
+.home-scroll-controls button { display: grid; width: 2.8rem; height: 2.8rem; place-items: center; border: 1px solid rgb(255 255 255 / .78); border-radius: 1rem; color: white; background: linear-gradient(145deg, #2563eb, #5b21b6); box-shadow: 0 10px 24px rgb(30 64 175 / .32); transition: transform .2s ease, box-shadow .2s ease; }
+.home-scroll-controls button:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgb(30 64 175 / .42); }.home-scroll-controls button:focus-visible { outline: 3px solid #facc15; outline-offset: 3px; }
+@media (max-width: 640px) { .home-scroll-controls { right: .75rem; bottom: 1rem; }.home-scroll-controls button { width: 2.55rem; height: 2.55rem; border-radius: .85rem; } }

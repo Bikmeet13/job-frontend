@@ -63,6 +63,8 @@ const [employerJobs, setEmployerJobs] = useState([]);
 const [employers, setEmployers] = useState([]);
 const [showEmployerModeration, setShowEmployerModeration] = useState(false);
 const [employerModerationLoading, setEmployerModerationLoading] = useState(false);
+const [candidateCount, setCandidateCount] = useState(null);
+const [candidateRefreshing, setCandidateRefreshing] = useState(false);
 
 const navigate = useNavigate();
 
@@ -84,6 +86,16 @@ const loadEmployerModeration = async () => {
 };
 const moderateEmployerJob = async (id, action) => { try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/employer-jobs/${id}`, { action }, { headers:{ Authorization:`Bearer ${localStorage.getItem("token")}` } }); toast.success("Employer job updated"); loadEmployerModeration(); } catch (e) { toast.error(e.response?.data?.error || "Could not update job"); } };
 const updateEmployer = async (employer, changes) => { try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/employers/${employer.id}`, { verified: changes.verified ?? employer.employer_verified, suspended: changes.suspended ?? employer.employer_suspended }, { headers:{ Authorization:`Bearer ${localStorage.getItem("token")}` } }); toast.success("Employer updated"); loadEmployerModeration(); } catch { toast.error("Could not update employer"); } };
+const refreshCandidates = async () => {
+  setCandidateRefreshing(true);
+  try {
+    const response = await axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/admin/candidates", { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+    const count = Array.isArray(response.data) ? response.data.length : 0;
+    setCandidateCount(count);
+    toast.success(`${count} registered candidate${count === 1 ? "" : "s"} found`);
+  } catch (error) { toast.error(error.response?.data?.error || "Could not refresh candidates"); }
+  finally { setCandidateRefreshing(false); }
+};
 
 const handleDelete = (id) => {
   const token = localStorage.getItem("token");
@@ -775,6 +787,7 @@ useEffect(() => {
     fetchCompanyJobAgentData();
     fetchVisaJobAgentData();
     loadEmployerModeration();
+    refreshCandidates();
   }
 }, [role]);
 
@@ -1342,7 +1355,15 @@ const filteredJobs = (jobs || []).filter((job) => {
   className="px-4 py-2 rounded-xl font-medium transition-all duration-300
   hover:bg-blue-600 hover:text-white hover:scale-105"
 >
-  Candidate Directory
+  Candidate Directory{candidateCount !== null ? ` (${candidateCount})` : ""}
+</button>
+
+<button
+  onClick={refreshCandidates}
+  disabled={candidateRefreshing}
+  className="ml-2 rounded-xl border border-blue-200 bg-white px-4 py-2 font-medium text-blue-700 transition-all duration-300 hover:bg-blue-600 hover:text-white disabled:opacity-60"
+>
+  {candidateRefreshing ? "Refreshing candidates…" : "↻ Refresh Candidates"}
 </button>
 
 <button

@@ -8,7 +8,9 @@ import {
   BellRing,
   FileText,
   Sparkles,
-  Rocket
+  Rocket,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
@@ -1361,6 +1363,10 @@ const data = await res.json();
 )}
       
 {/* 🌙 Footer */}
+<div className="home-scroll-controls" aria-label="Page navigation">
+  <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Go to top" aria-label="Go to top"><ArrowUp size={20} /></button>
+  <button type="button" onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" })} title="Go to bottom" aria-label="Go to bottom"><ArrowDown size={20} /></button>
+</div>
 <footer className="bg-gray-900 text-white mt-20 rounded-2xl p-10">
 
   <div className="grid gap-10 md:grid-cols-4">
