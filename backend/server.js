@@ -1707,25 +1707,41 @@ app.post("/api/employer/jobs/:id/track", async (req, res) => {
 });
 
 app.get("/api/admin/employers", verifyToken, isAdmin, async (req, res) => {
-  const result = await db.query("SELECT u.id, u.email, u.employer_verified, u.employer_suspended, p.full_name, p.company_name, p.city, p.state, p.website, p.created_at, COUNT(j.id)::int AS jobs_count FROM users u JOIN employer_profiles p ON p.user_id=u.id LEFT JOIN jobs j ON j.employer_id=u.id WHERE u.role='employer' GROUP BY u.id, p.user_id ORDER BY p.created_at DESC");
-  res.json(result.rows);
+  try {
+    const result = await db.query("SELECT u.id, u.email, u.employer_verified, u.employer_suspended, p.full_name, p.company_name, p.city, p.state, p.website, p.created_at, COUNT(j.id)::int AS jobs_count FROM users u JOIN employer_profiles p ON p.user_id=u.id LEFT JOIN jobs j ON j.employer_id=u.id WHERE u.role='employer' GROUP BY u.id, p.user_id ORDER BY p.created_at DESC");
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Could not load employers for moderation:", error.message);
+    res.status(500).json({ error: "Could not load employer accounts." });
+  }
 });
 app.patch("/api/admin/employers/:id", verifyToken, isAdmin, async (req, res) => {
-  const verified = req.body.verified === true;
-  const suspended = req.body.suspended === true;
-  const result = await db.query("UPDATE users SET employer_verified=$1, employer_suspended=$2 WHERE id=$3 AND role='employer' RETURNING id, employer_verified, employer_suspended", [verified, suspended, req.params.id]);
-  if (!result.rows.length) return res.status(404).json({ error: "Employer not found" });
-  res.json(result.rows[0]);
+  try {
+    const verified = req.body.verified === true;
+    const suspended = req.body.suspended === true;
+    const result = await db.query("UPDATE users SET employer_verified=$1, employer_suspended=$2 WHERE id=$3 AND role='employer' RETURNING id, employer_verified, employer_suspended", [verified, suspended, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Employer not found" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Could not update employer account:", error.message);
+    res.status(500).json({ error: "Could not update employer account." });
+  }
 });
 app.get("/api/admin/employer-jobs", verifyToken, isAdmin, async (req, res) => {
-  // This is the moderation queue, not a history list. Once approved or rejected,
-  // a job must leave this queue immediately.
-  const result = await db.query("SELECT j.*, p.company_name, u.email AS employer_email FROM jobs j JOIN employer_profiles p ON p.user_id=j.employer_id JOIN users u ON u.id=j.employer_id WHERE j.employer_id IS NOT NULL AND j.employer_status='Pending Review' ORDER BY j.posted_at DESC NULLS LAST");
-  res.json(result.rows);
+  try {
+    // This is the moderation queue, not a history list. Once approved or rejected,
+    // a job must leave this queue immediately.
+    const result = await db.query("SELECT j.*, p.company_name, u.email AS employer_email FROM jobs j JOIN employer_profiles p ON p.user_id=j.employer_id JOIN users u ON u.id=j.employer_id WHERE j.employer_id IS NOT NULL AND j.employer_status='Pending Review' ORDER BY j.posted_at DESC NULLS LAST");
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Could not load employer-job moderation queue:", error.message);
+    res.status(500).json({ error: "Could not load employer job requests." });
+  }
 });
 app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res) => {
-  const action = String(req.body.action || "");
-  const actions = { approve: "Live", reject: "Rejected", close: "Closed", pause: "Paused" };
+  try {
+    const action = String(req.body.action || "");
+    const actions = { approve: "Live", reject: "Rejected", close: "Closed", pause: "Paused" };
   if (action === "feature") {
     const days = Math.min(Math.max(Number(req.body.days) || 7, 1), 90);
     const result = await db.query("UPDATE jobs SET is_featured=TRUE, featured_start_date=NOW(), featured_end_date=NOW() + ($1::text || ' days')::interval, promotion_status='featured' WHERE id=$2 AND employer_id IS NOT NULL RETURNING id", [days, req.params.id]);
@@ -1745,7 +1761,11 @@ app.patch("/api/admin/employer-jobs/:id", verifyToken, isAdmin, async (req, res)
     if (!result.rows[0].feature_requested_plan) void queueJobAlertForJob(result.rows[0]);
     void notifyEmployerJobApproval(result.rows[0]);
   }
-  res.json({ message: `Job ${actions[action].toLowerCase()}` });
+    res.json({ message: `Job ${actions[action].toLowerCase()}` });
+  } catch (error) {
+    console.error("Employer-job moderation failed:", error.message);
+    res.status(500).json({ error: "Could not update this employer job request." });
+  }
 });
 
 function isOfficialIndianGovernmentUrl(value) {

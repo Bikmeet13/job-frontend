@@ -62,10 +62,18 @@ function Profile() {
     if (!resume) { toast.error("Select your resume, then use auto-fill"); return; }
     setUploading(true); setLoaderText("Reading your resume and preparing your career profile...");
     try {
-      const formData = new FormData(); formData.append("resume", resume); const response = await fetch(`${API}/extract-resume`, { method: "POST", body: formData }); const data = await response.json(); if (!response.ok) throw new Error("Analysis failed");
-      if (data.skills) setSkills(Array.isArray(data.skills) ? data.skills.join(", ") : data.skills); if (data.education) setEducation(data.education); if (data.experience) setExperience(data.experience); if (data.projects) setProjects(Array.isArray(data.projects) ? data.projects.join("\n") : data.projects);
+      const formData = new FormData();
+      formData.append("document", resume);
+      const response = await fetch(`${API}/resume-builder/import`, { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Analysis failed");
+      const extracted = data.extracted || {};
+      if (extracted.skills) setSkills(Array.isArray(extracted.skills) ? extracted.skills.join(", ") : extracted.skills);
+      if (extracted.education) setEducation(extracted.education);
+      if (extracted.experience) setExperience(extracted.experience);
+      if (extracted.projects) setProjects(Array.isArray(extracted.projects) ? extracted.projects.join("\n") : extracted.projects);
       setIsEditing(true); toast.success("Profile details extracted — review and save them");
-    } catch { toast.error("We couldn't analyze that resume. Please fill in your details."); } finally { setUploading(false); }
+    } catch (error) { toast.error(error.message || "We couldn't analyze that resume. Please fill in your details."); } finally { setUploading(false); }
   };
   const saveProfile = async () => {
     try {
