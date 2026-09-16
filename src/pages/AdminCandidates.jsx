@@ -15,6 +15,24 @@ function AdminCandidates() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const loadCandidates = async () => {
+    const token = localStorage.getItem("token");
+    setLoading(true);
+    setError("");
+    try {
+      const response = await axios.get(`${API_URL}/api/admin/candidates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCandidates(Array.isArray(response.data) ? response.data : []);
+      setLastUpdated(new Date());
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "Could not load the candidate directory.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -25,13 +43,7 @@ function AdminCandidates() {
       return;
     }
 
-    axios
-      .get(`${API_URL}/api/admin/candidates`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((response) => setCandidates(response.data))
-      .catch(() => setError("Could not load the candidate directory."))
-      .finally(() => setLoading(false));
+    loadCandidates();
   }, [navigate]);
 
   const filteredCandidates = useMemo(() => {
@@ -58,12 +70,14 @@ function AdminCandidates() {
               Review registered candidates, resumes, and contact details.
             </p>
           </div>
-          <button
-            onClick={() => navigate("/admin")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold"
-          >
-            Back to Admin Dashboard
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={loadCandidates} disabled={loading} className="border border-blue-200 bg-white px-5 py-3 rounded-xl font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">
+              {loading ? "Refreshing…" : "↻ Refresh candidates"}
+            </button>
+            <button onClick={() => navigate("/admin")} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold">
+              Back to Admin Dashboard
+            </button>
+          </div>
         </div>
 
         <input
@@ -74,6 +88,7 @@ function AdminCandidates() {
           className="w-full mb-8 p-4 rounded-xl border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
+        {lastUpdated && <p className="-mt-5 mb-5 text-sm text-gray-500">{candidates.length} registered candidates · Updated {lastUpdated.toLocaleTimeString()}</p>}
         {loading && <p className="text-gray-600">Loading candidates...</p>}
         {error && <p className="text-red-600">{error}</p>}
 
