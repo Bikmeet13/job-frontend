@@ -93,7 +93,7 @@ function Login() {
 
 
  return (
-  <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div className="login-gate min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
 
     {/* SVG Doodle Background */}
     <div className="absolute inset-0 opacity-5 pointer-events-none">
@@ -144,12 +144,12 @@ function Login() {
 >
 
       <h1
-      onClick={() => navigate("/")}
-      className="cursor-pointer text-3xl font-bold text-blue-600 mb-6 hover:text-blue-800 text-center"
+      className="text-3xl font-bold text-blue-600 mb-2 text-center"
     >
       
-      🚀 Marketlence Jobs
+      Marketlence Jobs
     </h1>
+    <p className="mb-6 text-center text-sm font-semibold text-slate-500">Sign in to explore your next opportunity</p>
       <h2 className="text-2xl font-bold text-center mb-6">
   Welcome Back 👋
 </h2>
@@ -241,7 +241,7 @@ function Login() {
       </form>
 
       <button
-  onClick={() => navigate("/")}
+  onClick={() => navigate("/signup")}
   className="
 w-full mt-4 py-3 rounded-xl
 bg-gray-100 hover:bg-gray-200
@@ -249,7 +249,7 @@ transition-all duration-300
 font-medium
 "
 >
-  ⬅ Back to Home
+  Create a free candidate account
 </button>
 </div>
 </div>

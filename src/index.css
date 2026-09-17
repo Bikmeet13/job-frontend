@@ -194,3 +194,8 @@ html, body, #root {
 .home-scroll-controls button { display: grid; width: 2.8rem; height: 2.8rem; place-items: center; border: 1px solid rgb(255 255 255 / .78); border-radius: 1rem; color: white; background: linear-gradient(145deg, #2563eb, #5b21b6); box-shadow: 0 10px 24px rgb(30 64 175 / .32); transition: transform .2s ease, box-shadow .2s ease; }
 .home-scroll-controls button:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgb(30 64 175 / .42); }.home-scroll-controls button:focus-visible { outline: 3px solid #facc15; outline-offset: 3px; }
 @media (max-width: 640px) { .home-scroll-controls { right: .75rem; bottom: 1rem; }.home-scroll-controls button { width: 2.55rem; height: 2.55rem; border-radius: .85rem; } }
+
+/* First-visit authentication screen */
+.login-gate::before, .login-gate::after { content: ""; position: absolute; width: 28rem; height: 28rem; border-radius: 999px; pointer-events: none; filter: blur(48px); opacity: .36; animation: loginFlash 5s ease-in-out infinite alternate; }.login-gate::before { top: -13rem; left: -10rem; background: #60a5fa; }.login-gate::after { right: -12rem; bottom: -14rem; background: #a78bfa; animation-delay: -2.4s; }.login-gate > div { animation: loginGateIn .48s ease-out both; }
+@keyframes loginFlash { to { transform: translate3d(2rem, 1rem, 0) scale(1.15); opacity: .55; } } @keyframes loginGateIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .login-gate::before, .login-gate::after, .login-gate > div { animation: none; } }

@@ -37,12 +37,12 @@ function App() {
 
     <Routes>
 
-      <Route path="/apply/:jobId" element={<ApplyForm />} />
+      <Route path="/apply/:jobId" element={<ProtectedRoute><ApplyForm /></ProtectedRoute>} />
 
-      <Route path="/" element={<Jobs />} />
-      <Route path="/jobs" element={<Jobs />} />
+      <Route path="/" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+      <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
 
-      <Route path="/jobs/:id" element={<JobDetails />} />
+      <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
       <Route path="/employers" element={<EmployerLanding />} />
       <Route path="/employer/register" element={<EmployerAuth />} />
       <Route path="/employer/login" element={<EmployerAuth login />} />
@@ -51,7 +51,7 @@ function App() {
       <Route path="/employer/profile" element={<EmployerProfile />} />
       <Route path="/employer/applications" element={<EmployerApplications />} />
       <Route path="/employer/hr" element={<EmployerHRServices />} />
-      <Route path="/candidate/job-alerts" element={<CandidateJobAlerts />} />
+      <Route path="/candidate/job-alerts" element={<ProtectedRoute><CandidateJobAlerts /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<LegalPolicies />} />
       <Route path="/terms-and-conditions" element={<LegalPolicies />} />
       <Route path="/refund-cancellation-policy" element={<LegalPolicies />} />
@@ -61,11 +61,11 @@ function App() {
       <Route path="/about-us" element={<LegalPolicies />} />
       <Route path="/services-pricing" element={<LegalPolicies />} />
       <Route path="/contact-us" element={<LegalPolicies />} />
-      <Route path="/freelance" element={<FreelanceLanding />} />
-      <Route path="/freelance/hire" element={<FreelanceHire />} />
-      <Route path="/freelance/work" element={<FreelanceWork />} />
+      <Route path="/freelance" element={<ProtectedRoute><FreelanceLanding /></ProtectedRoute>} />
+      <Route path="/freelance/hire" element={<ProtectedRoute><FreelanceHire /></ProtectedRoute>} />
+      <Route path="/freelance/work" element={<ProtectedRoute><FreelanceWork /></ProtectedRoute>} />
 
-      <Route path="/saved-jobs" element={<SavedJobs />} />
+      <Route path="/saved-jobs" element={<ProtectedRoute><SavedJobs /></ProtectedRoute>} />
 
       <Route
   path="/profile"
@@ -78,8 +78,8 @@ function App() {
 
 <Route path="/forgot-password" element={<ForgotPassword />} />
 
-<Route path="/resume-builder" element={<ResumeBuilder />} />
-<Route path="/document-generator" element={<DocumentGenerator />} />
+<Route path="/resume-builder" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
+<Route path="/document-generator" element={<ProtectedRoute><DocumentGenerator /></ProtectedRoute>} />
 
       
 
@@ -92,7 +92,7 @@ function App() {
   }
 />
 
-<Route path="/chatbot" element={<ChatbotForm />} />
+<Route path="/chatbot" element={<ProtectedRoute><ChatbotForm /></ProtectedRoute>} />
 
 <Route
   path="/admin/candidates"
@@ -127,7 +127,6 @@ function App() {
   }
 />
 
-<Route path="/saved-jobs" element={<SavedJobs />} />
 
     </Routes>
 
