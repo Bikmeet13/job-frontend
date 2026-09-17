@@ -68,11 +68,20 @@ function Profile() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Analysis failed");
       const extracted = data.extracted || {};
-      if (extracted.skills) setSkills(Array.isArray(extracted.skills) ? extracted.skills.join(", ") : extracted.skills);
-      if (extracted.education) setEducation(extracted.education);
-      if (extracted.experience) setExperience(extracted.experience);
-      if (extracted.projects) setProjects(Array.isArray(extracted.projects) ? extracted.projects.join("\n") : extracted.projects);
-      setIsEditing(true); toast.success("Profile details extracted — review and save them");
+      const asText = (value) => Array.isArray(value) ? value.filter(Boolean).join("\n") : String(value || "").trim();
+      const nextSkills = asText(extracted.skills).replace(/\n/g, ", ");
+      const nextEducation = asText(extracted.education);
+      const nextExperience = asText(extracted.experience);
+      const nextProjects = asText(extracted.projects);
+      const nextBio = asText(extracted.summary || extracted.profile || extracted.objective);
+      const filledCount = [nextSkills, nextEducation, nextExperience, nextProjects, nextBio].filter(Boolean).length;
+      if (!filledCount) throw new Error("We read the resume, but could not identify profile sections. Try a text-based PDF or add details manually.");
+      if (nextSkills) setSkills(nextSkills);
+      if (nextEducation) setEducation(nextEducation);
+      if (nextExperience) setExperience(nextExperience);
+      if (nextProjects) setProjects(nextProjects);
+      if (nextBio) setUser((current) => ({ ...current, bio: nextBio }));
+      setIsEditing(true); toast.success(`${filledCount} profile section${filledCount === 1 ? "" : "s"} extracted — review and save them`);
     } catch (error) { toast.error(error.message || "We couldn't analyze that resume. Please fill in your details."); } finally { setUploading(false); }
   };
   const saveProfile = async () => {

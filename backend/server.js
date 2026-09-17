@@ -176,6 +176,24 @@ app.post("/api/resume-builder/import", resumeTextUpload.single("document"), asyn
 
     if (!text.trim()) return res.status(400).json({ message: "No readable text was found in this file." });
 
+    const resumeLines = text.split(/\r?\n/).map((line) => line.replace(/^[•·●▪◦\-*]+\s*/, "").trim()).filter(Boolean);
+    const fallbackSection = (headings, maxLines = 7) => {
+      const headingIndex = resumeLines.findIndex((line) => new RegExp(`^(?:${headings.join("|")})\\s*:?$`, "i").test(line));
+      if (headingIndex < 0) return "";
+      const values = [];
+      for (let index = headingIndex + 1; index < resumeLines.length && values.length < maxLines; index += 1) {
+        const line = resumeLines[index];
+        if (/^(?:summary|profile|objective|skills?|technical skills|core competencies|experience|work experience|employment history|education|projects?|certifications?|awards?|languages?)\s*:?$/i.test(line)) break;
+        values.push(line);
+      }
+      return values.join("\n");
+    };
+    const fallback = {
+      skills: fallbackSection(["skills", "technical skills", "core competencies", "key skills"], 8).replace(/\n/g, ", "),
+      experience: fallbackSection(["experience", "work experience", "employment history", "professional experience"], 10),
+      education: fallbackSection(["education", "academic background", "qualifications"], 7),
+      projects: fallbackSection(["projects", "project experience", "key projects"], 7),
+    };
     let extracted = {};
     if (process.env.OPENAI_API_KEY) {
       try {
@@ -195,7 +213,9 @@ app.post("/api/resume-builder/import", resumeTextUpload.single("document"), asyn
       }
     }
 
-    res.json({ text, extracted });
+    const usableAiFields = Object.fromEntries(Object.entries(extracted).filter(([, value]) => Array.isArray(value) ? value.length : String(value || "").trim()));
+    const normalized = { ...fallback, ...usableAiFields };
+    res.json({ text, extracted: normalized });
   } catch (error) {
     console.error("Resume builder import failed:", error.message);
     res.status(500).json({ message: "We could not read that file. Try a smaller PDF, DOCX, TXT, JPG, or PNG." });
