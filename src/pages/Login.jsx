@@ -253,6 +253,14 @@ font-medium
 >
   Create a free candidate account
 </button>
+
+<button
+  type="button"
+  onClick={() => navigate("/")}
+  className="w-full mt-3 py-2 text-sm font-semibold text-blue-700 transition hover:text-blue-900 hover:underline"
+>
+  Browse jobs first
+</button>
 </div>
 </div>
 </div>
