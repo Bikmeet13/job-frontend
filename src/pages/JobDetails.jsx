@@ -1,7 +1,7 @@
 import ApplyForm from "../components/ApplyForm";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import FeaturedJobsSection from "../components/FeaturedJobsSection";
 
 const JOBS_API = "https://humorous-fulfillment-production-1f5e.up.railway.app/api/jobs";
@@ -9,6 +9,7 @@ const JOBS_API = "https://humorous-fulfillment-production-1f5e.up.railway.app/ap
 function JobDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const applyFormRef = useRef(null);
   const [job, setJob] = useState(null);
   const [allJobs, setAllJobs] = useState([]);
@@ -93,7 +94,13 @@ function JobDetails() {
   const applicationsEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
   const applyLink = job.applyLink || job.apply_link;
   const isPremiumJob = Boolean(job.is_featured || job.feature_requested_plan || job.featureRequestedPlan);
+  const requireCandidateLogin = () => {
+    if (localStorage.getItem("token") && localStorage.getItem("role") === "user") return true;
+    navigate("/login", { state: { from: `${location.pathname}${location.search}` } });
+    return false;
+  };
   const handleExternalApply = () => {
+    if (!requireCandidateLogin()) return;
     if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "apply", placement: "job-details", visitorKey: localStorage.getItem("mlVisitorKey") || "anonymous" }).catch(() => {});
     if (job.employer_id) {
       const key = localStorage.getItem("mlVisitorKey") || "anonymous";
@@ -156,7 +163,7 @@ function JobDetails() {
                 Apply on Company Website
               </button>
             ) : applicationsEnabled ? (
-              <button onClick={() => { if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "apply", placement: "job-details", visitorKey: localStorage.getItem("mlVisitorKey") || "anonymous" }).catch(() => {}); setShowForm(true); }} className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 sm:w-auto">
+              <button onClick={() => { if (!requireCandidateLogin()) return; if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "apply", placement: "job-details", visitorKey: localStorage.getItem("mlVisitorKey") || "anonymous" }).catch(() => {}); setShowForm(true); }} className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 sm:w-auto">
                 Apply Now
               </button>
             ) : (

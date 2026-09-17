@@ -39,10 +39,10 @@ function App() {
 
       <Route path="/apply/:jobId" element={<ProtectedRoute><ApplyForm /></ProtectedRoute>} />
 
-      <Route path="/" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
-      <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+      <Route path="/" element={<Jobs />} />
+      <Route path="/jobs" element={<Jobs />} />
 
-      <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
+      <Route path="/jobs/:id" element={<JobDetails />} />
       <Route path="/employers" element={<EmployerLanding />} />
       <Route path="/employer/register" element={<EmployerAuth />} />
       <Route path="/employer/login" element={<EmployerAuth login />} />

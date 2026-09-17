@@ -1,12 +1,14 @@
 import toast from "react-hot-toast";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import React, { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 
 function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const destination = location.state?.from || "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +35,7 @@ function Login() {
 
     toast.success("Google Login Successful 🚀");
 
-    navigate("/");
+    navigate(destination, { replace: true });
   } catch (err) {
     console.log(err);
     toast.error("Google Login Failed");
@@ -71,7 +73,7 @@ function Login() {
      
     setTimeout(() => {
       if (role === "user") {
-  navigate("/");
+  navigate(destination, { replace: true });
 } else {
   alert("Use admin login ❌");
 }

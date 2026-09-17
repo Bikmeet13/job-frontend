@@ -1172,13 +1172,13 @@ localStorage.removeItem("profilePic");
     Start Interview 🚀
   </button>
 ) : job.applyLink ? (
-  <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+  <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
     Apply on Official Job Page
-  </span>
+  </button>
 ) : applicationEnabled ? (
-  <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+  <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
 >
-    Check Details & Apply </span>
+    Check Details & Apply </button>
 ) : (
   <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-slate-200 px-4 py-3 font-bold text-slate-600 transition hover:bg-slate-300">
     View Details — Applications Closed
