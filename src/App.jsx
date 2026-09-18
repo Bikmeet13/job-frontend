@@ -24,6 +24,7 @@ import EmployerProfile from "./pages/EmployerProfile";
 import EmployerApplications from "./pages/EmployerApplications";
 import EmployerHRServices from "./pages/EmployerHRServices";
 import EmployeePortal from "./pages/EmployeePortal";
+import GlexaAssistant from "./components/GlexaAssistant";
 import CandidateJobAlerts from "./pages/CandidateJobAlerts";
 import LegalPolicies from "./pages/LegalPolicies";
 import FreelanceLanding from "./pages/FreelanceLanding";
@@ -131,6 +132,7 @@ function App() {
 
 
     </Routes>
+    <GlexaAssistant />
 
        
     </>

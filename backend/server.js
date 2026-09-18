@@ -3,6 +3,7 @@ require("dotenv").config();
 console.log("DB URL:", process.env.DATABASE_URL);
 
 const lastRequest = {};
+const glexaRequestWindows = new Map();
 const otpStore = {};
 // Employer registration codes are intentionally kept separate from candidate
 // signup/reset-password codes. They are short-lived and stored only as hashes.
@@ -144,6 +145,23 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
+
+app.post("/api/glexa", async (req, res) => {
+  const ip = req.ip || req.headers["x-forwarded-for"] || "anonymous";
+  const recent = glexaRequestWindows.get(ip) || [];
+  const active = recent.filter((time) => Date.now() - time < 60 * 1000);
+  if (active.length >= 20) return res.status(429).json({ error: "Glexa is taking a short breather. Please try again in a minute." });
+  active.push(Date.now()); glexaRequestWindows.set(ip, active);
+  const message = cleanText(req.body?.message, 1500);
+  const history = Array.isArray(req.body?.history) ? req.body.history.slice(-6).map((item) => ({ role: item.role === "assistant" ? "assistant" : "user", content: cleanText(item.content, 1200) })) : [];
+  if (!message) return res.status(400).json({ error: "Ask Glexa a question first." });
+  const system = "You are Glexa, the friendly MarketLence Jobs assistant. Help visitors understand this website and its features: finding/filtering/saving/sharing jobs, applying, candidate profiles, resume builder, document converter, job alerts, visa jobs, employer accounts, featured jobs, and People Hub. You also offer practical education and career-path guidance: suggest skills, learning steps, entry roles, portfolio ideas, and job-search tactics. Be accurate, concise, supportive, and use short paragraphs or bullets. Do not claim to be a recruiter or guarantee a job/admission/visa. Do not give legal, medical, or financial advice. For website account issues, recommend care@marketlence.com.";
+  if (!process.env.OPENAI_API_KEY) return res.json({ reply: "I can guide you around MarketLence Jobs: search jobs, build a resume, explore visa jobs, or create an employer account. For personal career advice, tell me your education, interests, and target role." });
+  try {
+    const completion = await openai.chat.completions.create({ model: "gpt-4o-mini", temperature: 0.45, max_tokens: 420, messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }] });
+    res.json({ reply: completion.choices?.[0]?.message?.content || "I’m sorry, I could not form a reply. Please try again." });
+  } catch (error) { console.error("Glexa response failed:", error.message); res.status(502).json({ error: "Glexa is unavailable right now. Please try again shortly." }); }
+});
 
 app.post("/api/resume-builder/import", resumeTextUpload.single("document"), async (req, res) => {
   try {
