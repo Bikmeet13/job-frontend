@@ -8,7 +8,6 @@ function Signup() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const [jobAlertsEnabled, setJobAlertsEnabled] = useState(false);
     const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -73,8 +72,7 @@ const verifyOtp = async () => {
         email,
         password,
         otp,
-         isAdmin,
-         jobAlertsEnabled
+        jobAlertsEnabled
       }
     );
 
@@ -121,15 +119,6 @@ const verifyOtp = async () => {
           or sign up with email
           <span className="h-px flex-1 bg-gray-200" />
         </div>
-
-        <label className="mb-4 flex items-center gap-2 text-sm">
-  <input
-    type="checkbox"
-    checked={isAdmin}
-    onChange={() => setIsAdmin(!isAdmin)}
-  />
-  Signup as Admin 👑
-</label>
 
         <label className="mb-4 flex items-start gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={jobAlertsEnabled} onChange={() => setJobAlertsEnabled(!jobAlertsEnabled)} className="mt-1" />
@@ -204,6 +193,17 @@ const verifyOtp = async () => {
             Login
           </span>
         </p>
+
+        <div className="mt-5 border-t border-gray-100 pt-4 text-center text-sm text-gray-600">
+          <span>Hiring for your company? </span>
+          <button
+            type="button"
+            onClick={() => navigate("/employer/register")}
+            className="font-semibold text-violet-700 transition hover:text-violet-900 hover:underline"
+          >
+            Create an employer account
+          </button>
+        </div>
 
       </div>
     </div>

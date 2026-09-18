@@ -2954,7 +2954,7 @@ app.post("/api/send-email-otp", async (req, res) => {
 });
 
 app.post("/api/verify-email-otp", async (req, res) => {
-  const { username, email, password, otp, isAdmin, jobAlertsEnabled = false } = req.body;
+  const { username, email, password, otp, jobAlertsEnabled = false } = req.body;
 
   const cleanEmail = email.toLowerCase().trim();
   const result = await db.query(
@@ -2970,13 +2970,10 @@ console.log("STORED:", record);
 console.log("ENTERED OTP:", otp);
 console.log("COMPARE:", String(record.otp), String(otp));
 
-  let role = "user";
-  let isApproved = true;
-
-  if (isAdmin) {
-    role = "admin";
-    isApproved = false;
-  }
+  // Public registration creates candidate accounts only. Admin accounts are
+  // provisioned internally and cannot be requested by a browser payload.
+  const role = "user";
+  const isApproved = true;
 
   if (!record) {
     return res.status(400).json({ error: "OTP not found ❌" });

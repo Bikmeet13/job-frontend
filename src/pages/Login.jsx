@@ -75,7 +75,7 @@ function Login() {
       if (role === "user") {
   navigate(destination, { replace: true });
 } else {
-  alert("Use admin login ❌");
+  alert("Please use Employer Login for your company account.");
 }
     }, 1000);
 
@@ -228,21 +228,21 @@ function Login() {
 
 <button
   type="button"
-  onClick={() => navigate("/admin-login")}
+  onClick={() => navigate("/employer/login")}
   className="
-  w-full mt-4 px-6 py-3 rounded-xl font-medium
-  border-2 border-green-500 text-green-600
+  w-full mt-4 px-6 py-3 rounded-xl font-semibold
+  border-2 border-violet-500 text-violet-700
   transition-all duration-300
-  hover:bg-green-500 hover:text-white
+  hover:bg-violet-600 hover:text-white
   hover:scale-105 hover:shadow-lg
 "
 >
-  🛡️ Login as Admin
+  🏢 Login as Employer
 </button>
 
       </form>
 
-      <button
+<button
   onClick={() => navigate("/signup")}
   className="
 w-full mt-4 py-3 rounded-xl
@@ -256,10 +256,26 @@ font-medium
 
 <button
   type="button"
+  onClick={() => navigate("/employer/register")}
+  className="w-full mt-3 py-3 rounded-xl bg-violet-50 text-violet-800 font-semibold transition-all duration-300 hover:bg-violet-100 hover:shadow-sm"
+>
+  Create an employer account
+</button>
+
+<button
+  type="button"
   onClick={() => navigate("/")}
   className="w-full mt-3 py-2 text-sm font-semibold text-blue-700 transition hover:text-blue-900 hover:underline"
 >
   Browse jobs first
+</button>
+
+<button
+  type="button"
+  onClick={() => navigate("/admin-login")}
+  className="w-full mt-4 text-xs text-gray-400 transition hover:text-gray-600 hover:underline"
+>
+  Admin login
 </button>
 </div>
 </div>
