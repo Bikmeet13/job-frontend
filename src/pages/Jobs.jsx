@@ -63,7 +63,7 @@ const [experienceFilter, setExperienceFilter] = useState("");
 
 const [salaryFilter, setSalaryFilter] = useState("");
 const [jobCategoryFilter, setJobCategoryFilter] = useState(
-  localStorage.getItem("jobCategory") || ""
+  localStorage.getItem("jobCategory") || "Private"
 );
 const [sortFilter, setSortFilter] = useState("newest");
 
@@ -383,6 +383,15 @@ localStorage.setItem(
     return Boolean(locationFilter) && String(locationFilter).toLowerCase().includes(jobState);
   };
 
+  const matchesSector = (job) => {
+    const category = String(job.job_category || job.jobCategory || "Private").toLowerCase();
+    if (!jobCategoryFilter) return true; // All sectors deliberately includes government openings.
+    if (jobCategoryFilter === "Government") return category === "government";
+    // Older jobs without a category are normal private listings unless they
+    // were explicitly classified as government recruitment.
+    return category !== "government";
+  };
+
   const filteredJobs = Array.isArray(jobs)
   ? jobs
       .filter(internalJobMatchesCountry)
@@ -416,20 +425,14 @@ localStorage.setItem(
               .includes(salaryFilter.toLowerCase())
           : true
       )
-      .filter((job) =>
-        jobCategoryFilter
-          ? String(job.job_category || job.jobCategory || "").toLowerCase() === jobCategoryFilter.toLowerCase()
-          : true
-      )
+      .filter(matchesSector)
    : [];
 
   const visibleExternalJobs = externalJobs.filter((job) => {
     const externalCountryMatch = job.source === "adzuna"
       ? job.country === country
       : String(job.location || "").toLowerCase().includes(countryNames[country] || "");
-    const categoryMatch = jobCategoryFilter
-      ? String(job.job_category || job.jobCategory || "").toLowerCase() === jobCategoryFilter.toLowerCase()
-      : true;
+    const categoryMatch = matchesSector(job);
     // External feeds do not provide reliable visa-sponsorship information, so they
     // must not appear when a user specifically asks for sponsored roles.
     const modeMatch = !modeFilter || job.mode === modeFilter;
@@ -986,7 +989,7 @@ localStorage.removeItem("profilePic");
         : "bg-white text-black border-gray-300"
     }`}
   >
-    <option value="">All sectors</option>
+    <option value="">All sectors (Private + Government)</option>
     <option value="Private">Private jobs</option>
     <option value="Government">Government jobs</option>
   </select>
