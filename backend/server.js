@@ -497,6 +497,19 @@ async function ensureCompanyJobAgentTables() {
     ["Mercado Libre Careers", "https://careers-meli.mercadolibre.com/", "ar"],
     ["Nubank Careers", "https://international.nubank.com.br/careers/", "br"],
     ["Turkcell Careers", "https://www.turkcell.com.tr/en/aboutus/careers", "tr"],
+    // Public ATS board APIs expose the employer's own published roles as JSON.
+    // They are substantially more reliable than browser-rendered careers pages.
+    ["Anthropic Careers", "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs", "us"],
+    ["Coinbase Careers", "https://boards-api.greenhouse.io/v1/boards/coinbase/jobs", "global"],
+    ["Datadog Careers", "https://boards-api.greenhouse.io/v1/boards/datadog/jobs", "us"],
+    ["Figma Careers", "https://boards-api.greenhouse.io/v1/boards/figma/jobs", "us"],
+    ["Asana Careers", "https://boards-api.greenhouse.io/v1/boards/asana/jobs", "us"],
+    ["Reddit Careers", "https://boards-api.greenhouse.io/v1/boards/reddit/jobs", "us"],
+    ["Canonical Careers", "https://canonical.com/careers/all-jobs", "global"],
+    ["GitLab Careers", "https://about.gitlab.com/jobs/", "global"],
+    ["Automattic Careers", "https://automattic.com/work-with-us/", "global"],
+    ["Stripe Careers", "https://stripe.com/jobs/search", "global"],
+    ["Atlassian Careers", "https://www.atlassian.com/company/careers/all-jobs", "global"],
   ];
   for (const [name, url, country] of companyJobDefaultSources) {
     await db.query(
@@ -683,7 +696,38 @@ function findGovernmentJobLinks(html, sourceUrl) {
     links.push({ title: title.slice(0, 300), applyLink, context });
   }
 
-  return [...new Map(links.map((item) => [item.applyLink, item])).values()];
+  // Company career sites increasingly expose vacancies through a public ATS
+  // JSON feed (Greenhouse, Lever and JSON-LD) rather than visible anchor text.
+  // Reading those published records makes the same scanner work for both
+  // conventional pages and modern careers platforms.
+  const structured = findStructuredJobLinks(html, sourceUrl);
+  return [...new Map([...links, ...structured].map((item) => [item.applyLink, item])).values()].slice(0, 50);
+}
+
+function findStructuredJobLinks(payload, sourceUrl) {
+  const results = [];
+  const add = (record) => {
+    if (!record || typeof record !== "object" || results.length >= 50) return;
+    const type = Array.isArray(record["@type"]) ? record["@type"].join(" ") : String(record["@type"] || "");
+    const title = cleanGovernmentJobText(record.title || record.name || record.text || record.positionTitle || "");
+    const rawUrl = record.absolute_url || record.hostedUrl || record.url || record.applyUrl || record.apply_link || record.jobUrl;
+    if (!title || title.length < 4 || !rawUrl || (!/jobposting/i.test(type) && !/(absolute_url|hostedUrl|applyUrl|apply_link|jobUrl)/.some((key) => record[key]))) return;
+    try { results.push({ title: title.slice(0, 300), applyLink: new URL(rawUrl, sourceUrl).href, context: cleanGovernmentJobText(record.description || record.content || "") }); } catch {}
+  };
+  const walk = (value) => {
+    if (!value || results.length >= 50) return;
+    if (Array.isArray(value)) return value.forEach(walk);
+    if (typeof value !== "object") return;
+    add(value);
+    Object.values(value).forEach(walk);
+  };
+  try { walk(JSON.parse(String(payload || ""))); } catch {}
+  const jsonLd = String(payload || "").match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const script of jsonLd) {
+    const match = script.match(/>([\s\S]*?)<\/script>/i);
+    try { if (match) walk(JSON.parse(match[1])); } catch {}
+  }
+  return [...new Map(results.map((item) => [item.applyLink, item])).values()];
 }
 
 function hasVisaSponsorship(text) {
@@ -797,14 +841,14 @@ async function scanCompanyJobSources() {
     let discovered = 0;
     let unavailable = 0;
 
-    // Scan a small group at a time. This is much faster than one-by-one while
-    // remaining polite to the career sites being checked.
-    for (let index = 0; index < sources.length; index += 6) {
-      const group = sources.slice(index, index + 6);
+    // Modern ATS pages need a little longer than a plain HTML site. Four
+    // parallel requests remain polite while sharply reducing false timeouts.
+    for (let index = 0; index < sources.length; index += 4) {
+      const group = sources.slice(index, index + 4);
       const groupResults = await Promise.all(group.map(async (source) => {
         try {
           const response = await axios.get(source.url, {
-            timeout: 7000,
+            timeout: 12000,
             responseType: "text",
             headers: { "User-Agent": "MarketlenceJobsBot/1.0 (company-job-review-agent)" },
           });
