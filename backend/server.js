@@ -1015,7 +1015,7 @@ app.get("/api/jobs", async (req, res) => {
   try {
     // Legacy/admin jobs do not have an employer_id. Employer-submitted jobs are
     // public only after an admin has approved them.
-    const result = await db.query("SELECT * FROM jobs WHERE (employer_id IS NULL OR employer_status = 'Live') AND (employer_id IS NULL OR COALESCE(feature_requested_plan, '') = '' OR is_featured = TRUE) ORDER BY is_featured DESC, posted_at DESC NULLS LAST, id DESC");
+    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) ORDER BY j.is_featured DESC, j.posted_at DESC NULLS LAST, j.id DESC");
 
     const jobs = result.rows.map(job => ({
       ...job,
@@ -1457,7 +1457,7 @@ app.post("/api/featured-jobs/:id/event", async (req, res) => {
 app.get("/api/jobs/slug/:slug", async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT * FROM jobs WHERE job_slug = $1 AND (employer_id IS NULL OR employer_status = 'Live') AND (employer_id IS NULL OR COALESCE(feature_requested_plan, '') = '' OR is_featured = TRUE)",
+      "SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE j.job_slug = $1 AND (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE)",
       [cleanText(req.params.slug, 200)]
     );
     if (!result.rows.length) return res.status(404).json({ error: "Job not found" });
@@ -2999,7 +2999,7 @@ app.get("/api/jobs/:id", async (req, res) => {
 
   try {
     const result = await db.query(
-      "SELECT * FROM jobs WHERE id = $1 AND (employer_id IS NULL OR employer_status = 'Live') AND (employer_id IS NULL OR COALESCE(feature_requested_plan, '') = '' OR is_featured = TRUE)",
+      "SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE j.id = $1 AND (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE)",
       [id]
     );
 

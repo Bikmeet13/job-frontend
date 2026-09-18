@@ -22,6 +22,7 @@ import JobMatchAssistant from "../components/JobMatchAssistant";
 import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
 import FeaturedJobsSection from "../components/FeaturedJobsSection";
+import CompanyLogo from "../components/CompanyLogo";
 import { COUNTRIES, COUNTRY_NAMES } from "../data/countries";
 import { VISA_SPONSORSHIP_RESOURCES } from "../data/visaSponsorshipResources";
 import toast from "react-hot-toast";
@@ -1090,17 +1091,7 @@ localStorage.removeItem("profilePic");
                 {/* 🖼️ Logo + Info */}
                 <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                   
-                  <img
-                    src={
-  job.company === "Google"
-    ? "https://cdn-icons-png.flaticon.com/512/300/300221.png"
-    : job.company === "Amazon"
-    ? "https://cdn-icons-png.flaticon.com/512/5968/5968870.png"
-    : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-}
-                    alt="logo"
-                    className="h-12 w-12 shrink-0 rounded-2xl bg-white/75 object-cover p-1 shadow-md ring-1 ring-white/80 sm:h-14 sm:w-14"
-                  />
+                  <CompanyLogo job={job} className="h-12 w-12 shrink-0 rounded-2xl shadow-md ring-1 ring-white/80 sm:h-14 sm:w-14" />
 
                   <div className="min-w-0 flex-1">
                     <h2
