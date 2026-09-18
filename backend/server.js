@@ -1143,6 +1143,13 @@ async function isEmployer(req, res, next) {
   } catch { return res.status(500).json({ error: "Could not verify employer account." }); }
 }
 
+function isHrEmployee(req, res, next) {
+  if (req.user.role !== "hr_employee" || !req.user.employeeId || !req.user.employerId) {
+    return res.status(403).json({ error: "Employee portal access required." });
+  }
+  next();
+}
+
 function cleanText(value, max = 5000) {
   return String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
@@ -1200,9 +1207,16 @@ async function ensureHrServiceTables() {
     db.query("CREATE TABLE IF NOT EXISTS hr_employees (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, full_name VARCHAR(180) NOT NULL, work_email VARCHAR(255), mobile VARCHAR(40), department VARCHAR(120), job_title VARCHAR(160), employment_type VARCHAR(80) NOT NULL DEFAULT 'Full-time', employment_status VARCHAR(50) NOT NULL DEFAULT 'Active', joining_date DATE, manager_name VARCHAR(180), notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(employer_id, work_email))"),
     db.query("CREATE TABLE IF NOT EXISTS hr_leave_requests (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, leave_type VARCHAR(80) NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, reason TEXT, status VARCHAR(40) NOT NULL DEFAULT 'Pending', manager_note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), reviewed_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS hr_employee_documents (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, document_name VARCHAR(180) NOT NULL, document_type VARCHAR(100), file_url TEXT, expiry_date DATE, status VARCHAR(50) NOT NULL DEFAULT 'Current', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_shifts (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, name VARCHAR(100) NOT NULL, start_time TIME NOT NULL, end_time TIME NOT NULL, work_days JSONB NOT NULL DEFAULT '[\"Mon\",\"Tue\",\"Wed\",\"Thu\",\"Fri\"]'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_employee_accounts (employee_id INTEGER PRIMARY KEY, password_hash TEXT NOT NULL, invited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_login_at TIMESTAMPTZ)"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_attendance (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, shift_id INTEGER, work_date DATE NOT NULL, check_in TIMESTAMPTZ, check_out TIMESTAMPTZ, status VARCHAR(40) NOT NULL DEFAULT 'Present', note TEXT, UNIQUE(employee_id, work_date))"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_leave_balances (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, leave_type VARCHAR(80) NOT NULL, allocated NUMERIC(6,1) NOT NULL DEFAULT 0, UNIQUE(employer_id, employee_id, leave_type))"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_communications (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER, audience VARCHAR(40) NOT NULL DEFAULT 'selected', channel VARCHAR(30) NOT NULL, subject VARCHAR(180), message TEXT NOT NULL, delivery_status VARCHAR(40) NOT NULL DEFAULT 'queued', provider_message_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS hr_employees_employer_idx ON hr_employees (employer_id, employment_status)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_leave_requests_employer_idx ON hr_leave_requests (employer_id, status, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_employee_documents_employer_idx ON hr_employee_documents (employer_id, employee_id)"),
+    db.query("CREATE INDEX IF NOT EXISTS hr_attendance_employer_idx ON hr_attendance (employer_id, work_date DESC)"),
+    db.query("CREATE INDEX IF NOT EXISTS hr_communications_employer_idx ON hr_communications (employer_id, created_at DESC)"),
   ]);
 }
 
@@ -1572,6 +1586,7 @@ app.post("/api/employer/hr/employees", verifyToken, isEmployer, async (req, res)
   if (body.joiningDate && !isHrDate(body.joiningDate)) return res.status(400).json({ error: "Use a valid joining date." });
   try {
     const result = await db.query("INSERT INTO hr_employees (employer_id,full_name,work_email,mobile,department,job_title,employment_type,employment_status,joining_date,manager_name,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *", [req.user.id, fullName, email || null, cleanText(body.mobile,40) || null, cleanText(body.department,120) || null, cleanText(body.jobTitle,160) || null, cleanText(body.employmentType,80) || "Full-time", hrEmployeeStatuses.has(body.employmentStatus) ? body.employmentStatus : "Active", body.joiningDate || null, cleanText(body.managerName,180) || null, cleanText(body.notes,3000) || null]);
+    await ensureEmployeeLeaveBalances(req.user.id, result.rows[0].id);
     res.status(201).json(result.rows[0]);
   } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this work email already exists." }); res.status(500).json({ error: "Could not add employee." }); }
 });
@@ -1621,6 +1636,100 @@ app.post("/api/employer/hr/documents", verifyToken, isEmployer, async (req, res)
   if (!employee) return res.status(404).json({ error: "Employee not found." });
   const result = await db.query("INSERT INTO hr_employee_documents (employer_id,employee_id,document_name,document_type,file_url,expiry_date,status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *", [req.user.id, employee.id, cleanText(body.documentName,180), cleanText(body.documentType,100) || null, fileUrl || null, body.expiryDate || null, cleanText(body.status,50) || "Current"]);
   res.status(201).json(result.rows[0]);
+});
+
+const defaultLeaveBalances = [["Casual leave", 12], ["Sick leave", 10], ["Annual leave", 18]];
+async function ensureEmployeeLeaveBalances(employerId, employeeId) {
+  await Promise.all(defaultLeaveBalances.map(([leaveType, allocated]) => db.query("INSERT INTO hr_leave_balances (employer_id,employee_id,leave_type,allocated) VALUES ($1,$2,$3,$4) ON CONFLICT (employer_id,employee_id,leave_type) DO NOTHING", [employerId, employeeId, leaveType, allocated])));
+}
+function hrEmployeePortalUrl() { return "https://jobs.marketlence.com/employee/login"; }
+function employeeEmailHtml(employee, password) { return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#172033"><h1 style="color:#5046d8">MarketLence People</h1><h2>You are invited to your employee portal</h2><p>Hi ${escapeEmailHtml(employee.full_name)},</p><p>Your employer has invited you to manage your attendance, leave, and work updates securely.</p><p><b>Email:</b> ${escapeEmailHtml(employee.work_email)}<br/><b>Temporary password:</b> ${escapeEmailHtml(password)}</p><p><a href="${hrEmployeePortalUrl()}" style="display:inline-block;background:#5046d8;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open employee portal</a></p><p style="font-size:12px;color:#64748b">Please change this temporary password after your first sign in.</p></div>`; }
+
+app.post("/api/employer/hr/employees/:id/invite", verifyToken, isEmployer, async (req, res) => {
+  const employee = (await db.query("SELECT * FROM hr_employees WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id])).rows[0];
+  if (!employee) return res.status(404).json({ error: "Employee not found." });
+  if (!employee.work_email) return res.status(400).json({ error: "Add the employee's work email before sending an invite." });
+  if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "Email sending is not configured yet." });
+  const temporaryPassword = crypto.randomBytes(6).toString("base64url");
+  try {
+    await db.query("INSERT INTO hr_employee_accounts (employee_id,password_hash,invited_at) VALUES ($1,$2,NOW()) ON CONFLICT (employee_id) DO UPDATE SET password_hash=EXCLUDED.password_hash, invited_at=NOW()", [employee.id, await bcrypt.hash(temporaryPassword, 10)]);
+    await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: employee.work_email, subject: "Your MarketLence People portal invite", html: employeeEmailHtml(employee, temporaryPassword) });
+    res.json({ message: `Invite sent to ${employee.work_email}.` });
+  } catch (error) { console.error("Employee invite failed:", error.message); res.status(502).json({ error: "Could not send the employee invite." }); }
+});
+
+app.get("/api/employer/hr/shifts", verifyToken, isEmployer, async (req, res) => {
+  res.json((await db.query("SELECT * FROM hr_shifts WHERE employer_id=$1 ORDER BY name", [req.user.id])).rows);
+});
+app.post("/api/employer/hr/shifts", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {}; const name = cleanText(body.name, 100); const days = Array.isArray(body.workDays) ? body.workDays.filter((day) => ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].includes(day)) : [];
+  if (!name || !/^\d{2}:\d{2}$/.test(String(body.startTime || "")) || !/^\d{2}:\d{2}$/.test(String(body.endTime || ""))) return res.status(400).json({ error: "Enter a shift name, start time, and end time." });
+  const result = await db.query("INSERT INTO hr_shifts (employer_id,name,start_time,end_time,work_days) VALUES ($1,$2,$3,$4,$5) RETURNING *", [req.user.id, name, body.startTime, body.endTime, JSON.stringify(days.length ? days : ["Mon","Tue","Wed","Thu","Fri"])]);
+  res.status(201).json(result.rows[0]);
+});
+app.delete("/api/employer/hr/shifts/:id", verifyToken, isEmployer, async (req, res) => {
+  await db.query("DELETE FROM hr_shifts WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id]); res.json({ message: "Shift removed." });
+});
+app.get("/api/employer/hr/attendance", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("SELECT a.*, e.full_name, e.department, s.name AS shift_name FROM hr_attendance a JOIN hr_employees e ON e.id=a.employee_id LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employer_id=$1 AND a.work_date >= CURRENT_DATE - INTERVAL '31 days' ORDER BY a.work_date DESC, e.full_name", [req.user.id]); res.json(result.rows);
+});
+app.put("/api/employer/hr/leave-balances/:employeeId", verifyToken, isEmployer, async (req, res) => {
+  const employee = (await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [req.params.employeeId, req.user.id])).rows[0]; if (!employee) return res.status(404).json({ error: "Employee not found." });
+  const balances = Array.isArray(req.body?.balances) ? req.body.balances : [];
+  await Promise.all(balances.slice(0, 8).map((item) => db.query("INSERT INTO hr_leave_balances (employer_id,employee_id,leave_type,allocated) VALUES ($1,$2,$3,$4) ON CONFLICT (employer_id,employee_id,leave_type) DO UPDATE SET allocated=EXCLUDED.allocated", [req.user.id, employee.id, cleanText(item.leaveType,80), Math.max(0, Math.min(Number(item.allocated) || 0, 365))])));
+  res.json({ message: "Leave balances updated." });
+});
+app.post("/api/employer/hr/communications", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {}; const channel = body.channel === "whatsapp" ? "whatsapp" : "email"; const message = cleanText(body.message, 3000); const subject = cleanText(body.subject, 180) || "A message from your employer";
+  const ids = Array.isArray(body.employeeIds) ? body.employeeIds.map(Number).filter(Number.isInteger) : [];
+  const employees = (await db.query(`SELECT * FROM hr_employees WHERE employer_id=$1 ${ids.length ? "AND id = ANY($2::int[])" : "AND employment_status='Active'"}`, ids.length ? [req.user.id, ids] : [req.user.id])).rows;
+  if (!message || !employees.length) return res.status(400).json({ error: "Choose at least one employee and write a message." });
+  const results = await Promise.all(employees.map(async (employee) => {
+    let status = "queued"; let providerMessageId = null;
+    try {
+      if (channel === "email") {
+        if (!employee.work_email) throw new Error("No email");
+        const response = await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: employee.work_email, subject, html: `<div style="font-family:Arial,sans-serif"><h2>${escapeEmailHtml(subject)}</h2><p>Hi ${escapeEmailHtml(employee.full_name)},</p><p>${escapeEmailHtml(message).replace(/\n/g,"<br/>")}</p></div>` }); providerMessageId = response.data?.id || null; status = "sent";
+      } else {
+        if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_WHATSAPP_FROM || !employee.mobile) throw new Error("WhatsApp not configured");
+        const params = new URLSearchParams({ From: process.env.TWILIO_WHATSAPP_FROM, To: `whatsapp:${employee.mobile.replace(/[^+\d]/g, "")}`, Body: `${subject}\n\n${message}` });
+        const response = await axios.post(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, params, { auth: { username: process.env.TWILIO_ACCOUNT_SID, password: process.env.TWILIO_AUTH_TOKEN }, headers: { "Content-Type": "application/x-www-form-urlencoded" } }); providerMessageId = response.data?.sid || null; status = "sent";
+      }
+    } catch { status = channel === "whatsapp" ? "needs_whatsapp_setup" : "missing_contact"; }
+    await db.query("INSERT INTO hr_communications (employer_id,employee_id,audience,channel,subject,message,delivery_status,provider_message_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", [req.user.id, employee.id, ids.length ? "selected" : "all_active", channel, subject, message, status, providerMessageId]); return status;
+  }));
+  res.json({ message: `${results.filter((status) => status === "sent").length} message(s) sent.`, statuses: results });
+});
+
+app.post("/api/employee/login", async (req, res) => {
+  const email = String(req.body?.email || "").toLowerCase().trim(); const password = String(req.body?.password || "");
+  const employee = (await db.query("SELECT e.*, a.password_hash FROM hr_employees e JOIN hr_employee_accounts a ON a.employee_id=e.id WHERE LOWER(e.work_email)=LOWER($1) AND e.employment_status='Active'", [email])).rows[0];
+  if (!employee || !(await bcrypt.compare(password, employee.password_hash))) return res.status(401).json({ error: "Invalid employee portal email or password." });
+  await db.query("UPDATE hr_employee_accounts SET last_login_at=NOW() WHERE employee_id=$1", [employee.id]);
+  const token = jwt.sign({ role: "hr_employee", employeeId: employee.id, employerId: employee.employer_id, email: employee.work_email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  res.json({ token, employee: { id: employee.id, fullName: employee.full_name } });
+});
+app.get("/api/employee/portal", verifyToken, isHrEmployee, async (req, res) => {
+  await ensureEmployeeLeaveBalances(req.user.employerId, req.user.employeeId);
+  const [employee, shifts, attendance, leaves, balances] = await Promise.all([
+    db.query("SELECT e.*, p.company_name FROM hr_employees e LEFT JOIN employer_profiles p ON p.user_id=e.employer_id WHERE e.id=$1 AND e.employer_id=$2", [req.user.employeeId, req.user.employerId]),
+    db.query("SELECT * FROM hr_shifts WHERE employer_id=$1 ORDER BY name", [req.user.employerId]),
+    db.query("SELECT a.*, s.name AS shift_name FROM hr_attendance a LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employee_id=$1 AND a.work_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '7 days' ORDER BY a.work_date DESC", [req.user.employeeId]),
+    db.query("SELECT * FROM hr_leave_requests WHERE employee_id=$1 ORDER BY start_date DESC", [req.user.employeeId]),
+    db.query("SELECT b.leave_type,b.allocated,COALESCE(SUM(CASE WHEN l.status='Approved' THEN (l.end_date-l.start_date+1) ELSE 0 END),0)::int AS used FROM hr_leave_balances b LEFT JOIN hr_leave_requests l ON l.employee_id=b.employee_id AND l.leave_type=b.leave_type AND EXTRACT(YEAR FROM l.start_date)=EXTRACT(YEAR FROM CURRENT_DATE) WHERE b.employee_id=$1 GROUP BY b.id,b.leave_type,b.allocated", [req.user.employeeId]),
+  ]);
+  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows });
+});
+app.post("/api/employee/attendance/check-in", verifyToken, isHrEmployee, async (req, res) => {
+  const shiftId = Number(req.body?.shiftId) || null; if (shiftId && !(await db.query("SELECT id FROM hr_shifts WHERE id=$1 AND employer_id=$2", [shiftId, req.user.employerId])).rows.length) return res.status(400).json({ error: "Choose a valid shift." });
+  const result = await db.query("INSERT INTO hr_attendance (employer_id,employee_id,shift_id,work_date,check_in,status) VALUES ($1,$2,$3,CURRENT_DATE,NOW(),'Present') ON CONFLICT (employee_id,work_date) DO UPDATE SET check_in=COALESCE(hr_attendance.check_in,NOW()),shift_id=COALESCE(hr_attendance.shift_id,EXCLUDED.shift_id) RETURNING *", [req.user.employerId, req.user.employeeId, shiftId]); res.json(result.rows[0]);
+});
+app.post("/api/employee/attendance/check-out", verifyToken, isHrEmployee, async (req, res) => {
+  const result = await db.query("UPDATE hr_attendance SET check_out=NOW() WHERE employee_id=$1 AND work_date=CURRENT_DATE RETURNING *", [req.user.employeeId]); if (!result.rows.length) return res.status(400).json({ error: "Check in before checking out." }); res.json(result.rows[0]);
+});
+app.post("/api/employee/leave-requests", verifyToken, isHrEmployee, async (req, res) => {
+  const body = req.body || {}; if (!cleanText(body.leaveType,80) || !isHrDate(body.startDate) || !isHrDate(body.endDate) || String(body.endDate) < String(body.startDate)) return res.status(400).json({ error: "Choose a leave type and valid dates." });
+  const result = await db.query("INSERT INTO hr_leave_requests (employer_id,employee_id,leave_type,start_date,end_date,reason) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *", [req.user.employerId, req.user.employeeId, cleanText(body.leaveType,80), body.startDate, body.endDate, cleanText(body.reason,2000) || null]); res.status(201).json(result.rows[0]);
 });
 app.get("/api/employer/dashboard", verifyToken, isEmployer, async (req, res) => {
   const stats = (await db.query(`SELECT COUNT(*)::int AS total_jobs, COUNT(*) FILTER (WHERE employer_status = 'Live')::int AS live_jobs, COUNT(*) FILTER (WHERE employer_status = 'Pending Review')::int AS pending_jobs, COUNT(*) FILTER (WHERE employer_status IN ('Closed','Expired'))::int AS closed_jobs, COALESCE(SUM(views_count),0)::int AS total_views, COALESCE(SUM(apply_clicks),0)::int AS total_apply_clicks FROM jobs WHERE employer_id = $1`, [req.user.id])).rows[0];

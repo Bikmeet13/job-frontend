@@ -23,6 +23,7 @@ import EmployerPostJob from "./pages/EmployerPostJob";
 import EmployerProfile from "./pages/EmployerProfile";
 import EmployerApplications from "./pages/EmployerApplications";
 import EmployerHRServices from "./pages/EmployerHRServices";
+import EmployeePortal from "./pages/EmployeePortal";
 import CandidateJobAlerts from "./pages/CandidateJobAlerts";
 import LegalPolicies from "./pages/LegalPolicies";
 import FreelanceLanding from "./pages/FreelanceLanding";
@@ -51,6 +52,7 @@ function App() {
       <Route path="/employer/profile" element={<EmployerProfile />} />
       <Route path="/employer/applications" element={<EmployerApplications />} />
       <Route path="/employer/hr" element={<EmployerHRServices />} />
+      <Route path="/employee/login" element={<EmployeePortal />} />
       <Route path="/candidate/job-alerts" element={<ProtectedRoute><CandidateJobAlerts /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<LegalPolicies />} />
       <Route path="/terms-and-conditions" element={<LegalPolicies />} />
