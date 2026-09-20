@@ -65,6 +65,11 @@ const [showEmployerModeration, setShowEmployerModeration] = useState(false);
 const [employerModerationLoading, setEmployerModerationLoading] = useState(false);
 const [candidateCount, setCandidateCount] = useState(null);
 const [candidateRefreshing, setCandidateRefreshing] = useState(false);
+const [cleanupDate, setCleanupDate] = useState("");
+const [cleanupIncludeEmployer, setCleanupIncludeEmployer] = useState(false);
+const [cleanupPreview, setCleanupPreview] = useState(null);
+const [cleanupConfirmation, setCleanupConfirmation] = useState("");
+const [cleanupLoading, setCleanupLoading] = useState(false);
 
 const navigate = useNavigate();
 
@@ -95,6 +100,40 @@ const refreshCandidates = async () => {
     toast.success(`${count} registered candidate${count === 1 ? "" : "s"} found`);
   } catch (error) { toast.error(error.response?.data?.error || "Could not refresh candidates"); }
   finally { setCandidateRefreshing(false); }
+};
+
+const previewJobCleanup = async () => {
+  if (!cleanupDate) return toast.error("Choose a cutoff date first.");
+  setCleanupLoading(true);
+  try {
+    const response = await axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/superadmin/jobs-cleanup-preview", {
+      params: { before: cleanupDate, includeEmployerJobs: cleanupIncludeEmployer },
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    setCleanupPreview(response.data); setCleanupConfirmation("");
+    toast.success(`${response.data.count} job(s) found for review.`);
+  } catch (error) { toast.error(error.response?.data?.error || "Could not preview the cleanup."); }
+  finally { setCleanupLoading(false); }
+};
+
+const deleteJobsBeforeDate = async () => {
+  if (!cleanupPreview?.count) return toast.error("Preview matching jobs before deleting.");
+  if (cleanupConfirmation !== `DELETE ${cleanupDate}`) return toast.error(`Type DELETE ${cleanupDate} exactly to confirm.`);
+  setCleanupLoading(true);
+  try {
+    const response = await axios.delete("https://humorous-fulfillment-production-1f5e.up.railway.app/api/superadmin/jobs-before-date", {
+      data: { before: cleanupDate, includeEmployerJobs: cleanupIncludeEmployer, confirmation: cleanupConfirmation },
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    const cutoff = new Date(`${cleanupDate}T00:00:00`);
+    setJobs((current) => current.filter((job) => {
+      const shouldDelete = job.posted_at && new Date(job.posted_at) < cutoff && (cleanupIncludeEmployer || !job.employer_id);
+      return !shouldDelete;
+    }));
+    setCleanupPreview(null); setCleanupConfirmation("");
+    toast.success(response.data.message);
+  } catch (error) { toast.error(error.response?.data?.error || "Could not delete the selected jobs."); }
+  finally { setCleanupLoading(false); }
 };
 
 const handleDelete = (id) => {
@@ -1039,6 +1078,37 @@ const filteredJobs = (jobs || []).filter((job) => {
 
       {/* 🔹 JOBS SECTION */}
       <h1 className="text-2xl font-bold mb-4">💼 Jobs Section</h1>
+
+      {role === "superadmin" && (
+        <section className="mb-8 overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm">
+          <div className="bg-gradient-to-r from-rose-700 to-red-600 px-5 py-4 text-white">
+            <p className="text-xs font-black tracking-[0.18em] text-rose-100">SUPER ADMIN · PERMANENT CLEANUP</p>
+            <h2 className="mt-1 text-xl font-black">Delete jobs posted before a selected date</h2>
+            <p className="mt-1 text-sm text-rose-100">Preview first, then type the required confirmation. This cannot be undone.</p>
+          </div>
+          <div className="p-5">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+              <label className="text-sm font-bold text-slate-700">Delete jobs posted before
+                <input type="date" value={cleanupDate} onChange={(event) => { setCleanupDate(event.target.value); setCleanupPreview(null); setCleanupConfirmation(""); }} className="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2.5" />
+              </label>
+              <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-900">
+                <input type="checkbox" checked={cleanupIncludeEmployer} onChange={(event) => { setCleanupIncludeEmployer(event.target.checked); setCleanupPreview(null); setCleanupConfirmation(""); }} />
+                Include employer-posted jobs
+              </label>
+              <button type="button" onClick={previewJobCleanup} disabled={cleanupLoading || !cleanupDate} className="rounded-xl bg-slate-900 px-5 py-3 font-bold text-white transition hover:bg-slate-700 disabled:opacity-50">
+                {cleanupLoading ? "Loading…" : "Preview jobs"}
+              </button>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-500">Employer jobs are protected by default. Select the checkbox only if you intentionally want to remove them too.</p>
+            {cleanupPreview && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <p className="font-black text-rose-900"><span className="text-2xl">{cleanupPreview.count}</span> job(s) will be permanently deleted.</p>
+              {cleanupPreview.examples?.length > 0 && <div className="mt-3 space-y-1 text-sm text-rose-900">{cleanupPreview.examples.map((job) => <p key={job.id}>• {job.title} — {job.company || "Unknown company"} ({job.posted_at ? String(job.posted_at).slice(0, 10) : "No date"})</p>)}</div>}
+              {cleanupPreview.count > 0 && <div className="mt-4 flex flex-col gap-3 sm:flex-row"><input value={cleanupConfirmation} onChange={(event) => setCleanupConfirmation(event.target.value)} placeholder={`Type DELETE ${cleanupDate} to confirm`} className="min-w-0 flex-1 rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-sm" /><button type="button" onClick={deleteJobsBeforeDate} disabled={cleanupLoading || cleanupConfirmation !== `DELETE ${cleanupDate}`} className="rounded-xl bg-rose-700 px-5 py-3 font-black text-white transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-40">Delete {cleanupPreview.count} job(s)</button></div>}
+              {cleanupPreview.count === 0 && <p className="mt-3 text-sm font-semibold text-emerald-700">Nothing matches this cleanup rule.</p>}
+            </div>}
+          </div>
+        </section>
+      )}
 
       <section className="mb-8">
         <button type="button" onClick={() => setShowPostedJobs(!showPostedJobs)} className="mb-4 flex w-full items-center justify-between rounded-xl bg-white p-4 text-left text-lg font-bold text-gray-800 shadow hover:bg-gray-50">

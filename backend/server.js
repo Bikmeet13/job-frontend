@@ -2677,6 +2677,58 @@ app.delete("/api/jobs/:id", verifyToken, isAdmin, async (req, res) => {
     res.status(500).send("Error deleting job");
   }
 });
+
+// Super-admin-only archive cleanup. A preview is required in the UI and the
+// destructive request itself must include an exact confirmation phrase.
+app.get("/api/superadmin/jobs-cleanup-preview", verifyToken, isSuperAdmin, async (req, res) => {
+  const before = String(req.query.before || "");
+  const includeEmployerJobs = String(req.query.includeEmployerJobs || "false") === "true";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(before)) return res.status(400).json({ error: "Choose a valid cutoff date." });
+  try {
+    const filter = includeEmployerJobs ? "" : "AND employer_id IS NULL";
+    const [count, examples] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS count FROM jobs WHERE posted_at < $1::date ${filter}`, [before]),
+      db.query(`SELECT id,title,company,location,posted_at FROM jobs WHERE posted_at < $1::date ${filter} ORDER BY posted_at ASC NULLS FIRST LIMIT 8`, [before]),
+    ]);
+    res.json({ before, includeEmployerJobs, count: count.rows[0].count, examples: examples.rows });
+  } catch (error) { console.error("Job cleanup preview failed:", error.message); res.status(500).json({ error: "Could not prepare the cleanup preview." }); }
+});
+
+app.delete("/api/superadmin/jobs-before-date", verifyToken, isSuperAdmin, async (req, res) => {
+  const before = String(req.body?.before || "");
+  const includeEmployerJobs = req.body?.includeEmployerJobs === true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(before)) return res.status(400).json({ error: "Choose a valid cutoff date." });
+  if (String(req.body?.confirmation || "") !== `DELETE ${before}`) return res.status(400).json({ error: `Type DELETE ${before} to confirm this cleanup.` });
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const filter = includeEmployerJobs ? "" : "AND employer_id IS NULL";
+    const selected = await client.query(`SELECT id FROM jobs WHERE posted_at < $1::date ${filter} FOR UPDATE`, [before]);
+    const ids = selected.rows.map((row) => row.id);
+    if (!ids.length) { await client.query("COMMIT"); return res.json({ message: "No jobs matched that cleanup rule.", deleted: 0 }); }
+    // Clear records that are directly tied to selected jobs first, preserving
+    // database consistency even when application data exists.
+    const applicationIds = await client.query("SELECT id FROM applications WHERE jobid = ANY($1::int[])", [ids]);
+    const apps = applicationIds.rows.map((row) => row.id);
+    if (apps.length) {
+      await client.query("DELETE FROM application_status_history WHERE application_id = ANY($1::int[])", [apps]);
+      await client.query("DELETE FROM application_messages WHERE application_id = ANY($1::int[])", [apps]);
+      await client.query("DELETE FROM application_document_requests WHERE application_id = ANY($1::int[])", [apps]);
+      await client.query("DELETE FROM applications WHERE id = ANY($1::int[])", [apps]);
+    }
+    await client.query("DELETE FROM saved_jobs WHERE job_id = ANY($1::int[])", [ids]);
+    await client.query("DELETE FROM job_alert_notifications WHERE job_id = ANY($1::int[])", [ids]);
+    await client.query("DELETE FROM employer_job_events WHERE job_id = ANY($1::int[])", [ids]);
+    await client.query("DELETE FROM featured_job_events WHERE job_id = ANY($1::int[])", [ids]);
+    await client.query("DELETE FROM employer_notifications WHERE job_id = ANY($1::int[])", [ids]);
+    await client.query("DELETE FROM employer_feature_payments WHERE job_id = ANY($1::int[])", [ids]);
+    await client.query("DELETE FROM jobs WHERE id = ANY($1::int[])", [ids]);
+    await client.query("COMMIT");
+    res.json({ message: `${ids.length} job(s) deleted permanently.`, deleted: ids.length, before, includeEmployerJobs });
+  } catch (error) {
+    await client.query("ROLLBACK"); console.error("Job cleanup failed:", error.message); res.status(500).json({ error: "Could not complete the job cleanup. Nothing was deleted." });
+  } finally { client.release(); }
+});
 const PORT = process.env.PORT || 5000;
 
 app.post(
