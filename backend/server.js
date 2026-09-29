@@ -497,6 +497,44 @@ async function ensureCompanyJobAgentTables() {
     ["Mercado Libre Careers", "https://careers-meli.mercadolibre.com/", "ar"],
     ["Nubank Careers", "https://international.nubank.com.br/careers/", "br"],
     ["Turkcell Careers", "https://www.turkcell.com.tr/en/aboutus/careers", "tr"],
+    // India: use the country-specific listing pages where available. Generic
+    // brand pages alone often contain no openings for a scanner to discover.
+    ["TCS India Careers", "https://www.tcs.com/careers/india", "in"],
+    ["TCS Rebegin Jobs", "https://www.tcs.com/careers/india/rebegin-job-codes", "in"],
+    ["TCS Entry Level Jobs", "https://www.tcs.com/careers/india/entry-level", "in"],
+    ["Infosys India Jobs", "https://career.infosys.com/joblist?companyhiringtype=il&countrycode=in&restartwithinfosys=true", "in"],
+    ["Infosys Digital Careers", "https://digitalcareers.infosys.com/", "in"],
+    ["Wipro Careers India", "https://careers.wipro.com/", "in"],
+    ["HCLTech India Openings", "https://www.hcltech.com/engineering/job-opening?page=0", "in"],
+    ["HCLTech India Careers", "https://www.hcltech.com/careers/opportunities?country=INDIA&experience=0", "in"],
+    ["Tech Mahindra India Jobs", "https://careers.techmahindra.com/CurrentOpportunity.aspx", "in"],
+    ["Reliance Retail Careers", "https://rcareers.ril.com/", "in"],
+    ["Reliance Jio Careers", "https://careers.jio.com/", "in"],
+    ["Larsen and Toubro Careers", "https://careers.larsentoubro.com/", "in"],
+    ["LTIMindtree Careers", "https://www.ltimindtree.com/careers/", "in"],
+    ["Tata Motors Careers", "https://www.tatamotors.com/careers/", "in"],
+    ["Tata Steel Careers", "https://www.tatasteel.com/careers/", "in"],
+    ["Mahindra Group Careers", "https://www.mahindra.com/careers", "in"],
+    ["Capgemini India Careers", "https://www.capgemini.com/in-en/careers/", "in"],
+    ["Cognizant India Careers", "https://careers.cognizant.com/global/en", "in"],
+    ["Deloitte India Careers", "https://www.deloitte.com/in/en/careers.html", "in"],
+    ["EY India Careers", "https://www.ey.com/en_in/careers", "in"],
+    ["KPMG India Careers", "https://kpmg.com/in/en/home/careers.html", "in"],
+    ["PwC India Careers", "https://www.pwc.in/careers.html", "in"],
+    ["HDFC Bank Careers", "https://www.hdfcbank.com/personal/about-us/careers", "in"],
+    ["ICICI Bank Careers", "https://www.icicibank.com/about-us/careers", "in"],
+    ["Axis Bank Careers", "https://www.axisbank.com/careers", "in"],
+    ["Kotak Careers", "https://www.kotak.com/en/careers.html", "in"],
+    ["Flipkart Careers", "https://www.flipkartcareers.com/#!/joblist", "in"],
+    ["Myntra Careers", "https://careers.myntra.com/", "in"],
+    ["Swiggy Careers", "https://careers.swiggy.com/", "in"],
+    ["Zomato Careers", "https://www.zomato.com/careers", "in"],
+    ["PhonePe Careers", "https://www.phonepe.com/careers/", "in"],
+    ["Razorpay Careers", "https://razorpay.com/careers/", "in"],
+    ["Zoho Careers", "https://www.zoho.com/careers/", "in"],
+    ["Freshworks Careers", "https://www.freshworks.com/company/careers/", "in"],
+    ["Paytm Careers", "https://paytm.com/careers/", "in"],
+    ["Ola Careers", "https://www.olacabs.com/careers", "in"],
     // Public ATS board APIs expose the employer's own published roles as JSON.
     // They are substantially more reliable than browser-rendered careers pages.
     ["Anthropic Careers", "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs", "us"],
@@ -829,14 +867,20 @@ async function markCompanySourceScanFailure(source, error) {
   );
 }
 
-async function scanCompanyJobSources() {
+async function scanCompanyJobSources(country = null) {
   if (companyJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0, unavailable: 0 };
 
   companyJobScanRunning = true;
 
   try {
+    const targetCountry = typeof country === "string" && /^[a-z]{2}$/i.test(country)
+      ? country.toLowerCase()
+      : null;
     const { rows: sources } = await db.query(
-      "SELECT id, name, url, job_category, country, scan_failure_count FROM company_job_sources WHERE enabled = TRUE"
+      `SELECT id, name, url, job_category, country, scan_failure_count
+       FROM company_job_sources
+       WHERE enabled = TRUE${targetCountry ? " AND country = $1" : ""}`,
+      targetCountry ? [targetCountry] : []
     );
     let discovered = 0;
     let unavailable = 0;
@@ -892,7 +936,7 @@ async function scanCompanyJobSources() {
     }
 
     const summary = { running: false, sourcesChecked: sources.length, discovered, unavailable };
-    console.log(`Company job scan complete: ${discovered} new openings from ${sources.length - unavailable}/${sources.length} available sources.`);
+    console.log(`Company job scan${targetCountry ? ` for ${targetCountry.toUpperCase()}` : ""} complete: ${discovered} new openings from ${sources.length - unavailable}/${sources.length} available sources.`);
     return summary;
   } finally {
     companyJobScanRunning = false;
@@ -2159,14 +2203,21 @@ app.post("/api/company-job-agent/scan", verifyToken, isAdmin, async (req, res) =
     return res.status(202).json({ started: false, message: "A company job scan is already running" });
   }
 
-  // A scan is an explicit admin request to retry every resource. Sources that
-  // remain unavailable will be paused again by the normal failure policy.
-  const restarted = await db.query("UPDATE company_job_sources SET enabled=TRUE, scan_failure_count=0, last_scan_error=NULL WHERE enabled=FALSE RETURNING id");
+  const requestedCountry = typeof req.body?.country === "string" && /^[a-z]{2}$/i.test(req.body.country)
+    ? req.body.country.toLowerCase()
+    : null;
+
+  // A scan is an explicit admin request to retry every relevant resource.
+  // Sources that remain unavailable will be paused again by the normal failure policy.
+  const restarted = requestedCountry
+    ? await db.query("UPDATE company_job_sources SET enabled=TRUE, scan_failure_count=0, last_scan_error=NULL WHERE enabled=FALSE AND country=$1 RETURNING id", [requestedCountry])
+    : await db.query("UPDATE company_job_sources SET enabled=TRUE, scan_failure_count=0, last_scan_error=NULL WHERE enabled=FALSE RETURNING id");
 
   // Do not keep the browser request open while hundreds of sources are read.
   // Railway can otherwise end the request before the scan has finished.
-  scanCompanyJobSources().catch((error) => console.log("Company job scan failed:", error.message));
-  res.status(202).json({ started: true, restarted: restarted.rows.length, message: `Company job scan started. ${restarted.rows.length} paused resource(s) restarted automatically.` });
+  scanCompanyJobSources(requestedCountry).catch((error) => console.log("Company job scan failed:", error.message));
+  const scope = requestedCountry ? `${requestedCountry.toUpperCase()} company job` : "Company job";
+  res.status(202).json({ started: true, restarted: restarted.rows.length, message: `${scope} scan started. ${restarted.rows.length} paused resource(s) restarted automatically.` });
 });
 
 app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {

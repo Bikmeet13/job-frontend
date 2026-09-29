@@ -607,12 +607,12 @@ const addCompanySource = async (e) => {
   }
 };
 
-const scanCompanySources = async () => {
+const scanCompanySources = async (country = null) => {
   setCompanyScanning(true);
   try {
     const result = await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/scan",
-      {},
+      country ? { country } : {},
       governmentAgentHeaders()
     );
     toast.success(result.data.message || "Company job scan started");
@@ -972,7 +972,10 @@ const filteredJobs = (jobs || []).filter((job) => {
           <div>
             <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it.</p>
           </div>
-          <button onClick={scanCompanySources} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">{companyScanning ? "Scanning all company resources..." : "Scan all resources (restart paused)"}</button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => scanCompanySources("in")} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-indigo-700 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300 hover:bg-indigo-800">{companyScanning ? "Scanning company resources..." : "Scan India private resources"}</button>
+            <button onClick={() => scanCompanySources()} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">{companyScanning ? "Scanning company resources..." : "Scan all resources (restart paused)"}</button>
+          </div>
         </div>
 
         <form onSubmit={addCompanySource} className="mb-5 grid gap-2 md:grid-cols-[1fr_2fr_160px_150px_auto]">
