@@ -1817,14 +1817,16 @@ app.post("/api/employee/login", async (req, res) => {
 });
 app.get("/api/employee/portal", verifyToken, isHrEmployee, async (req, res) => {
   await ensureEmployeeLeaveBalances(req.user.employerId, req.user.employeeId);
-  const [employee, shifts, attendance, leaves, balances] = await Promise.all([
+  const [employee, shifts, attendance, leaves, balances, documents, announcements] = await Promise.all([
     db.query("SELECT e.*, p.company_name FROM hr_employees e LEFT JOIN employer_profiles p ON p.user_id=e.employer_id WHERE e.id=$1 AND e.employer_id=$2", [req.user.employeeId, req.user.employerId]),
     db.query("SELECT * FROM hr_shifts WHERE employer_id=$1 ORDER BY name", [req.user.employerId]),
     db.query("SELECT a.*, s.name AS shift_name FROM hr_attendance a LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employee_id=$1 AND a.work_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '7 days' ORDER BY a.work_date DESC", [req.user.employeeId]),
     db.query("SELECT * FROM hr_leave_requests WHERE employee_id=$1 ORDER BY start_date DESC", [req.user.employeeId]),
     db.query("SELECT b.leave_type,b.allocated,COALESCE(SUM(CASE WHEN l.status='Approved' THEN (l.end_date-l.start_date+1) ELSE 0 END),0)::int AS used FROM hr_leave_balances b LEFT JOIN hr_leave_requests l ON l.employee_id=b.employee_id AND l.leave_type=b.leave_type AND EXTRACT(YEAR FROM l.start_date)=EXTRACT(YEAR FROM CURRENT_DATE) WHERE b.employee_id=$1 GROUP BY b.id,b.leave_type,b.allocated", [req.user.employeeId]),
+    db.query("SELECT id,document_name,document_type,file_url,expiry_date,status,created_at FROM hr_employee_documents WHERE employee_id=$1 AND employer_id=$2 ORDER BY expiry_date ASC NULLS LAST, created_at DESC", [req.user.employeeId, req.user.employerId]),
+    db.query("SELECT id,channel,subject,message,delivery_status,created_at FROM hr_communications WHERE employee_id=$1 AND employer_id=$2 ORDER BY created_at DESC LIMIT 12", [req.user.employeeId, req.user.employerId]),
   ]);
-  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows });
+  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows, documents: documents.rows, announcements: announcements.rows });
 });
 app.post("/api/employee/attendance/check-in", verifyToken, isHrEmployee, async (req, res) => {
   const shiftId = Number(req.body?.shiftId) || null; if (shiftId && !(await db.query("SELECT id FROM hr_shifts WHERE id=$1 AND employer_id=$2", [shiftId, req.user.employerId])).rows.length) return res.status(400).json({ error: "Choose a valid shift." });
