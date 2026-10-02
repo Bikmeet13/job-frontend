@@ -300,6 +300,13 @@ useEffect(() => {
 }, [search, locationFilter, modeFilter, country]);
 
 const fetchExternalJobs = async () => {
+  // India uses reviewed official company and public-sector sources. Do not
+  // display a third-party Adzuna feed alongside those listings.
+  if (country === "in") {
+    setExternalJobs([]);
+    localStorage.removeItem("externalJobs");
+    return;
+  }
   try {
     const res = await axios.get(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/external-jobs",

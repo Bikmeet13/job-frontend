@@ -3551,7 +3551,9 @@ app.get("/api/profile/:id", async (req, res) => {
   }
 });
 
-const adzunaCountries = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
+// India is intentionally excluded. MarketLence shows India opportunities from
+// employer/PSU sources that can be reviewed before publishing, not Adzuna.
+const adzunaCountries = new Set(["at", "au", "be", "br", "ca", "ch", "de", "es", "fr", "gb", "it", "mx", "nl", "nz", "pl", "sg", "us", "za"]);
 
 app.get("/api/external-jobs", async (req, res) => {
   try {
