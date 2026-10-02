@@ -1311,8 +1311,10 @@ async function ensureEmployerPostingTables() {
 async function ensureHrServiceTables() {
   await Promise.all([
     db.query("CREATE TABLE IF NOT EXISTS hr_employees (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, full_name VARCHAR(180) NOT NULL, work_email VARCHAR(255), mobile VARCHAR(40), department VARCHAR(120), job_title VARCHAR(160), employment_type VARCHAR(80) NOT NULL DEFAULT 'Full-time', employment_status VARCHAR(50) NOT NULL DEFAULT 'Active', joining_date DATE, manager_name VARCHAR(180), notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(employer_id, work_email))"),
+    db.query("ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS default_shift_id INTEGER"),
     db.query("CREATE TABLE IF NOT EXISTS hr_leave_requests (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, leave_type VARCHAR(80) NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, reason TEXT, status VARCHAR(40) NOT NULL DEFAULT 'Pending', manager_note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), reviewed_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS hr_employee_documents (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, document_name VARCHAR(180) NOT NULL, document_type VARCHAR(100), file_url TEXT, expiry_date DATE, status VARCHAR(50) NOT NULL DEFAULT 'Current', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_document_requests (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, document_name VARCHAR(180) NOT NULL, document_type VARCHAR(100), note TEXT, due_date DATE, status VARCHAR(40) NOT NULL DEFAULT 'Requested', file_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), uploaded_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS hr_shifts (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, name VARCHAR(100) NOT NULL, start_time TIME NOT NULL, end_time TIME NOT NULL, work_days JSONB NOT NULL DEFAULT '[\"Mon\",\"Tue\",\"Wed\",\"Thu\",\"Fri\"]'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS hr_employee_accounts (employee_id INTEGER PRIMARY KEY, password_hash TEXT NOT NULL, invited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_login_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS hr_attendance (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, shift_id INTEGER, work_date DATE NOT NULL, check_in TIMESTAMPTZ, check_out TIMESTAMPTZ, status VARCHAR(40) NOT NULL DEFAULT 'Present', note TEXT, UNIQUE(employee_id, work_date))"),
@@ -1321,6 +1323,7 @@ async function ensureHrServiceTables() {
     db.query("CREATE INDEX IF NOT EXISTS hr_employees_employer_idx ON hr_employees (employer_id, employment_status)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_leave_requests_employer_idx ON hr_leave_requests (employer_id, status, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_employee_documents_employer_idx ON hr_employee_documents (employer_id, employee_id)"),
+    db.query("CREATE INDEX IF NOT EXISTS hr_document_requests_employee_idx ON hr_document_requests (employer_id, employee_id, status)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_attendance_employer_idx ON hr_attendance (employer_id, work_date DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_communications_employer_idx ON hr_communications (employer_id, created_at DESC)"),
   ]);
@@ -1743,6 +1746,18 @@ app.post("/api/employer/hr/documents", verifyToken, isEmployer, async (req, res)
   const result = await db.query("INSERT INTO hr_employee_documents (employer_id,employee_id,document_name,document_type,file_url,expiry_date,status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *", [req.user.id, employee.id, cleanText(body.documentName,180), cleanText(body.documentType,100) || null, fileUrl || null, body.expiryDate || null, cleanText(body.status,50) || "Current"]);
   res.status(201).json(result.rows[0]);
 });
+app.get("/api/employer/hr/document-requests", verifyToken, isEmployer, async (req, res) => {
+  const result = await db.query("SELECT r.*, e.full_name, e.department FROM hr_document_requests r JOIN hr_employees e ON e.id=r.employee_id AND e.employer_id=r.employer_id WHERE r.employer_id=$1 ORDER BY CASE WHEN r.status='Requested' THEN 0 ELSE 1 END, r.created_at DESC", [req.user.id]);
+  res.json(result.rows);
+});
+app.post("/api/employer/hr/document-requests", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {}; const documentName = cleanText(body.documentName, 180);
+  if (!Number(body.employeeId) || !documentName) return res.status(400).json({ error: "Choose an employee and document name." });
+  const employee = (await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [body.employeeId, req.user.id])).rows[0];
+  if (!employee) return res.status(404).json({ error: "Employee not found." });
+  const result = await db.query("INSERT INTO hr_document_requests (employer_id,employee_id,document_name,document_type,note,due_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *", [req.user.id, employee.id, documentName, cleanText(body.documentType,100) || null, cleanText(body.note,2000) || null, body.dueDate || null]);
+  res.status(201).json(result.rows[0]);
+});
 
 const defaultLeaveBalances = [["Casual leave", 12], ["Sick leave", 10], ["Annual leave", 18]];
 async function ensureEmployeeLeaveBalances(employerId, employeeId) {
@@ -1775,6 +1790,13 @@ app.post("/api/employer/hr/shifts", verifyToken, isEmployer, async (req, res) =>
 });
 app.delete("/api/employer/hr/shifts/:id", verifyToken, isEmployer, async (req, res) => {
   await db.query("DELETE FROM hr_shifts WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id]); res.json({ message: "Shift removed." });
+});
+app.patch("/api/employer/hr/employees/:id/default-shift", verifyToken, isEmployer, async (req, res) => {
+  const shiftId = Number(req.body?.shiftId) || null;
+  if (shiftId && !(await db.query("SELECT id FROM hr_shifts WHERE id=$1 AND employer_id=$2", [shiftId, req.user.id])).rows.length) return res.status(400).json({ error: "Choose a valid company shift." });
+  const result = await db.query("UPDATE hr_employees SET default_shift_id=$1, updated_at=NOW() WHERE id=$2 AND employer_id=$3 RETURNING id, default_shift_id", [shiftId, req.params.id, req.user.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Employee not found." });
+  res.json(result.rows[0]);
 });
 app.get("/api/employer/hr/attendance", verifyToken, isEmployer, async (req, res) => {
   const result = await db.query("SELECT a.*, e.full_name, e.department, s.name AS shift_name FROM hr_attendance a JOIN hr_employees e ON e.id=a.employee_id LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employer_id=$1 AND a.work_date >= CURRENT_DATE - INTERVAL '31 days' ORDER BY a.work_date DESC, e.full_name", [req.user.id]); res.json(result.rows);
@@ -1817,19 +1839,29 @@ app.post("/api/employee/login", async (req, res) => {
 });
 app.get("/api/employee/portal", verifyToken, isHrEmployee, async (req, res) => {
   await ensureEmployeeLeaveBalances(req.user.employerId, req.user.employeeId);
-  const [employee, shifts, attendance, leaves, balances, documents, announcements] = await Promise.all([
-    db.query("SELECT e.*, p.company_name FROM hr_employees e LEFT JOIN employer_profiles p ON p.user_id=e.employer_id WHERE e.id=$1 AND e.employer_id=$2", [req.user.employeeId, req.user.employerId]),
+  const [employee, shifts, attendance, leaves, balances, documents, announcements, documentRequests] = await Promise.all([
+    db.query("SELECT e.*, p.company_name, s.name AS default_shift_name, s.start_time AS default_shift_start, s.end_time AS default_shift_end FROM hr_employees e LEFT JOIN employer_profiles p ON p.user_id=e.employer_id LEFT JOIN hr_shifts s ON s.id=e.default_shift_id WHERE e.id=$1 AND e.employer_id=$2", [req.user.employeeId, req.user.employerId]),
     db.query("SELECT * FROM hr_shifts WHERE employer_id=$1 ORDER BY name", [req.user.employerId]),
     db.query("SELECT a.*, s.name AS shift_name FROM hr_attendance a LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employee_id=$1 AND a.work_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '7 days' ORDER BY a.work_date DESC", [req.user.employeeId]),
     db.query("SELECT * FROM hr_leave_requests WHERE employee_id=$1 ORDER BY start_date DESC", [req.user.employeeId]),
     db.query("SELECT b.leave_type,b.allocated,COALESCE(SUM(CASE WHEN l.status='Approved' THEN (l.end_date-l.start_date+1) ELSE 0 END),0)::int AS used FROM hr_leave_balances b LEFT JOIN hr_leave_requests l ON l.employee_id=b.employee_id AND l.leave_type=b.leave_type AND EXTRACT(YEAR FROM l.start_date)=EXTRACT(YEAR FROM CURRENT_DATE) WHERE b.employee_id=$1 GROUP BY b.id,b.leave_type,b.allocated", [req.user.employeeId]),
     db.query("SELECT id,document_name,document_type,file_url,expiry_date,status,created_at FROM hr_employee_documents WHERE employee_id=$1 AND employer_id=$2 ORDER BY expiry_date ASC NULLS LAST, created_at DESC", [req.user.employeeId, req.user.employerId]),
     db.query("SELECT id,channel,subject,message,delivery_status,created_at FROM hr_communications WHERE employee_id=$1 AND employer_id=$2 ORDER BY created_at DESC LIMIT 12", [req.user.employeeId, req.user.employerId]),
+    db.query("SELECT id,document_name,document_type,note,due_date,status,created_at FROM hr_document_requests WHERE employee_id=$1 AND employer_id=$2 ORDER BY CASE WHEN status='Requested' THEN 0 ELSE 1 END, created_at DESC", [req.user.employeeId, req.user.employerId]),
   ]);
-  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows, documents: documents.rows, announcements: announcements.rows });
+  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows, documents: documents.rows, announcements: announcements.rows, documentRequests: documentRequests.rows });
+});
+app.post("/api/employee/document-requests/:id/upload", verifyToken, isHrEmployee, upload.single("document"), async (req, res) => {
+  if (!req.file?.path) return res.status(400).json({ error: "Choose a document to upload." });
+  const request = (await db.query("UPDATE hr_document_requests SET status='Uploaded', file_url=$1, uploaded_at=NOW() WHERE id=$2 AND employee_id=$3 AND employer_id=$4 AND status='Requested' RETURNING *", [req.file.path, req.params.id, req.user.employeeId, req.user.employerId])).rows[0];
+  if (!request) return res.status(404).json({ error: "Document request not found or already completed." });
+  await db.query("INSERT INTO hr_employee_documents (employer_id,employee_id,document_name,document_type,file_url,status) VALUES ($1,$2,$3,$4,$5,'Current')", [req.user.employerId, req.user.employeeId, request.document_name, request.document_type, req.file.path]);
+  res.json({ message: "Document uploaded securely.", request });
 });
 app.post("/api/employee/attendance/check-in", verifyToken, isHrEmployee, async (req, res) => {
-  const shiftId = Number(req.body?.shiftId) || null; if (shiftId && !(await db.query("SELECT id FROM hr_shifts WHERE id=$1 AND employer_id=$2", [shiftId, req.user.employerId])).rows.length) return res.status(400).json({ error: "Choose a valid shift." });
+  let shiftId = Number(req.body?.shiftId) || null;
+  if (!shiftId) shiftId = (await db.query("SELECT default_shift_id FROM hr_employees WHERE id=$1 AND employer_id=$2", [req.user.employeeId, req.user.employerId])).rows[0]?.default_shift_id || null;
+  if (shiftId && !(await db.query("SELECT id FROM hr_shifts WHERE id=$1 AND employer_id=$2", [shiftId, req.user.employerId])).rows.length) return res.status(400).json({ error: "Choose a valid shift." });
   const result = await db.query("INSERT INTO hr_attendance (employer_id,employee_id,shift_id,work_date,check_in,status) VALUES ($1,$2,$3,CURRENT_DATE,NOW(),'Present') ON CONFLICT (employee_id,work_date) DO UPDATE SET check_in=COALESCE(hr_attendance.check_in,NOW()),shift_id=COALESCE(hr_attendance.shift_id,EXCLUDED.shift_id) RETURNING *", [req.user.employerId, req.user.employeeId, shiftId]); res.json(result.rows[0]);
 });
 app.post("/api/employee/attendance/check-out", verifyToken, isHrEmployee, async (req, res) => {
