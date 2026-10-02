@@ -462,6 +462,7 @@ async function ensureCompanyJobAgentTables() {
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_found_count INTEGER NOT NULL DEFAULT 0"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS scan_failure_count INTEGER NOT NULL DEFAULT 0"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'global'"),
+    db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS location TEXT"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE"),
   ]);
 
@@ -775,6 +776,26 @@ function hasVisaSponsorship(text) {
   return positive.test(value) && !negative.test(value);
 }
 
+async function extractOfficialCompanyJobLocation(listing, country) {
+  const fallback = country === "in" ? "India" : "";
+  if (!process.env.OPENAI_API_KEY) return { title: listing.title, location: fallback };
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", temperature: 0, max_tokens: 100,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Extract only facts stated in an official job listing. Return JSON {title, location}. location must be city and state when stated; otherwise country when stated; otherwise an empty string. Never guess." },
+        { role: "user", content: `Country source: ${country}\nJob title: ${listing.title}\nListing context: ${String(listing.context || "").slice(0, 5000)}\nURL: ${listing.applyLink}` },
+      ],
+    });
+    const facts = JSON.parse(completion.choices?.[0]?.message?.content || "{}");
+    return { title: cleanText(facts.title, 300) || listing.title, location: cleanText(facts.location, 180) || fallback };
+  } catch (error) {
+    console.log("Company job AI location extraction skipped:", error.message);
+    return { title: listing.title, location: fallback };
+  }
+}
+
 async function hasVisaSponsorshipOnJobPage(listing) {
   // Career index pages often show only a title. Check a small number of the
   // actual opening pages as well, where eligibility is normally written.
@@ -910,15 +931,18 @@ async function scanCompanyJobSources(country = null) {
           for (const listing of listings) {
             const visaSponsorship = visaMatches.get(listing.applyLink)
               || hasVisaSponsorship(`${listing.title} ${listing.applyLink} ${listing.context}`);
+            // Use AI only on official listing text. It supplies a location only
+            // when the source actually states one, preventing invented cities.
+            const facts = await extractOfficialCompanyJobLocation(listing, source.country);
             const inserted = await db.query(
-              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, country, title, apply_link, visa_sponsorship)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+              `INSERT INTO company_job_drafts (source_id, source_name, source_url, job_category, country, title, location, apply_link, visa_sponsorship)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                ON CONFLICT (apply_link) DO UPDATE
-               SET visa_sponsorship = TRUE
+               SET visa_sponsorship = TRUE, location=COALESCE(NULLIF(EXCLUDED.location,''), company_job_drafts.location)
                WHERE company_job_drafts.status = 'pending'
                  AND EXCLUDED.visa_sponsorship = TRUE
                RETURNING id, (xmax = 0) AS was_inserted`,
-              [source.id, source.name, source.url, source.job_category, source.country || inferSourceCountry(source.name, source.url), listing.title, listing.applyLink, visaSponsorship]
+              [source.id, source.name, source.url, source.job_category, source.country || inferSourceCountry(source.name, source.url), facts.title, facts.location, listing.applyLink, visaSponsorship]
             );
             if (inserted.rows[0]?.was_inserted) found += 1;
           }
@@ -2271,7 +2295,7 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
       [
         draft.title.slice(0, 300),
         draft.source_name,
-        "See company careers page",
+        draft.location || (draft.country === "in" ? "India" : "See company careers page"),
         "Not disclosed",
         "See company careers page",
         "See company careers page",
@@ -2290,7 +2314,8 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
       "UPDATE company_job_drafts SET status = 'approved', reviewed_at = NOW() WHERE id = $1",
       [draft.id]
     );
-    void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "See company careers page" });
+    const publishedLocation = draft.location || (draft.country === "in" ? "India" : "See company careers page");
+    void sendNewJobNotification({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: publishedLocation });
     void queueJobAlertForJob({ id: jobResult.rows[0].id, title: draft.title, company: draft.source_name, location: "See company careers page", salary: "Not disclosed", experience: "See company careers page", skills: "", description: "Opening from official company careers page", type: "Full-time", mode: "Onsite", job_category: draft.job_category });
     void postApprovedJobToFacebook({
       id: jobResult.rows[0].id,
