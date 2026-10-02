@@ -24,6 +24,7 @@ import EmployerProfile from "./pages/EmployerProfile";
 import EmployerApplications from "./pages/EmployerApplications";
 import EmployerHRServices from "./pages/EmployerHRServices";
 import EmployerLeaveApprovals from "./pages/EmployerLeaveApprovals";
+import EmployerDocumentRequests from "./pages/EmployerDocumentRequests";
 import EmployeePortal from "./pages/EmployeePortal";
 import GlexaAssistant from "./components/GlexaAssistant";
 import CandidateJobAlerts from "./pages/CandidateJobAlerts";
@@ -55,6 +56,7 @@ function App() {
       <Route path="/employer/applications" element={<EmployerApplications />} />
       <Route path="/employer/hr" element={<EmployerHRServices />} />
       <Route path="/employer/hr/leave-approvals" element={<EmployerLeaveApprovals />} />
+      <Route path="/employer/hr/document-requests" element={<EmployerDocumentRequests />} />
       <Route path="/employee/login" element={<EmployeePortal />} />
       <Route path="/candidate/job-alerts" element={<ProtectedRoute><CandidateJobAlerts /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<LegalPolicies />} />
