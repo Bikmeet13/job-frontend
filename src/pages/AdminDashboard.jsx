@@ -48,6 +48,7 @@ const [companySourceUrl, setCompanySourceUrl] = useState("");
 const [companySourceCategory, setCompanySourceCategory] = useState("Private");
 const [companySourceCountry, setCompanySourceCountry] = useState("global");
 const [companyScanning, setCompanyScanning] = useState(false);
+const [companyScanScope, setCompanyScanScope] = useState(null);
 const [visaSources, setVisaSources] = useState([]);
 const [visaDrafts, setVisaDrafts] = useState([]);
 const [visaScanning, setVisaScanning] = useState(false);
@@ -609,6 +610,7 @@ const addCompanySource = async (e) => {
 
 const scanCompanySources = async (country = null) => {
   setCompanyScanning(true);
+  setCompanyScanScope(country || "all");
   try {
     const result = await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/scan",
@@ -623,6 +625,7 @@ const scanCompanySources = async (country = null) => {
     toast.error("Company job scan failed");
   } finally {
     setCompanyScanning(false);
+    setCompanyScanScope(null);
   }
 };
 
@@ -973,8 +976,8 @@ const filteredJobs = (jobs || []).filter((job) => {
             <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => scanCompanySources("in")} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-indigo-700 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300 hover:bg-indigo-800">{companyScanning ? "Scanning company resources..." : "Scan India private resources"}</button>
-            <button onClick={() => scanCompanySources()} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">{companyScanning ? "Scanning company resources..." : "Scan all resources (restart paused)"}</button>
+            <button type="button" onClick={(event) => { event.preventDefault(); scanCompanySources("in"); }} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-indigo-700 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300 hover:bg-indigo-800">{companyScanScope === "in" ? "Scanning India resources..." : companyScanning ? "Other scan in progress" : "Scan India private resources"}</button>
+            <button type="button" onClick={(event) => { event.preventDefault(); scanCompanySources(); }} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-300 hover:bg-blue-700">{companyScanScope === "all" ? "Scanning all resources..." : companyScanning ? "Other scan in progress" : "Scan all resources (restart paused)"}</button>
           </div>
         </div>
 
