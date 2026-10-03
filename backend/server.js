@@ -13,6 +13,7 @@ const EMPLOYER_EMAIL_OTP_RESEND_MS = 60 * 1000;
 const EMPLOYER_EMAIL_OTP_MAX_ATTEMPTS = 5;
 let employmentNewsCache = { items: [], expiresAt: 0 };
 let companyJobScanRunning = false;
+let companyAiExtractionsThisScan = 0;
 let visaJobScanRunning = false;
 const employmentNewsFallback = [
   {
@@ -779,13 +780,22 @@ function hasVisaSponsorship(text) {
 async function extractOfficialCompanyJobLocation(listing, country) {
   const fallback = country === "in" ? "India" : "";
   if (!process.env.OPENAI_API_KEY) return { title: listing.title, location: fallback };
+  if (companyAiExtractionsThisScan >= 160) return { title: listing.title, location: fallback };
   try {
+    let officialDetail = "";
+    if (isSafeCompanySourceUrl(listing.applyLink)) {
+      try {
+        const page = await axios.get(listing.applyLink, { timeout: 8000, responseType: "text", maxContentLength: 800000, headers: { "User-Agent": "MarketlenceJobsBot/1.0 (official-location-verifier)" } });
+        officialDetail = cleanGovernmentJobText(String(page.data || "").slice(0, 30000));
+      } catch {}
+    }
+    companyAiExtractionsThisScan += 1;
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini", temperature: 0, max_tokens: 100,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Extract only facts stated in an official job listing. Return JSON {title, location}. location must be city and state when stated; otherwise country when stated; otherwise an empty string. Never guess." },
-        { role: "user", content: `Country source: ${country}\nJob title: ${listing.title}\nListing context: ${String(listing.context || "").slice(0, 5000)}\nURL: ${listing.applyLink}` },
+        { role: "user", content: `Country source: ${country}\nJob title: ${listing.title}\nListing context: ${String(listing.context || "").slice(0, 5000)}\nOfficial job-page text: ${officialDetail}\nURL: ${listing.applyLink}` },
       ],
     });
     const facts = JSON.parse(completion.choices?.[0]?.message?.content || "{}");
@@ -794,6 +804,21 @@ async function extractOfficialCompanyJobLocation(listing, country) {
     console.log("Company job AI location extraction skipped:", error.message);
     return { title: listing.title, location: fallback };
   }
+}
+
+async function repairApprovedIndiaCompanyLocations() {
+  const { rows } = await db.query("SELECT id,title,company,apply_link FROM jobs WHERE country='in' AND job_category='Private' AND location IN ('India','See company careers page','Not specified') AND apply_link IS NOT NULL ORDER BY posted_at DESC LIMIT 60");
+  let repaired = 0;
+  for (const job of rows) {
+    const facts = await extractOfficialCompanyJobLocation({ title: job.title, applyLink: job.apply_link, context: `Company: ${job.company}` }, "in");
+    const location = cleanText(facts.location, 180);
+    if (location && !/^india$/i.test(location) && !/^see company careers page$/i.test(location)) {
+      await db.query("UPDATE jobs SET location=$1 WHERE id=$2", [location, job.id]);
+      repaired += 1;
+    }
+  }
+  console.log(`India company location repair complete: ${repaired}/${rows.length} jobs updated.`);
+  return repaired;
 }
 
 async function hasVisaSponsorshipOnJobPage(listing) {
@@ -892,6 +917,7 @@ async function scanCompanyJobSources(country = null) {
   if (companyJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0, unavailable: 0 };
 
   companyJobScanRunning = true;
+  companyAiExtractionsThisScan = 0;
 
   try {
     const targetCountry = typeof country === "string" && /^[a-z]{2}$/i.test(country)
@@ -959,7 +985,8 @@ async function scanCompanyJobSources(country = null) {
       unavailable += groupResults.filter((result) => result.unavailable).length;
     }
 
-    const summary = { running: false, sourcesChecked: sources.length, discovered, unavailable };
+    const repaired = targetCountry === "in" ? await repairApprovedIndiaCompanyLocations() : 0;
+    const summary = { running: false, sourcesChecked: sources.length, discovered, unavailable, repaired };
     console.log(`Company job scan${targetCountry ? ` for ${targetCountry.toUpperCase()}` : ""} complete: ${discovered} new openings from ${sources.length - unavailable}/${sources.length} available sources.`);
     return summary;
   } finally {
