@@ -1158,7 +1158,7 @@ localStorage.removeItem("profilePic");
                 {/* 🔘 Apply Button */}
                
 {completed ? (
-  <button className="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg"
+  <button className="glass-job-action glass-job-complete mt-6 w-full px-4 py-3 font-bold transition-all duration-300"
 >
     Application Completed ✅
   </button>
@@ -1168,16 +1168,16 @@ localStorage.removeItem("profilePic");
       e.stopPropagation();
       navigate(`/chatbot?applicationId=${appId}&jobId=${job.id}`);
     }}
-    className="mt-6 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+    className="glass-job-action glass-job-primary mt-6 w-full px-4 py-3 font-bold transition-all duration-300"
 >
     Start Interview 🚀
   </button>
 ) : job.applyLink ? (
-  <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-3 font-bold text-white shadow-md shadow-emerald-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+  <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="glass-job-action glass-job-official mt-6 flex w-full cursor-pointer items-center justify-center px-4 py-3 font-bold transition-all duration-300">
     Apply on Official Job Page
   </button>
 ) : applicationEnabled ? (
-  <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-md shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+  <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="glass-job-action glass-job-primary mt-6 flex w-full cursor-pointer items-center justify-center px-4 py-3 font-bold transition-all duration-300"
 >
     Check Details & Apply </button>
 ) : (
@@ -1189,7 +1189,7 @@ localStorage.removeItem("profilePic");
                 <div className="mt-3 grid grid-cols-2 gap-3">
                 <button
                   onClick={(event) => shareJob(event, job)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 py-2.5 text-sm font-semibold text-blue-700 transition hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                  className="glass-job-secondary flex w-full items-center justify-center gap-2 py-2.5 text-sm font-semibold transition"
                 >
                   <Share2 size={18} />
                   Share Job
@@ -1199,8 +1199,8 @@ localStorage.removeItem("profilePic");
   className={`w-full rounded-xl py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2
     ${
       savedJobs.includes(job.id)
-        ? "bg-red-500 text-white"
-        : "border border-red-400 text-red-500 hover:bg-red-500 hover:text-white"
+        ? "glass-job-saved"
+        : "glass-job-save"
     }`}
   onClick={(e) => {
     e.stopPropagation();
