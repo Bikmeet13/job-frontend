@@ -23,6 +23,7 @@ import EmploymentNews from "../components/EmploymentNews";
 import { fetchJobs } from "../services/api";
 import FeaturedJobsSection from "../components/FeaturedJobsSection";
 import CompanyLogo from "../components/CompanyLogo";
+import PremiumResourceAccess from "../components/PremiumResourceAccess";
 import { COUNTRIES, COUNTRY_NAMES } from "../data/countries";
 import { VISA_SPONSORSHIP_RESOURCES } from "../data/visaSponsorshipResources";
 import toast from "react-hot-toast";
@@ -42,6 +43,20 @@ const [userLocation, setUserLocation] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  const openPremiumResources = () => {
+    if (!token) {
+      toast("Please log in to unlock Visa & sponsored job access.");
+      navigate("/login", { state: { from: "/jobs" } });
+      return;
+    }
+    if (hasPremiumResourceAccess) {
+      setModeFilter("Visa");
+      setVisaResourcesOpen(true);
+      return;
+    }
+    setShowPremiumResourceCheckout(true);
+  };
   
 
   const [jobs, setJobs] = useState([]);
@@ -66,6 +81,9 @@ const [jobCategoryFilter, setJobCategoryFilter] = useState(
   localStorage.getItem("jobCategory") || "Private"
 );
 const [sortFilter, setSortFilter] = useState("newest");
+const [hasPremiumResourceAccess, setHasPremiumResourceAccess] = useState(false);
+const [showPremiumResourceCheckout, setShowPremiumResourceCheckout] = useState(false);
+const [visaResourcesOpen, setVisaResourcesOpen] = useState(false);
 
 const [appliedJobs, setAppliedJobs] = useState([]);
   
@@ -235,6 +253,37 @@ useEffect(() => {
   localStorage.setItem("jobMode", modeFilter);
   localStorage.setItem("jobCategory", jobCategoryFilter);
 }, [search, locationFilter, modeFilter, jobCategoryFilter, country]);
+
+useEffect(() => {
+  if (!token) {
+    setHasPremiumResourceAccess(false);
+    return;
+  }
+  let active = true;
+  axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/premium-resources/access", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(({ data }) => { if (active) setHasPremiumResourceAccess(Boolean(data.hasAccess)); })
+    .catch(() => { if (active) setHasPremiumResourceAccess(false); });
+  return () => { active = false; };
+}, [token]);
+
+useEffect(() => {
+  if (!token || !hasPremiumResourceAccess) return;
+  let active = true;
+  axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/premium-resources/jobs", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(({ data }) => {
+      if (!active) return;
+      setJobs((currentJobs) => [
+        ...currentJobs.filter((job) => String(job.mode || "").toLowerCase() !== "visa"),
+        ...data,
+      ]);
+    })
+    .catch(() => toast.error("Could not load Visa & sponsored jobs."));
+  return () => { active = false; };
+}, [token, hasPremiumResourceAccess]);
 
 useEffect(() => {
   const savedExternalJobs = localStorage.getItem("externalJobs");
@@ -418,6 +467,7 @@ localStorage.setItem(
           ? job.mode === modeFilter
           : true
       )
+      .filter((job) => hasPremiumResourceAccess || job.mode !== "Visa")
       .filter((job) =>
         experienceFilter
           ? job.experience
@@ -916,23 +966,30 @@ localStorage.removeItem("profilePic");
     </div>
     <button
       type="button"
-      onClick={() => setModeFilter("Visa")}
+      onClick={openPremiumResources}
       className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
     >
-      Show sponsored jobs
+      {hasPremiumResourceAccess ? "Show sponsored jobs" : "Unlock for ₹99"}
     </button>
   </div>
-  <details className={`mt-4 rounded-xl border px-4 py-3 ${darkMode ? "border-slate-700 bg-slate-800" : "border-white bg-white"}`}>
-    <summary className="cursor-pointer font-semibold text-indigo-700">Official work-visa and international-job resources ({VISA_SPONSORSHIP_RESOURCES.length})</summary>
-    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {VISA_SPONSORSHIP_RESOURCES.map((resource) => (
-        <a key={resource.country} href={resource.url} target="_blank" rel="noreferrer" className={`rounded-lg border px-3 py-2 text-sm transition hover:border-indigo-400 hover:text-indigo-700 ${darkMode ? "border-slate-700 text-slate-200" : "border-slate-200 text-slate-700"}`}>
-          <span className="block font-semibold">{resource.country}</span>
-          <span className="block truncate text-xs opacity-80">{resource.name} ↗</span>
-        </a>
-      ))}
-    </div>
-  </details>
+  {hasPremiumResourceAccess ? (
+    <details open={visaResourcesOpen} onToggle={(event) => setVisaResourcesOpen(event.currentTarget.open)} className={`mt-4 rounded-xl border px-4 py-3 ${darkMode ? "border-slate-700 bg-slate-800" : "border-white bg-white"}`}>
+      <summary className="cursor-pointer font-semibold text-indigo-700">Official work-visa and international-job resources ({VISA_SPONSORSHIP_RESOURCES.length})</summary>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {VISA_SPONSORSHIP_RESOURCES.map((resource) => (
+          <a key={resource.country} href={resource.url} target="_blank" rel="noreferrer" className={`rounded-lg border px-3 py-2 text-sm transition hover:border-indigo-400 hover:text-indigo-700 ${darkMode ? "border-slate-700 text-slate-200" : "border-slate-200 text-slate-700"}`}>
+            <span className="block font-semibold">{resource.country}</span>
+            <span className="block truncate text-xs opacity-80">{resource.name} ↗</span>
+          </a>
+        ))}
+      </div>
+    </details>
+  ) : (
+    <button type="button" onClick={openPremiumResources} className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-white bg-white text-slate-700"}`}>
+      <span><span className="font-semibold text-indigo-700">🔒 Official visa and international-job resources</span><span className="ml-2 text-sm opacity-75">Pay ₹99 to view</span></span>
+      <span className="font-bold text-indigo-700">Unlock →</span>
+    </button>
+  )}
 </section>
 
 <div
@@ -984,7 +1041,7 @@ localStorage.removeItem("profilePic");
     <option value="Remote">Remote</option>
     <option value="Onsite">Onsite</option>
     <option value="Hybrid">Hybrid</option>
-    <option value="Visa">Visa Jobs</option>
+    {hasPremiumResourceAccess && <option value="Visa">Visa Jobs</option>}
   </select>
 
   <select
@@ -1462,6 +1519,18 @@ const data = await res.json();
   </div>
 
 </footer>
+
+{showPremiumResourceCheckout && (
+  <PremiumResourceAccess
+    onClose={() => setShowPremiumResourceCheckout(false)}
+    onUnlocked={() => {
+      setHasPremiumResourceAccess(true);
+      setShowPremiumResourceCheckout(false);
+      setModeFilter("Visa");
+      setVisaResourcesOpen(true);
+    }}
+  />
+)}
 
     </div>
   );

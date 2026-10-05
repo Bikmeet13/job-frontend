@@ -1154,7 +1154,7 @@ app.get("/api/jobs", async (req, res) => {
   try {
     // Legacy/admin jobs do not have an employer_id. Employer-submitted jobs are
     // public only after an admin has approved them.
-    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) ORDER BY j.is_featured DESC, j.posted_at DESC NULLS LAST, j.id DESC");
+    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) AND LOWER(COALESCE(j.mode, '')) <> 'visa' ORDER BY j.is_featured DESC, j.posted_at DESC NULLS LAST, j.id DESC");
 
     const jobs = result.rows.map(job => ({
       ...job,
@@ -1169,6 +1169,24 @@ app.get("/api/jobs", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).send("Error fetching jobs");
+  }
+});
+app.get("/api/premium-resources/jobs", verifyToken, async (req, res) => {
+  try {
+    const access = (await db.query(
+      "SELECT id FROM premium_resource_payments WHERE user_id=$1 AND access_type=$2 AND payment_status='paid' LIMIT 1",
+      [req.user.id, premiumResourceAccess.id]
+    )).rows[0];
+    if (!access) return res.status(403).json({ error: "Premium Visa & sponsored jobs access is required." });
+    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) AND LOWER(COALESCE(j.mode, '')) = 'visa' ORDER BY j.is_featured DESC, j.posted_at DESC NULLS LAST, j.id DESC");
+    res.json(result.rows.map((job) => ({
+      ...job,
+      applyLink: job.apply_link || null,
+      chatbot_questions: Array.isArray(job.chatbot_questions) ? job.chatbot_questions : JSON.parse(job.chatbot_questions || "[]"),
+    })));
+  } catch (error) {
+    console.error("Could not fetch premium resource jobs:", error.message);
+    res.status(500).json({ error: "Could not load Visa & sponsored jobs." });
   }
 });
 app.use("/uploads", express.static("uploads"));
@@ -1320,6 +1338,12 @@ const featuredPlans = {
   featured_11: { id: "featured_11", name: "Featured for 11 days", amount: 29900, days: 11 },
   featured_29: { id: "featured_29", name: "Featured for 29 days", amount: 49900, days: 29 },
 };
+const premiumResourceAccess = {
+  id: "visa_sponsored_resources",
+  name: "Visa & Sponsored Jobs Access",
+  amount: 9900,
+  currency: "INR",
+};
 function employerPostingRateLimit(req, res, next) {
   const previous = employerPostAttempts.get(req.user.id) || 0;
   const remaining = 60 * 1000 - (Date.now() - previous);
@@ -1352,6 +1376,7 @@ async function ensureEmployerPostingTables() {
     db.query("CREATE TABLE IF NOT EXISTS employer_profiles (user_id INTEGER PRIMARY KEY, full_name TEXT, mobile TEXT, company_name TEXT NOT NULL, website TEXT, company_type TEXT, industry TEXT, company_size TEXT, description TEXT, address TEXT, city TEXT, state TEXT, logo_url TEXT, contact_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, visitor_key TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_feature_payments (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER NOT NULL, plan_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, duration_days INTEGER NOT NULL, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
+    db.query("CREATE TABLE IF NOT EXISTS premium_resource_payments (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, access_type TEXT NOT NULL, amount_paise INTEGER NOT NULL, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS employer_notifications (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER, notification_type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, action_url TEXT, read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(employer_id, job_id, notification_type))"),
     db.query("CREATE TABLE IF NOT EXISTS featured_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, placement TEXT NOT NULL, visitor_key TEXT, candidate_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS featured_jobs_active_idx ON jobs (is_featured, featured_start_date, featured_end_date, employer_status)"),
@@ -1972,6 +1997,72 @@ app.post("/api/employer/featured-payment/verify", verifyToken, isEmployer, async
     await activateFeaturedJob(payment);
     res.json({ message: `Your job is featured for ${payment.duration_days} days.` });
   } catch (error) { console.error("Featured payment verification failed:", error.message); res.status(500).json({ error: "Could not activate the featured job." }); }
+});
+app.get("/api/premium-resources/access", verifyToken, async (req, res) => {
+  try {
+    const payment = (await db.query(
+      "SELECT id, paid_at FROM premium_resource_payments WHERE user_id=$1 AND access_type=$2 AND payment_status='paid' ORDER BY paid_at DESC NULLS LAST LIMIT 1",
+      [req.user.id, premiumResourceAccess.id]
+    )).rows[0];
+    res.json({ hasAccess: Boolean(payment), amount: premiumResourceAccess.amount / 100, currency: premiumResourceAccess.currency, name: premiumResourceAccess.name, paidAt: payment?.paid_at || null });
+  } catch (error) {
+    console.error("Could not check premium resource access:", error.message);
+    res.status(500).json({ error: "Could not check your access right now." });
+  }
+});
+app.post("/api/premium-resources/order", verifyToken, async (req, res) => {
+  try {
+    const existing = (await db.query(
+      "SELECT id FROM premium_resource_payments WHERE user_id=$1 AND access_type=$2 AND payment_status='paid' LIMIT 1",
+      [req.user.id, premiumResourceAccess.id]
+    )).rows[0];
+    if (existing) return res.json({ hasAccess: true });
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(503).json({ error: "Payments are not configured yet. Please contact MarketLence support." });
+    }
+    const payment = (await db.query(
+      "INSERT INTO premium_resource_payments (user_id, access_type, amount_paise) VALUES ($1,$2,$3) RETURNING *",
+      [req.user.id, premiumResourceAccess.id, premiumResourceAccess.amount]
+    )).rows[0];
+    const orderResponse = await axios.post("https://api.razorpay.com/v1/orders", {
+      amount: premiumResourceAccess.amount,
+      currency: premiumResourceAccess.currency,
+      receipt: `mlr_${payment.id}`,
+      notes: { payment_id: String(payment.id), user_id: String(req.user.id), access_type: premiumResourceAccess.id },
+    }, {
+      auth: { username: process.env.RAZORPAY_KEY_ID, password: process.env.RAZORPAY_KEY_SECRET },
+      timeout: 15000,
+    });
+    await db.query("UPDATE premium_resource_payments SET razorpay_order_id=$1 WHERE id=$2", [orderResponse.data.id, payment.id]);
+    res.status(201).json({ keyId: process.env.RAZORPAY_KEY_ID, orderId: orderResponse.data.id, amount: premiumResourceAccess.amount, currency: premiumResourceAccess.currency, name: premiumResourceAccess.name });
+  } catch (error) {
+    console.error("Could not create premium resource payment order:", error.response?.data || error.message);
+    res.status(502).json({ error: "Could not start secure payment. Please try again." });
+  }
+});
+app.post("/api/premium-resources/verify", verifyToken, async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return res.status(400).json({ error: "Incomplete payment confirmation." });
+    if (!process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({ error: "Payments are not configured yet." });
+    const signature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(`${razorpay_order_id}|${razorpay_payment_id}`).digest("hex");
+    if (signature.length !== String(razorpay_signature).length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(String(razorpay_signature)))) {
+      return res.status(400).json({ error: "Payment verification failed." });
+    }
+    const payment = (await db.query(
+      "SELECT * FROM premium_resource_payments WHERE razorpay_order_id=$1 AND user_id=$2 AND access_type=$3",
+      [razorpay_order_id, req.user.id, premiumResourceAccess.id]
+    )).rows[0];
+    if (!payment) return res.status(404).json({ error: "Payment order not found." });
+    if (payment.razorpay_payment_id && payment.razorpay_payment_id !== razorpay_payment_id) {
+      return res.status(409).json({ error: "This payment order has already been used." });
+    }
+    await db.query("UPDATE premium_resource_payments SET razorpay_payment_id=$1, payment_status='paid', paid_at=COALESCE(paid_at, NOW()) WHERE id=$2", [razorpay_payment_id, payment.id]);
+    res.json({ message: "Payment confirmed. Visa and sponsored jobs are now unlocked.", hasAccess: true });
+  } catch (error) {
+    console.error("Premium resource payment verification failed:", error.message);
+    res.status(500).json({ error: "Could not confirm payment. Please contact support if you were charged." });
+  }
 });
 app.get("/api/employer/jobs/:id", verifyToken, isEmployer, async (req, res) => {
   const result = await db.query("SELECT * FROM jobs WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id]);
