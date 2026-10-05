@@ -828,13 +828,13 @@ localStorage.removeItem("profilePic");
 
       
             {/* 🚀 Hero Section */}
-<div className="mx-auto mb-10 w-full max-w-7xl rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-800 p-6 text-center text-white shadow-2xl sm:mb-16 sm:rounded-3xl sm:p-10 md:p-20">
+<div className="jobs-light-hero mx-auto mb-10 w-full max-w-7xl rounded-2xl border border-indigo-100 bg-gradient-to-r from-sky-50 via-indigo-50 to-violet-50 p-6 text-center text-slate-900 shadow-lg shadow-indigo-100/70 sm:mb-16 sm:rounded-3xl sm:p-10 md:p-20">
 
   <h1 className="text-3xl font-bold drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] sm:text-4xl md:text-6xl">
     Find Your Dream Job
   </h1>
 
-  <p className="mt-4 text-base text-blue-100 sm:mt-5 sm:text-xl">
+  <p className="mt-4 text-base text-slate-600 sm:mt-5 sm:text-xl">
     Discover top opportunities from leading companies
   </p>
 
