@@ -1317,7 +1317,7 @@ const data = await res.json();
 
   <button
   onClick={(e) => e.stopPropagation()}
-    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition"
+    className="glass-resume-match w-full py-3 font-semibold transition"
   >
     Check Resume Match 🤖
   </button>
