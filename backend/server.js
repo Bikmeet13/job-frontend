@@ -1405,6 +1405,13 @@ async function ensureHrServiceTables() {
   ]);
 }
 
+async function ensureMarketlenceCrmTables() {
+  await Promise.all([
+    db.query("CREATE TABLE IF NOT EXISTS marketlence_employees (id SERIAL PRIMARY KEY, full_name VARCHAR(180) NOT NULL, work_email VARCHAR(255) UNIQUE, mobile VARCHAR(40), department VARCHAR(120), designation VARCHAR(160), employment_status VARCHAR(40) NOT NULL DEFAULT 'Active', work_mode VARCHAR(40) NOT NULL DEFAULT 'Hybrid', joining_date DATE, manager_name VARCHAR(180), performance_score INTEGER NOT NULL DEFAULT 0 CHECK (performance_score BETWEEN 0 AND 100), notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS marketlence_employee_tasks (id SERIAL PRIMARY KEY, employee_id INTEGER REFERENCES marketlence_employees(id) ON DELETE SET NULL, title VARCHAR(240) NOT NULL, description TEXT, status VARCHAR(40) NOT NULL DEFAULT 'To do', priority VARCHAR(40) NOT NULL DEFAULT 'Medium', due_date DATE, created_by INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+  ]);
+}
+
 async function ensureJobAlertTables() {
   await Promise.all([
     db.query("CREATE TABLE IF NOT EXISTS candidate_job_alert_preferences (candidate_id INTEGER PRIMARY KEY, email_enabled BOOLEAN NOT NULL DEFAULT FALSE, frequency TEXT NOT NULL DEFAULT 'daily', preferred_locations TEXT NOT NULL DEFAULT '', preferred_categories TEXT NOT NULL DEFAULT '', preferred_titles TEXT NOT NULL DEFAULT '', min_salary TEXT, experience TEXT, work_modes TEXT NOT NULL DEFAULT '', job_types TEXT NOT NULL DEFAULT '', consent_at TIMESTAMPTZ, consent_source TEXT, unsubscribed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
@@ -2957,6 +2964,61 @@ app.delete("/api/superadmin/jobs-before-date", verifyToken, isSuperAdmin, async 
     await client.query("ROLLBACK"); console.error("Job cleanup failed:", error.message); res.status(500).json({ error: "Could not complete the job cleanup. Nothing was deleted." });
   } finally { client.release(); }
 });
+
+const marketlenceEmployeeStatuses = new Set(["Active", "On leave", "Probation", "Inactive"]);
+const marketlenceTaskStatuses = new Set(["To do", "In progress", "Blocked", "Done"]);
+const marketlenceTaskPriorities = new Set(["Low", "Medium", "High", "Urgent"]);
+
+app.get("/api/internal-crm/overview", verifyToken, isSuperAdmin, async (_req, res) => {
+  try {
+    const [employees, tasks, metrics] = await Promise.all([
+      db.query("SELECT * FROM marketlence_employees ORDER BY employment_status='Active' DESC, full_name ASC"),
+      db.query("SELECT t.*, e.full_name AS employee_name, e.department AS employee_department FROM marketlence_employee_tasks t LEFT JOIN marketlence_employees e ON e.id=t.employee_id ORDER BY CASE WHEN t.status='Done' THEN 1 ELSE 0 END, t.due_date ASC NULLS LAST, t.created_at DESC LIMIT 250"),
+      db.query("SELECT COUNT(*)::int AS total_people, COUNT(*) FILTER (WHERE employment_status='Active')::int AS active_people, COUNT(*) FILTER (WHERE employment_status='On leave')::int AS on_leave, (SELECT COUNT(*)::int FROM marketlence_employee_tasks WHERE status <> 'Done') AS open_tasks, (SELECT COUNT(*)::int FROM marketlence_employee_tasks WHERE status <> 'Done' AND due_date < CURRENT_DATE) AS overdue_tasks"),
+    ]);
+    res.json({ employees: employees.rows, tasks: tasks.rows, metrics: metrics.rows[0] });
+  } catch (error) { console.error("Internal CRM overview failed:", error.message); res.status(500).json({ error: "Could not load the MarketLence People CRM." }); }
+});
+
+app.post("/api/internal-crm/employees", verifyToken, isSuperAdmin, async (req, res) => {
+  const body = req.body || {}; const fullName = cleanText(body.fullName, 180); const email = String(body.workEmail || "").toLowerCase().trim();
+  if (!fullName) return res.status(400).json({ error: "Employee name is required." });
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email." });
+  try {
+    const result = await db.query("INSERT INTO marketlence_employees (full_name,work_email,mobile,department,designation,employment_status,work_mode,joining_date,manager_name,performance_score,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *", [fullName, email || null, cleanText(body.mobile,40) || null, cleanText(body.department,120) || null, cleanText(body.designation,160) || null, marketlenceEmployeeStatuses.has(body.employmentStatus) ? body.employmentStatus : "Active", ["Remote","Hybrid","Onsite"].includes(body.workMode) ? body.workMode : "Hybrid", body.joiningDate || null, cleanText(body.managerName,180) || null, Math.max(0, Math.min(Number(body.performanceScore) || 0, 100)), cleanText(body.notes,4000) || null]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this email already exists." }); res.status(500).json({ error: "Could not add employee." }); }
+});
+
+app.patch("/api/internal-crm/employees/:id", verifyToken, isSuperAdmin, async (req, res) => {
+  const body = req.body || {}; const fullName = cleanText(body.fullName, 180); const email = String(body.workEmail || "").toLowerCase().trim();
+  if (!fullName) return res.status(400).json({ error: "Employee name is required." });
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email." });
+  try {
+    const result = await db.query("UPDATE marketlence_employees SET full_name=$1,work_email=$2,mobile=$3,department=$4,designation=$5,employment_status=$6,work_mode=$7,joining_date=$8,manager_name=$9,performance_score=$10,notes=$11,updated_at=NOW() WHERE id=$12 RETURNING *", [fullName, email || null, cleanText(body.mobile,40) || null, cleanText(body.department,120) || null, cleanText(body.designation,160) || null, marketlenceEmployeeStatuses.has(body.employmentStatus) ? body.employmentStatus : "Active", ["Remote","Hybrid","Onsite"].includes(body.workMode) ? body.workMode : "Hybrid", body.joiningDate || null, cleanText(body.managerName,180) || null, Math.max(0, Math.min(Number(body.performanceScore) || 0, 100)), cleanText(body.notes,4000) || null, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Employee not found." });
+    res.json(result.rows[0]);
+  } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this email already exists." }); res.status(500).json({ error: "Could not update employee." }); }
+});
+
+app.post("/api/internal-crm/tasks", verifyToken, isSuperAdmin, async (req, res) => {
+  const body = req.body || {}; const title = cleanText(body.title, 240); const employeeId = Number(body.employeeId) || null;
+  if (!title) return res.status(400).json({ error: "Task title is required." });
+  if (employeeId && !(await db.query("SELECT id FROM marketlence_employees WHERE id=$1", [employeeId])).rows.length) return res.status(404).json({ error: "Assigned employee was not found." });
+  try {
+    const result = await db.query("INSERT INTO marketlence_employee_tasks (employee_id,title,description,status,priority,due_date,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *", [employeeId, title, cleanText(body.description,4000) || null, marketlenceTaskStatuses.has(body.status) ? body.status : "To do", marketlenceTaskPriorities.has(body.priority) ? body.priority : "Medium", body.dueDate || null, req.user.id]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) { console.error("Internal CRM task creation failed:", error.message); res.status(500).json({ error: "Could not create task." }); }
+});
+
+app.patch("/api/internal-crm/tasks/:id", verifyToken, isSuperAdmin, async (req, res) => {
+  const body = req.body || {}; const task = (await db.query("SELECT * FROM marketlence_employee_tasks WHERE id=$1", [req.params.id])).rows[0];
+  if (!task) return res.status(404).json({ error: "Task not found." });
+  const status = marketlenceTaskStatuses.has(body.status) ? body.status : task.status;
+  const priority = marketlenceTaskPriorities.has(body.priority) ? body.priority : task.priority;
+  const result = await db.query("UPDATE marketlence_employee_tasks SET status=$1, priority=$2, due_date=$3, updated_at=NOW() WHERE id=$4 RETURNING *", [status, priority, body.dueDate || null, task.id]);
+  res.json(result.rows[0]);
+});
 const PORT = process.env.PORT || 5000;
 
 app.post(
@@ -3956,7 +4018,7 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureHrServiceTables(), ensureJobAlertTables(), ensureFreelanceTables()])
+Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureHrServiceTables(), ensureMarketlenceCrmTables(), ensureJobAlertTables(), ensureFreelanceTables()])
   .then(async () => {
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
