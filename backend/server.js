@@ -1396,6 +1396,7 @@ async function ensureHrServiceTables() {
     db.query("CREATE TABLE IF NOT EXISTS hr_attendance (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, shift_id INTEGER, work_date DATE NOT NULL, check_in TIMESTAMPTZ, check_out TIMESTAMPTZ, status VARCHAR(40) NOT NULL DEFAULT 'Present', note TEXT, UNIQUE(employee_id, work_date))"),
     db.query("CREATE TABLE IF NOT EXISTS hr_leave_balances (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, leave_type VARCHAR(80) NOT NULL, allocated NUMERIC(6,1) NOT NULL DEFAULT 0, UNIQUE(employer_id, employee_id, leave_type))"),
     db.query("CREATE TABLE IF NOT EXISTS hr_communications (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER, audience VARCHAR(40) NOT NULL DEFAULT 'selected', channel VARCHAR(30) NOT NULL, subject VARCHAR(180), message TEXT NOT NULL, delivery_status VARCHAR(40) NOT NULL DEFAULT 'queued', provider_message_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS hr_employee_tasks (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER, title VARCHAR(240) NOT NULL, description TEXT, status VARCHAR(40) NOT NULL DEFAULT 'To do', priority VARCHAR(40) NOT NULL DEFAULT 'Medium', due_date DATE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS hr_employees_employer_idx ON hr_employees (employer_id, employment_status)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_leave_requests_employer_idx ON hr_leave_requests (employer_id, status, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS hr_employee_documents_employer_idx ON hr_employee_documents (employer_id, employee_id)"),
@@ -1755,6 +1756,8 @@ app.put("/api/employer/profile", verifyToken, isEmployer, async (req, res) => {
 });
 const hrEmployeeStatuses = new Set(["Active", "On leave", "Inactive"]);
 const hrLeaveStatuses = new Set(["Pending", "Approved", "Rejected", "Cancelled"]);
+const hrTaskStatuses = new Set(["To do", "In progress", "Blocked", "Done"]);
+const hrTaskPriorities = new Set(["Low", "Medium", "High", "Urgent"]);
 const isHrDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 
 app.get("/api/employer/hr/overview", verifyToken, isEmployer, async (req, res) => {
@@ -1910,6 +1913,28 @@ app.post("/api/employer/hr/communications", verifyToken, isEmployer, async (req,
     await db.query("INSERT INTO hr_communications (employer_id,employee_id,audience,channel,subject,message,delivery_status,provider_message_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", [req.user.id, employee.id, ids.length ? "selected" : "all_active", channel, subject, message, status, providerMessageId]); return status;
   }));
   res.json({ message: `${results.filter((status) => status === "sent").length} message(s) sent.`, statuses: results });
+});
+
+app.get("/api/employer/hr/tasks", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const result = await db.query("SELECT t.*, e.full_name AS employee_name, e.department AS employee_department FROM hr_employee_tasks t LEFT JOIN hr_employees e ON e.id=t.employee_id AND e.employer_id=t.employer_id WHERE t.employer_id=$1 ORDER BY CASE WHEN t.status='Done' THEN 1 ELSE 0 END, t.due_date ASC NULLS LAST, t.created_at DESC", [req.user.id]);
+    res.json(result.rows);
+  } catch (error) { console.error("Employer HR task load failed:", error.message); res.status(500).json({ error: "Could not load work tracker." }); }
+});
+app.post("/api/employer/hr/tasks", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {}; const title = cleanText(body.title, 240); const employeeId = Number(body.employeeId) || null;
+  if (!title) return res.status(400).json({ error: "Task title is required." });
+  if (employeeId && !(await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [employeeId, req.user.id])).rows.length) return res.status(404).json({ error: "Assigned employee was not found." });
+  try {
+    const result = await db.query("INSERT INTO hr_employee_tasks (employer_id,employee_id,title,description,status,priority,due_date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *", [req.user.id, employeeId, title, cleanText(body.description,4000) || null, hrTaskStatuses.has(body.status) ? body.status : "To do", hrTaskPriorities.has(body.priority) ? body.priority : "Medium", body.dueDate || null]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) { console.error("Employer HR task creation failed:", error.message); res.status(500).json({ error: "Could not create task." }); }
+});
+app.patch("/api/employer/hr/tasks/:id", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {}; const task = (await db.query("SELECT * FROM hr_employee_tasks WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id])).rows[0];
+  if (!task) return res.status(404).json({ error: "Task not found." });
+  const result = await db.query("UPDATE hr_employee_tasks SET status=$1, priority=$2, due_date=$3, updated_at=NOW() WHERE id=$4 AND employer_id=$5 RETURNING *", [hrTaskStatuses.has(body.status) ? body.status : task.status, hrTaskPriorities.has(body.priority) ? body.priority : task.priority, body.dueDate || null, task.id, req.user.id]);
+  res.json(result.rows[0]);
 });
 
 app.post("/api/employee/login", async (req, res) => {
