@@ -2968,19 +2968,23 @@ app.delete("/api/superadmin/jobs-before-date", verifyToken, isSuperAdmin, async 
 const marketlenceEmployeeStatuses = new Set(["Active", "On leave", "Probation", "Inactive"]);
 const marketlenceTaskStatuses = new Set(["To do", "In progress", "Blocked", "Done"]);
 const marketlenceTaskPriorities = new Set(["Low", "Medium", "High", "Urgent"]);
+async function ensureInternalCrmReady(_req, res, next) {
+  try { await ensureMarketlenceCrmTables(); next(); }
+  catch (error) { console.error("Internal CRM setup failed:", error.message); res.status(500).json({ error: "Could not prepare the MarketLence People CRM." }); }
+}
 
-app.get("/api/internal-crm/overview", verifyToken, isSuperAdmin, async (_req, res) => {
+app.get("/api/internal-crm/overview", verifyToken, isSuperAdmin, ensureInternalCrmReady, async (_req, res) => {
   try {
     const [employees, tasks, metrics] = await Promise.all([
       db.query("SELECT * FROM marketlence_employees ORDER BY employment_status='Active' DESC, full_name ASC"),
       db.query("SELECT t.*, e.full_name AS employee_name, e.department AS employee_department FROM marketlence_employee_tasks t LEFT JOIN marketlence_employees e ON e.id=t.employee_id ORDER BY CASE WHEN t.status='Done' THEN 1 ELSE 0 END, t.due_date ASC NULLS LAST, t.created_at DESC LIMIT 250"),
-      db.query("SELECT COUNT(*)::int AS total_people, COUNT(*) FILTER (WHERE employment_status='Active')::int AS active_people, COUNT(*) FILTER (WHERE employment_status='On leave')::int AS on_leave, (SELECT COUNT(*)::int FROM marketlence_employee_tasks WHERE status <> 'Done') AS open_tasks, (SELECT COUNT(*)::int FROM marketlence_employee_tasks WHERE status <> 'Done' AND due_date < CURRENT_DATE) AS overdue_tasks"),
+      db.query("SELECT (SELECT COUNT(*)::int FROM marketlence_employees) AS total_people, (SELECT COUNT(*)::int FROM marketlence_employees WHERE employment_status='Active') AS active_people, (SELECT COUNT(*)::int FROM marketlence_employees WHERE employment_status='On leave') AS on_leave, (SELECT COUNT(*)::int FROM marketlence_employee_tasks WHERE status <> 'Done') AS open_tasks, (SELECT COUNT(*)::int FROM marketlence_employee_tasks WHERE status <> 'Done' AND due_date < CURRENT_DATE) AS overdue_tasks"),
     ]);
     res.json({ employees: employees.rows, tasks: tasks.rows, metrics: metrics.rows[0] });
   } catch (error) { console.error("Internal CRM overview failed:", error.message); res.status(500).json({ error: "Could not load the MarketLence People CRM." }); }
 });
 
-app.post("/api/internal-crm/employees", verifyToken, isSuperAdmin, async (req, res) => {
+app.post("/api/internal-crm/employees", verifyToken, isSuperAdmin, ensureInternalCrmReady, async (req, res) => {
   const body = req.body || {}; const fullName = cleanText(body.fullName, 180); const email = String(body.workEmail || "").toLowerCase().trim();
   if (!fullName) return res.status(400).json({ error: "Employee name is required." });
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email." });
@@ -2990,7 +2994,7 @@ app.post("/api/internal-crm/employees", verifyToken, isSuperAdmin, async (req, r
   } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this email already exists." }); res.status(500).json({ error: "Could not add employee." }); }
 });
 
-app.patch("/api/internal-crm/employees/:id", verifyToken, isSuperAdmin, async (req, res) => {
+app.patch("/api/internal-crm/employees/:id", verifyToken, isSuperAdmin, ensureInternalCrmReady, async (req, res) => {
   const body = req.body || {}; const fullName = cleanText(body.fullName, 180); const email = String(body.workEmail || "").toLowerCase().trim();
   if (!fullName) return res.status(400).json({ error: "Employee name is required." });
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid work email." });
@@ -3001,7 +3005,7 @@ app.patch("/api/internal-crm/employees/:id", verifyToken, isSuperAdmin, async (r
   } catch (error) { if (error.code === "23505") return res.status(409).json({ error: "An employee with this email already exists." }); res.status(500).json({ error: "Could not update employee." }); }
 });
 
-app.post("/api/internal-crm/tasks", verifyToken, isSuperAdmin, async (req, res) => {
+app.post("/api/internal-crm/tasks", verifyToken, isSuperAdmin, ensureInternalCrmReady, async (req, res) => {
   const body = req.body || {}; const title = cleanText(body.title, 240); const employeeId = Number(body.employeeId) || null;
   if (!title) return res.status(400).json({ error: "Task title is required." });
   if (employeeId && !(await db.query("SELECT id FROM marketlence_employees WHERE id=$1", [employeeId])).rows.length) return res.status(404).json({ error: "Assigned employee was not found." });
@@ -3011,7 +3015,7 @@ app.post("/api/internal-crm/tasks", verifyToken, isSuperAdmin, async (req, res) 
   } catch (error) { console.error("Internal CRM task creation failed:", error.message); res.status(500).json({ error: "Could not create task." }); }
 });
 
-app.patch("/api/internal-crm/tasks/:id", verifyToken, isSuperAdmin, async (req, res) => {
+app.patch("/api/internal-crm/tasks/:id", verifyToken, isSuperAdmin, ensureInternalCrmReady, async (req, res) => {
   const body = req.body || {}; const task = (await db.query("SELECT * FROM marketlence_employee_tasks WHERE id=$1", [req.params.id])).rows[0];
   if (!task) return res.status(404).json({ error: "Task not found." });
   const status = marketlenceTaskStatuses.has(body.status) ? body.status : task.status;
