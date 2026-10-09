@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import React, { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
+import { trackSignup } from "../utils/signupTracking";
 
 function Signup() {
   const [username, setUsername] = useState("");
@@ -30,7 +31,8 @@ function Signup() {
       localStorage.setItem("username", username);
       localStorage.setItem("email", email);
 
-      toast.success("Account created with Google");
+      trackSignup(res.data, { accountType: "candidate", method: "Google" });
+      toast.success(res.data.isNewUser ? "Account created with Google" : "Welcome back");
       navigate("/");
     } catch (err) {
       console.error("Google signup failed", err);
@@ -76,7 +78,7 @@ const verifyOtp = async () => {
       }
     );
 
-    console.log("VERIFY RESPONSE:", res.data);
+    trackSignup(res.data, { accountType: "candidate", method: "email" });
 
     toast.success("Signup successful 🎉");
     navigate("/login");

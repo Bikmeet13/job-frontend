@@ -3,6 +3,7 @@ import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import React, { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
+import { trackSignup } from "../utils/signupTracking";
 
 function Login() {
   const [loading, setLoading] = useState(false);
@@ -14,8 +15,6 @@ function Login() {
   const [password, setPassword] = useState("");
 
   const handleGoogleSuccess = async (credentialResponse) => {
-     console.log("GOOGLE SUCCESS");
-  console.log(credentialResponse);
   try {
     const res = await axios.post(
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-login",
@@ -25,7 +24,6 @@ function Login() {
     );
 
     const { token, role, userId, username, email } = res.data;
-     console.log("BACKEND RESPONSE:", res.data);
 
     localStorage.setItem("token", token);
     localStorage.setItem("role", role);
@@ -33,6 +31,7 @@ function Login() {
     localStorage.setItem("username", username);
     localStorage.setItem("email", email);
 
+    trackSignup(res.data, { accountType: "candidate", method: "Google" });
     toast.success("Google Login Successful 🚀");
 
     navigate(destination, { replace: true });

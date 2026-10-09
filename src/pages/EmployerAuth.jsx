@@ -3,6 +3,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
+import { trackSignup } from "../utils/signupTracking";
 
 const API = "https://humorous-fulfillment-production-1f5e.up.railway.app/api";
 const field = "w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-500";
@@ -51,6 +52,7 @@ export default function EmployerAuth({ login = false }) {
     try {
       const body = login ? { email: form.email, password: form.password } : { ...form, emailVerificationToken: verificationToken };
       const { data } = await axios.post(`${API}/employers/${login ? "login" : "register"}`, body);
+      if (!login) trackSignup(data, { accountType: "employer", method: "email" });
       finishSignIn(data, login ? "Welcome back" : "Employer account created", !login);
     } catch (error) { toast.error(error.response?.data?.error || "Please try again."); }
     finally { setSubmitting(false); }
@@ -59,6 +61,7 @@ export default function EmployerAuth({ login = false }) {
     try {
       if (!login && (!form.fullName || !form.companyName || !form.mobile || !form.city || !form.state)) return toast.error("Complete your company details before continuing with Google.");
       const { data } = await axios.post(`${API}/google-login`, { credential: credentialResponse.credential, accountType: "employer", employerProfile: form });
+      trackSignup(data, { accountType: "employer", method: "Google" });
       finishSignIn(data, "Employer account ready", !login);
     } catch (error) { toast.error(error.response?.data?.error || "Google sign-in failed. Please try again."); }
   };

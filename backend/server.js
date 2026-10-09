@@ -1596,7 +1596,7 @@ app.post("/api/employers/register", async (req, res) => {
     const user = (await db.query("INSERT INTO users (username, email, password, role, is_approved, employer_email_verified, employer_email_verified_at) VALUES ($1,$2,$3,'employer',TRUE,TRUE,NOW()) RETURNING id, username, email, role", [cleanText(fullName, 120), cleanEmail, passwordHash])).rows[0];
     await db.query("INSERT INTO employer_profiles (user_id, full_name, mobile, company_name, website, company_type, industry, company_size, city, state, contact_email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [user.id, cleanText(fullName,120), cleanText(mobile,30), cleanText(companyName,200), cleanText(website,300), cleanText(companyType,100), cleanText(industry,120), cleanText(companySize,80), cleanText(city,120), cleanText(state,120), cleanEmail]);
     const token = jwt.sign({ id: user.id, email: user.email, role: "employer" }, process.env.JWT_SECRET);
-    res.status(201).json({ token, role: "employer", userId: user.id, username: user.username, email: user.email });
+    res.status(201).json({ token, role: "employer", userId: user.id, username: user.username, email: user.email, isNewUser: true });
   } catch (error) { console.error("Employer registration failed:", error.message); res.status(500).json({ error: "Could not create employer account." }); }
 });
 app.get("/api/featured-jobs", async (req, res) => {
@@ -3416,10 +3416,6 @@ app.post("/api/verify-email-otp", async (req, res) => {
 const record = result.rows[0];
 
 
-console.log("EMAIL:", cleanEmail);
-console.log("STORED:", record);
-console.log("ENTERED OTP:", otp);
-console.log("COMPARE:", String(record.otp), String(otp));
 
   // Public registration creates candidate accounts only. Admin accounts are
   // provisioned internally and cannot be requested by a browser payload.
@@ -3459,7 +3455,7 @@ console.log("COMPARE:", String(record.otp), String(otp));
 
    await db.query("DELETE FROM otps WHERE email = $1", [cleanEmail]);
 
-    res.json({ message: "Signup successful ✅" });
+    res.json({ message: "Signup successful ✅", isNewUser: true, userId: createdUser.rows[0].id, role });
 
   } catch (err) {
     console.log(err);
@@ -3817,6 +3813,7 @@ app.post("/api/google-login", async (req, res) => {
       userId: user.id,
       username: user.username,
       email: user.email,
+      isNewUser: existingUser.rows.length === 0,
     });
 
   } catch (err) {
