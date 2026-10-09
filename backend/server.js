@@ -1406,10 +1406,10 @@ async function ensureHrServiceTables() {
 }
 
 async function ensureMarketlenceCrmTables() {
-  await Promise.all([
-    db.query("CREATE TABLE IF NOT EXISTS marketlence_employees (id SERIAL PRIMARY KEY, full_name VARCHAR(180) NOT NULL, work_email VARCHAR(255) UNIQUE, mobile VARCHAR(40), department VARCHAR(120), designation VARCHAR(160), employment_status VARCHAR(40) NOT NULL DEFAULT 'Active', work_mode VARCHAR(40) NOT NULL DEFAULT 'Hybrid', joining_date DATE, manager_name VARCHAR(180), performance_score INTEGER NOT NULL DEFAULT 0 CHECK (performance_score BETWEEN 0 AND 100), notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
-    db.query("CREATE TABLE IF NOT EXISTS marketlence_employee_tasks (id SERIAL PRIMARY KEY, employee_id INTEGER REFERENCES marketlence_employees(id) ON DELETE SET NULL, title VARCHAR(240) NOT NULL, description TEXT, status VARCHAR(40) NOT NULL DEFAULT 'To do', priority VARCHAR(40) NOT NULL DEFAULT 'Medium', due_date DATE, created_by INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
-  ]);
+  // The task table has a foreign key to the employee table, so these must be
+  // created in order rather than concurrently during a fresh deployment.
+  await db.query("CREATE TABLE IF NOT EXISTS marketlence_employees (id SERIAL PRIMARY KEY, full_name VARCHAR(180) NOT NULL, work_email VARCHAR(255) UNIQUE, mobile VARCHAR(40), department VARCHAR(120), designation VARCHAR(160), employment_status VARCHAR(40) NOT NULL DEFAULT 'Active', work_mode VARCHAR(40) NOT NULL DEFAULT 'Hybrid', joining_date DATE, manager_name VARCHAR(180), performance_score INTEGER NOT NULL DEFAULT 0 CHECK (performance_score BETWEEN 0 AND 100), notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+  await db.query("CREATE TABLE IF NOT EXISTS marketlence_employee_tasks (id SERIAL PRIMARY KEY, employee_id INTEGER REFERENCES marketlence_employees(id) ON DELETE SET NULL, title VARCHAR(240) NOT NULL, description TEXT, status VARCHAR(40) NOT NULL DEFAULT 'To do', priority VARCHAR(40) NOT NULL DEFAULT 'Medium', due_date DATE, created_by INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
 }
 
 async function ensureJobAlertTables() {
