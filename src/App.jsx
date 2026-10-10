@@ -26,6 +26,7 @@ import EmployerHRServices from "./pages/EmployerHRServices";
 import EmployerLeaveApprovals from "./pages/EmployerLeaveApprovals";
 import EmployerDocumentRequests from "./pages/EmployerDocumentRequests";
 import MarketlencePeopleCRM from "./pages/MarketlencePeopleCRM";
+import TelephonyCRM from "./pages/TelephonyCRM";
 import EmployeePortal from "./pages/EmployeePortal";
 import GlexaAssistant from "./components/GlexaAssistant";
 import CandidateJobAlerts from "./pages/CandidateJobAlerts";
@@ -60,6 +61,7 @@ function App() {
       <Route path="/employer/hr/document-requests" element={<EmployerDocumentRequests />} />
       <Route path="/employee/login" element={<EmployeePortal />} />
       <Route path="/admin/people" element={<ProtectedRoute><MarketlencePeopleCRM /></ProtectedRoute>} />
+      <Route path="/admin/calling" element={<ProtectedRoute><TelephonyCRM /></ProtectedRoute>} />
       <Route path="/candidate/job-alerts" element={<ProtectedRoute><CandidateJobAlerts /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<LegalPolicies />} />
       <Route path="/terms-and-conditions" element={<LegalPolicies />} />

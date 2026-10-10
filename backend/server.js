@@ -58,6 +58,7 @@ const multer = require("multer");
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const { createTelephony } = require("./telephony/router");
 
 const { OAuth2Client } = require("google-auth-library");
 const webpush = require("web-push");
@@ -146,6 +147,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());   // ✅ REQUIRED
+app.use(express.urlencoded({ extended: true }));
 
 app.post("/api/glexa", async (req, res) => {
   const ip = req.ip || req.headers["x-forwarded-for"] || "anonymous";
@@ -4061,8 +4063,13 @@ app.get("/api/employment-news", async (req, res) => {
 });
 
 
+const telephony = createTelephony({ db, axios, verifyToken, cleanText });
+app.use("/api/telephony/webhooks", telephony.webhook);
+app.use("/api/telephony", telephony.router);
+
 Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureHrServiceTables(), ensureMarketlenceCrmTables(), ensureJobAlertTables(), ensureFreelanceTables()])
   .then(async () => {
+    await telephony.ensureSchema();
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
     app.listen(PORT, "0.0.0.0", () => {
