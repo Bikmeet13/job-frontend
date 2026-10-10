@@ -2,7 +2,8 @@
 
 The existing GA4 property is `G-7P327WF7Y8`. Account creation now queues
 `sign_up` plus either `candidate_signup` or `employer_signup`, with `method`
-(`email` or `Google`) and `account_type`. Emails, names, passwords, tokens,
+(`email` or `google`) and `account_type`. Events use beacon transport so the
+request survives immediate post-signup navigation. Emails, names, passwords, tokens,
 and internal account IDs are not included in these events.
 
 Events fire after a successful creation response, never on form submission,

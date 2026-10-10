@@ -61,7 +61,7 @@ export default function EmployerAuth({ login = false }) {
     try {
       if (!login && (!form.fullName || !form.companyName || !form.mobile || !form.city || !form.state)) return toast.error("Complete your company details before continuing with Google.");
       const { data } = await axios.post(`${API}/google-login`, { credential: credentialResponse.credential, accountType: "employer", employerProfile: form });
-      trackSignup(data, { accountType: "employer", method: "Google" });
+      trackSignup(data, { accountType: "employer", method: "google" });
       finishSignIn(data, "Employer account ready", !login);
     } catch (error) { toast.error(error.response?.data?.error || "Google sign-in failed. Please try again."); }
   };

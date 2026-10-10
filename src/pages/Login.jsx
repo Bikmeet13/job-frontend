@@ -31,7 +31,7 @@ function Login() {
     localStorage.setItem("username", username);
     localStorage.setItem("email", email);
 
-    trackSignup(res.data, { accountType: "candidate", method: "Google" });
+    trackSignup(res.data, { accountType: "candidate", method: "google" });
     toast.success("Google Login Successful 🚀");
 
     navigate(destination, { replace: true });

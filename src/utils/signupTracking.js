@@ -6,7 +6,7 @@ const trackedAccounts = new Set();
 export function trackSignup(data, { accountType, method }, browser = globalThis.window) {
   if (!browser || data?.isNewUser !== true) return false;
   if (!["candidate", "employer"].includes(accountType)) return false;
-  if (!["email", "Google"].includes(method)) return false;
+  if (!["email", "google"].includes(method)) return false;
   if ((accountType === "candidate" && data.role !== "user") ||
       (accountType === "employer" && data.role !== "employer")) return false;
 
@@ -24,7 +24,7 @@ export function trackSignup(data, { accountType, method }, browser = globalThis.
     if (data.userId == null || trackedAccounts.has(key) ||
         browser.sessionStorage.getItem(`marketlence.signup.${key}`)) return false;
 
-    const parameters = { send_to: MEASUREMENT_ID, method, account_type: accountType };
+    const parameters = { send_to: MEASUREMENT_ID, method, account_type: accountType, transport_type: "beacon" };
     browser.gtag("event", "sign_up", parameters);
     browser.gtag("event", `${accountType}_signup`, parameters);
     trackedAccounts.add(key);

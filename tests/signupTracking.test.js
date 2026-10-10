@@ -23,20 +23,20 @@ test("successful creation sends separate signup events without account details",
   const { browser, events, data } = setup();
   assert.equal(trackSignup({ ...data, email: "private@example.test", token: "secret" }, candidate, browser), true);
   assert.deepEqual(events, [
-    ["event", "sign_up", { send_to: "G-7P327WF7Y8", method: "email", account_type: "candidate" }],
-    ["event", "candidate_signup", { send_to: "G-7P327WF7Y8", method: "email", account_type: "candidate" }],
+    ["event", "sign_up", { send_to: "G-7P327WF7Y8", method: "email", account_type: "candidate", transport_type: "beacon" }],
+    ["event", "candidate_signup", { send_to: "G-7P327WF7Y8", method: "email", account_type: "candidate", transport_type: "beacon" }],
   ]);
 });
 test("returning Google users and unconfirmed responses are not signups", () => {
   const { browser, events, data } = setup();
   for (const isNewUser of [false, undefined, "true"]) {
-    assert.equal(trackSignup({ ...data, isNewUser }, { ...candidate, method: "Google" }, browser), false);
+    assert.equal(trackSignup({ ...data, isNewUser }, { ...candidate, method: "google" }, browser), false);
   }
   assert.equal(events.length, 0);
 });
 test("employer Google account creation is tracked distinctly", () => {
   const { browser, events, data } = setup();
-  assert.equal(trackSignup({ ...data, role: "employer" }, { accountType: "employer", method: "Google" }, browser), true);
+  assert.equal(trackSignup({ ...data, role: "employer" }, { accountType: "employer", method: "google" }, browser), true);
   assert.equal(events[1][1], "employer_signup");
 });
 test("repeated responses do not double count the same account", () => {

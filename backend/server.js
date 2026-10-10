@@ -3453,9 +3453,15 @@ app.get("/api/jobs/:id", async (req, res) => {
 
 
 app.post("/api/send-email-otp", async (req, res) => {
-  const { email } = req.body;
+  const cleanEmail = String(req.body.email || "").toLowerCase().trim();
+  if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: "Enter a valid email address." });
+  }
 
-  const cleanEmail = email.toLowerCase().trim();
+  const existingUser = await db.query("SELECT id FROM users WHERE email = $1", [cleanEmail]);
+  if (existingUser.rows.length) {
+    return res.status(409).json({ error: "An account already exists for this email. Sign in instead." });
+  }
 
   // 🚫 RATE LIMIT CHECK
   if (
@@ -3466,9 +3472,6 @@ app.post("/api/send-email-otp", async (req, res) => {
       error: "Wait before requesting again ⏳"
     });
   }
-
-  // ✅ SAVE REQUEST TIME
-  lastRequest[cleanEmail] = Date.now();
 
   const otp = Math.floor(100000 + Math.random() * 900000);
 
@@ -3485,7 +3488,7 @@ app.post("/api/send-email-otp", async (req, res) => {
   "INSERT INTO otps (email, otp, expires) VALUES ($1,$2,$3) ON CONFLICT (email) DO UPDATE SET otp=$2, expires=$3",
   [cleanEmail, otp, Date.now() + 5 * 60 * 1000]
 );
-
+    lastRequest[cleanEmail] = Date.now();
    
     res.json({ message: "OTP sent ✅" });
 
@@ -3497,8 +3500,11 @@ app.post("/api/send-email-otp", async (req, res) => {
 
 app.post("/api/verify-email-otp", async (req, res) => {
   const { username, email, password, otp, jobAlertsEnabled = false } = req.body;
-
-  const cleanEmail = email.toLowerCase().trim();
+  const cleanEmail = String(email || "").toLowerCase().trim();
+  const cleanUsername = cleanText(username, 120);
+  if (!cleanUsername || !/^\S+@\S+\.\S+$/.test(cleanEmail) || String(password || "").length < 8 || !/^\d{6}$/.test(String(otp || ""))) {
+    return res.status(400).json({ error: "Enter your name, a valid email, an 8+ character password, and the six-digit code." });
+  }
   const result = await db.query(
   "SELECT * FROM otps WHERE email = $1",
   [cleanEmail]
@@ -3540,13 +3546,15 @@ const record = result.rows[0];
 
     const createdUser = await db.query(
       "INSERT INTO users (username, email, password, role, is_approved) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-      [username, cleanEmail, hashedPassword, role, isApproved]
+      [cleanUsername, cleanEmail, hashedPassword, role, isApproved]
     );
     if (role === "user") await db.query("INSERT INTO candidate_job_alert_preferences (candidate_id,email_enabled,consent_at,consent_source) VALUES ($1,$2,CASE WHEN $2 THEN NOW() ELSE NULL END,$3) ON CONFLICT (candidate_id) DO NOTHING", [createdUser.rows[0].id, Boolean(jobAlertsEnabled), jobAlertsEnabled ? "signup" : null]);
 
    await db.query("DELETE FROM otps WHERE email = $1", [cleanEmail]);
 
-    res.json({ message: "Signup successful ✅", isNewUser: true, userId: createdUser.rows[0].id, role });
+    const userId = createdUser.rows[0].id;
+    const token = jwt.sign({ id: userId, email: cleanEmail, role }, process.env.JWT_SECRET);
+    res.json({ message: "Signup successful ✅", token, isNewUser: true, userId, role, username: cleanUsername, email: cleanEmail });
 
   } catch (err) {
     console.log(err);
@@ -3836,6 +3844,10 @@ app.post("/api/google-login", async (req, res) => {
 
     const payload = ticket.getPayload();
 
+    if (!payload?.email || payload.email_verified !== true) {
+      return res.status(401).json({ error: "Google could not verify this email address." });
+    }
+
     const email = payload.email.toLowerCase().trim();
     const name = payload.name;
 
@@ -3867,6 +3879,8 @@ app.post("/api/google-login", async (req, res) => {
         user = existingUser.rows[0];
         if (user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
       }
+    } else if (existingUser.rows.length && existingUser.rows[0].role !== "user") {
+      return res.status(409).json({ error: "This email belongs to an employer account. Use Employer Login instead." });
     } else if (existingUser.rows.length === 0) {
       const newUser = await db.query(
         `
