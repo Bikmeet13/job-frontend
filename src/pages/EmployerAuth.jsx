@@ -25,9 +25,10 @@ export default function EmployerAuth({ login = false }) {
   const finishSignIn = (data, message, startFresh = false) => {
     // An employer session must not inherit a previous candidate's profile data.
     localStorage.removeItem("profilePic");
-    localStorage.setItem("token", data.token); localStorage.setItem("role", "employer"); localStorage.setItem("userId", data.userId); localStorage.setItem("username", data.username || "");
+    localStorage.setItem("token", data.token); localStorage.setItem("role", data.role); localStorage.setItem("userId", data.userId); localStorage.setItem("username", data.username || "");
     localStorage.setItem("email", data.email || "");
     toast.success(message);
+    if (["admin", "superadmin"].includes(data.role)) return navigate("/admin", { replace: true });
     if (startFresh) window.location.assign("/employer/dashboard");
     else navigate("/employer/dashboard");
   };

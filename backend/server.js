@@ -3860,7 +3860,7 @@ app.post("/api/google-login", async (req, res) => {
     let user;
 
     if (accountType === "employer") {
-      if (existingUser.rows.length && existingUser.rows[0].role !== "employer") {
+      if (existingUser.rows.length && !["employer", "admin", "superadmin"].includes(existingUser.rows[0].role)) {
         return res.status(409).json({ error: "This Google email is already registered as a candidate. Use a different work email for your employer account." });
       }
       if (!existingUser.rows.length) {
@@ -3877,7 +3877,7 @@ app.post("/api/google-login", async (req, res) => {
         await db.query("INSERT INTO employer_profiles (user_id, full_name, mobile, company_name, website, company_type, industry, company_size, city, state, contact_email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [user.id, cleanText(fullName,120), cleanText(mobile,30), cleanText(companyName,200), cleanText(website,300), cleanText(companyType,100), cleanText(industry,120), cleanText(companySize,80), cleanText(city,120), cleanText(state,120), email]);
       } else {
         user = existingUser.rows[0];
-        if (user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
+        if (user.role === "employer" && user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
       }
     } else if (existingUser.rows.length && existingUser.rows[0].role !== "user") {
       return res.status(409).json({ error: "This email belongs to an employer account. Use Employer Login instead." });
