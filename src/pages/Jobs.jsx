@@ -956,6 +956,32 @@ localStorage.removeItem("profilePic");
         <h1 className={`jobs-title-gradient ${darkMode ? "jobs-title-dark" : ""}`}>Find work that<br className="hidden sm:block" /> moves you forward.</h1>
         <p className={`mx-auto mt-3 max-w-xl text-sm sm:text-base ${darkMode ? "text-slate-300" : "text-slate-500"}`}>Curated opportunities, one smart search away.</p>
       </section>
+      <form role="search" aria-label="Search jobs by title, location, and experience" onSubmit={(event) => { event.preventDefault(); document.getElementById("job-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`mx-auto mb-8 grid w-full max-w-6xl overflow-hidden rounded-2xl border p-2 shadow-xl md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,.8fr)_auto] md:rounded-full ${darkMode ? "border-slate-700 bg-slate-900 shadow-slate-950/30" : "border-slate-200 bg-white shadow-slate-900/10"}`}>
+        <label className={`flex min-w-0 items-center gap-3 px-4 py-3 md:border-r ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
+          <Search className="shrink-0 text-blue-600" size={21} aria-hidden="true" />
+          <span className="sr-only">Job title or keywords</span>
+          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Job title, skills, or company" className={`min-w-0 flex-1 bg-transparent text-sm outline-none sm:text-base ${darkMode ? "text-white placeholder:text-slate-400" : "text-slate-900 placeholder:text-slate-500"}`} />
+        </label>
+        <label className={`flex min-w-0 items-center gap-3 border-t px-4 py-3 md:border-r md:border-t-0 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
+          <MapPin className="shrink-0 text-blue-600" size={21} aria-hidden="true" />
+          <span className="sr-only">Location</span>
+          <input type="search" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} placeholder="Location" className={`min-w-0 flex-1 bg-transparent text-sm outline-none sm:text-base ${darkMode ? "text-white placeholder:text-slate-400" : "text-slate-900 placeholder:text-slate-500"}`} />
+        </label>
+        <label className={`flex min-w-0 items-center gap-3 border-t px-4 py-3 md:border-t-0 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
+          <Briefcase className="shrink-0 text-blue-600" size={21} aria-hidden="true" />
+          <span className="sr-only">Experience</span>
+          <select value={experienceFilter} onChange={(event) => setExperienceFilter(event.target.value)} className={`min-w-0 flex-1 cursor-pointer bg-transparent text-sm outline-none sm:text-base ${darkMode ? "text-white" : "text-slate-700"}`}>
+            <option value="">Experience</option>
+            <option value="Fresher">Fresher</option>
+            <option value="1">1+ years</option>
+            <option value="2">2+ years</option>
+            <option value="3">3+ years</option>
+            <option value="5">5+ years</option>
+            <option value="10">10+ years</option>
+          </select>
+        </label>
+        <button type="submit" className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3 font-bold text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:mt-0 md:rounded-full"><Search size={18} aria-hidden="true" /> Search</button>
+      </form>
 <EmploymentNews darkMode={darkMode} />
 
 <section className={`mx-auto mb-8 max-w-5xl rounded-2xl border p-4 shadow-sm ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-indigo-50/70"}`}>
@@ -1016,18 +1042,6 @@ localStorage.removeItem("profilePic");
 
 <div className="contents">
 
-  <input
-    type="text"
-    placeholder="Location"
-    value={locationFilter}
-    onChange={(e) => setLocationFilter(e.target.value)}
-    className={`p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-  darkMode
-    ? "bg-gray-800 text-white border-gray-700 placeholder-gray-400"
-    : "bg-white text-black border-gray-300"
-}`}
-  />
-
   <select
     value={modeFilter}
     onChange={(e) => setModeFilter(e.target.value)}
@@ -1074,18 +1088,6 @@ localStorage.removeItem("profilePic");
 
   <input
     type="text"
-    placeholder="Experience"
-    value={experienceFilter}
-    onChange={(e) => setExperienceFilter(e.target.value)}
-    className={`p-4 rounded-2xl border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-  darkMode
-    ? "bg-gray-800 text-white border-gray-700 placeholder-gray-400"
-    : "bg-white text-black border-gray-300"
-}`}
-  />
-
-  <input
-    type="text"
     placeholder="Salary"
     value={salaryFilter}
     onChange={(e) => setSalaryFilter(e.target.value)}
@@ -1103,7 +1105,7 @@ localStorage.removeItem("profilePic");
 
       {/* 📋 Job List */}
 
-      <div className="mx-auto mt-10 w-full max-w-7xl">
+      <div id="job-results" className="mx-auto mt-10 w-full max-w-7xl scroll-mt-28">
 
        <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />
        {allJobs.length === 0 ? (
