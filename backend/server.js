@@ -46,6 +46,7 @@ const {
 } = require("multer-storage-cloudinary");
 
 const { Resend } = require("resend");
+const { sendEmailOrThrow } = require("./services/emailDelivery");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -1550,24 +1551,23 @@ app.post("/api/employers/send-email-otp", async (req, res) => {
   }
 
   const code = crypto.randomInt(100000, 1000000).toString();
-  employerEmailOtps.set(email, {
-    codeHash: employerOtpHash(code),
-    expiresAt: Date.now() + EMPLOYER_EMAIL_OTP_TTL_MS,
-    sentAt: Date.now(),
-    attempts: 0,
-  });
-
   try {
-    await resend.emails.send({
+    await sendEmailOrThrow(resend, {
       from: "Marketlence Jobs <care@marketlence.com>",
       to: email,
       subject: "Verify your Marketlence employer email",
       html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h2>Verify your work email</h2><p>Use this code to finish creating your Marketlence Jobs employer account:</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. Do not share it with anyone.</p></div>`,
     });
+    employerEmailOtps.set(email, {
+      codeHash: employerOtpHash(code),
+      expiresAt: Date.now() + EMPLOYER_EMAIL_OTP_TTL_MS,
+      sentAt: Date.now(),
+      attempts: 0,
+    });
     res.json({ message: "Verification code sent. Please check your inbox." });
   } catch (error) {
     employerEmailOtps.delete(email);
-    console.error("Employer verification email failed:", error.message);
+    console.error("Employer verification email was not accepted:", error.code || "provider_error");
     res.status(502).json({ error: "We could not send the verification code. Please try again." });
   }
 });
@@ -3459,6 +3459,7 @@ app.post("/api/send-email-otp", async (req, res) => {
   if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
     return res.status(400).json({ error: "Enter a valid email address." });
   }
+  if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "Email verification is temporarily unavailable. Please use Google or try again later." });
 
   const existingUser = await db.query("SELECT id FROM users WHERE email = $1", [cleanEmail]);
   if (existingUser.rows.length) {
@@ -3478,12 +3479,11 @@ app.post("/api/send-email-otp", async (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000);
 
     try {
-    await resend.emails.send({
-      from: "Marketlence <care@marketlence.com>",
+    await sendEmailOrThrow(resend, {
+      from: "Marketlence Jobs <care@marketlence.com>",
       to: cleanEmail,
-      subject: "Your OTP Code 🔐",
-      html: `<h2>Your OTP is: ${otp}</h2>
-             <p>This OTP is valid for 5 minutes.</p>`
+      subject: "Your MarketLence Jobs verification code",
+      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#172033"><h1 style="color:#2563eb">MarketLence Jobs</h1><h2>Verify your email</h2><p>Use this code to finish creating your free account:</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${otp}</p><p>This code expires in 5 minutes. If you did not request it, you can ignore this email.</p></div>`
     });
 
     await db.query(
@@ -3492,11 +3492,11 @@ app.post("/api/send-email-otp", async (req, res) => {
 );
     lastRequest[cleanEmail] = Date.now();
    
-    res.json({ message: "OTP sent ✅" });
+    res.json({ message: "Verification code sent. Check your inbox and spam folder." });
 
   } catch (err) {
-    console.log("RESEND ERROR:", err);
-    res.status(500).send("Failed to send OTP ❌");
+    console.error("Candidate verification email was not accepted:", err.code || "provider_error");
+    res.status(502).json({ error: "We could not send the verification code. Check the email address or try Google sign-in." });
   }
 });
 
