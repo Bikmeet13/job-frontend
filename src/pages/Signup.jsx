@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useLocation, useNavigate } from "react-router-dom";
-import { trackSignup } from "../utils/signupTracking";
+import { trackSignup, trackSignupFunnel } from "../utils/signupTracking";
 
 const API = "https://humorous-fulfillment-production-1f5e.up.railway.app/api";
 
@@ -26,6 +26,10 @@ export default function Signup() {
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState("");
 
+  useEffect(() => {
+    trackSignupFunnel("signup_view", { account_type: "candidate" });
+  }, []);
+
   const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   const validationError = () => {
     if (!form.username.trim()) return "Enter your name.";
@@ -37,12 +41,14 @@ export default function Signup() {
   const googleSignIn = async (credentialResponse) => {
     setBusy("google");
     try {
-      const { data } = await axios.post(`${API}/google-login`, { credential: credentialResponse.credential });
+      trackSignupFunnel("signup_google_started", { account_type: "candidate" });
+      const { data } = await axios.post(`${API}/google-login`, { credential: credentialResponse.credential, accountType: "candidate" });
       saveSession(data);
       trackSignup(data, { accountType: "candidate", method: "google" });
       toast.success(data.isNewUser ? "Your account is ready" : "Welcome back");
       navigate(destination, { replace: true });
     } catch (error) {
+      trackSignupFunnel("signup_google_failed", { account_type: "candidate" });
       toast.error(error.response?.data?.error || "Google sign-in failed. Please try again.");
     } finally { setBusy(""); }
   };
@@ -54,8 +60,10 @@ export default function Signup() {
     try {
       const { data } = await axios.post(`${API}/send-email-otp`, { email: form.email.trim() });
       setOtpSent(true);
+      trackSignupFunnel("signup_otp_sent", { account_type: "candidate" });
       toast.success(data.message || "Verification code sent");
     } catch (error) {
+      trackSignupFunnel("signup_otp_failed", { account_type: "candidate", stage: "send" });
       toast.error(error.response?.data?.error || "Could not send the code. Please try again.");
     } finally { setBusy(""); }
   };
@@ -70,10 +78,12 @@ export default function Signup() {
         otp: otp.trim(), jobAlertsEnabled,
       });
       saveSession(data);
+      trackSignupFunnel("signup_otp_verified", { account_type: "candidate" });
       trackSignup(data, { accountType: "candidate", method: "email" });
       toast.success("Your account is ready");
       navigate(destination, { replace: true });
     } catch (error) {
+      trackSignupFunnel("signup_otp_failed", { account_type: "candidate", stage: "verify" });
       toast.error(error.response?.data?.error || "That code could not be verified.");
     } finally { setBusy(""); }
   };
@@ -83,7 +93,7 @@ export default function Signup() {
       <h1 className="text-center text-3xl font-bold">Create your free account</h1>
       <p className="mt-2 text-center text-sm text-slate-500">Start applying in under a minute.</p>
       {isJobAlertsSignup && <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-center text-sm font-medium leading-6 text-blue-800">Create your account to save jobs, build your resume, and get relevant job alerts.</p>}
-      <div className="mt-6 flex justify-center"><GoogleLogin onSuccess={googleSignIn} onError={() => toast.error("Google sign-in was cancelled or unavailable.")} text="signup_with" shape="rectangular" width="300" /></div>
+      <div className="mt-6 flex justify-center"><GoogleLogin onSuccess={googleSignIn} onError={() => { trackSignupFunnel("signup_google_failed", { account_type: "candidate" }); toast.error("Google sign-in was cancelled or unavailable."); }} text="signup_with" shape="rectangular" width="300" /></div>
       {busy === "google" && <p className="mt-2 text-center text-sm text-slate-500">Signing you in…</p>}
       <div className="my-5 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-gray-400"><span className="h-px flex-1 bg-gray-200" />or use email<span className="h-px flex-1 bg-gray-200" /></div>
       <form onSubmit={verifyOtp} noValidate>

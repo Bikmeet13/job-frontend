@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { trackSignup } from "../src/utils/signupTracking.js";
+import { trackSignup, trackSignupFunnel } from "../src/utils/signupTracking.js";
 
 let nextId = 0;
 function setup(href = "https://jobs.marketlence.com/signup") {
@@ -26,6 +26,13 @@ test("successful creation sends separate signup events without account details",
     ["event", "sign_up", { send_to: "G-7P327WF7Y8", method: "email", account_type: "candidate", transport_type: "beacon" }],
     ["event", "candidate_signup", { send_to: "G-7P327WF7Y8", method: "email", account_type: "candidate", transport_type: "beacon" }],
   ]);
+});
+
+test("funnel events reveal signup progress without sending personal data", () => {
+  const { browser, events } = setup();
+  assert.equal(trackSignupFunnel("signup_otp_sent", { account_type: "candidate" }, browser), true);
+  assert.deepEqual(events, [["event", "signup_otp_sent", { send_to: "G-7P327WF7Y8", account_type: "candidate", transport_type: "beacon" }]]);
+  assert.equal(trackSignupFunnel("signup_unapproved_event", {}, browser), false);
 });
 test("returning Google users and unconfirmed responses are not signups", () => {
   const { browser, events, data } = setup();

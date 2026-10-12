@@ -20,6 +20,7 @@ function Login() {
       "https://humorous-fulfillment-production-1f5e.up.railway.app/api/google-login",
       {
         credential: credentialResponse.credential,
+        accountType: "candidate",
       }
     );
 
@@ -37,7 +38,7 @@ function Login() {
     navigate(destination, { replace: true });
   } catch (err) {
     console.log(err);
-    toast.error("Google Login Failed");
+    toast.error(err.response?.data?.error || "Google Login Failed");
   }
 };
 

@@ -2816,7 +2816,7 @@ app.post("/api/login", async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
 
 const user = await db.query(
-  "SELECT * FROM users WHERE LOWER(email) = $1",
+  "SELECT * FROM users WHERE LOWER(email) = $1 AND role IN ('user','admin','superadmin') ORDER BY CASE WHEN role = 'user' THEN 0 ELSE 1 END, id ASC LIMIT 1",
   [cleanEmail]
 );
 
@@ -2825,8 +2825,6 @@ const user = await db.query(
         error: "Invalid email"
       });
     }
-      console.log("USER FROM DB:", user.rows[0]); // ✅ ADD HERE
-
     const validPassword = await bcrypt.compare(
       password,
       user.rows[0].password
@@ -3853,16 +3851,22 @@ app.post("/api/google-login", async (req, res) => {
     const email = payload.email.toLowerCase().trim();
     const name = payload.name;
 
-    // Check if user exists
+    // Resolve the role chosen on the sign-in screen first. Historic duplicate
+    // candidate/employer rows must not depend on PostgreSQL's row order.
+    const requestedRoles = accountType === "employer" ? ["employer", "admin", "superadmin"] : ["user"];
     const existingUser = await db.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
+      "SELECT * FROM users WHERE LOWER(email) = $1 AND role = ANY($2::text[]) ORDER BY CASE WHEN role = 'employer' THEN 0 ELSE 1 END, id ASC LIMIT 1",
+      [email, requestedRoles]
+    );
+    const otherAccount = await db.query(
+      "SELECT role FROM users WHERE LOWER(email) = $1 AND NOT(role = ANY($2::text[])) ORDER BY id ASC LIMIT 1",
+      [email, requestedRoles]
     );
 
     let user;
 
     if (accountType === "employer") {
-      if (existingUser.rows.length && !["employer", "admin", "superadmin"].includes(existingUser.rows[0].role)) {
+      if (!existingUser.rows.length && otherAccount.rows.length) {
         return res.status(409).json({ error: "This Google email is already registered as a candidate. Use a different work email for your employer account." });
       }
       if (!existingUser.rows.length) {
@@ -3881,7 +3885,7 @@ app.post("/api/google-login", async (req, res) => {
         user = existingUser.rows[0];
         if (user.role === "employer" && user.employer_suspended) return res.status(403).json({ error: "This employer account is suspended." });
       }
-    } else if (existingUser.rows.length && existingUser.rows[0].role !== "user") {
+    } else if (!existingUser.rows.length && otherAccount.rows.length) {
       return res.status(409).json({ error: "This email belongs to an employer account. Use Employer Login instead." });
     } else if (existingUser.rows.length === 0) {
       const newUser = await db.query(
