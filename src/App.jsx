@@ -30,6 +30,7 @@ import TelephonyCRM from "./pages/TelephonyCRM";
 import EmployeePortal from "./pages/EmployeePortal";
 import GlexaAssistant from "./components/GlexaAssistant";
 import CandidateJobAlerts from "./pages/CandidateJobAlerts";
+import CandidateOnboarding from "./pages/CandidateOnboarding";
 import LegalPolicies from "./pages/LegalPolicies";
 import FreelanceLanding from "./pages/FreelanceLanding";
 import FreelanceHire from "./pages/FreelanceHire";
@@ -63,6 +64,7 @@ function App() {
       <Route path="/admin/people" element={<ProtectedRoute><MarketlencePeopleCRM /></ProtectedRoute>} />
       <Route path="/admin/calling" element={<ProtectedRoute><TelephonyCRM /></ProtectedRoute>} />
       <Route path="/candidate/job-alerts" element={<ProtectedRoute><CandidateJobAlerts /></ProtectedRoute>} />
+      <Route path="/candidate/welcome" element={<ProtectedRoute><CandidateOnboarding /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<LegalPolicies />} />
       <Route path="/terms-and-conditions" element={<LegalPolicies />} />
       <Route path="/refund-cancellation-policy" element={<LegalPolicies />} />

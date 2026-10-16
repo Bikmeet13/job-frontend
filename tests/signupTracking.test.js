@@ -34,6 +34,12 @@ test("funnel events reveal signup progress without sending personal data", () =>
   assert.deepEqual(events, [["event", "signup_otp_sent", { send_to: "G-7P327WF7Y8", account_type: "candidate", transport_type: "beacon" }]]);
   assert.equal(trackSignupFunnel("signup_unapproved_event", {}, browser), false);
 });
+
+test("onboarding completion is an approved signup funnel event", () => {
+  const { browser, events } = setup();
+  assert.equal(trackSignupFunnel("signup_onboarding_complete", { account_type: "candidate", alerts_enabled: true }, browser), true);
+  assert.equal(events[0][1], "signup_onboarding_complete");
+});
 test("returning Google users and unconfirmed responses are not signups", () => {
   const { browser, events, data } = setup();
   for (const isNewUser of [false, undefined, "true"]) {

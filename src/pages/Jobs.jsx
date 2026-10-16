@@ -74,7 +74,9 @@ const [modeFilter, setModeFilter] = useState(() => {
   return savedMode === "Visa" ? "" : savedMode;
 });
 
-const [experienceFilter, setExperienceFilter] = useState("");
+const [experienceFilter, setExperienceFilter] = useState(
+  localStorage.getItem("jobExperience") || ""
+);
 
 const [salaryFilter, setSalaryFilter] = useState("");
 const [jobCategoryFilter, setJobCategoryFilter] = useState(
@@ -206,6 +208,9 @@ const fetchAllExternalJobs = async () => {
 };
 
   useEffect(() => {
+  // Keep a candidate's chosen onboarding location. The automatic browser
+  // lookup remains available through the explicit "Locate me" button.
+  if (localStorage.getItem("jobLocation")) return;
   if (!navigator.geolocation) return;
 
   navigator.geolocation.getCurrentPosition(
@@ -252,7 +257,8 @@ useEffect(() => {
   localStorage.setItem("jobLocation", locationFilter);
   localStorage.setItem("jobMode", modeFilter);
   localStorage.setItem("jobCategory", jobCategoryFilter);
-}, [search, locationFilter, modeFilter, jobCategoryFilter, country]);
+  localStorage.setItem("jobExperience", experienceFilter);
+}, [search, locationFilter, modeFilter, jobCategoryFilter, experienceFilter, country]);
 
 useEffect(() => {
   if (!token) {
@@ -448,12 +454,13 @@ localStorage.setItem(
     return category !== "government";
   };
 
+  const searchTerms = search.toLowerCase().split(",").map((term) => term.trim()).filter(Boolean);
   const filteredJobs = Array.isArray(jobs)
   ? jobs
       .filter(internalJobMatchesCountry)
       .filter(governmentJobMatchesState)
       .filter((job) =>
-        job.title.toLowerCase().includes(search.toLowerCase())
+        searchTerms.length ? searchTerms.some((term) => job.title.toLowerCase().includes(term)) : true
       )
       .filter((job) =>
         locationFilter
@@ -1106,6 +1113,8 @@ localStorage.removeItem("profilePic");
       {/* 📋 Job List */}
 
       <div id="job-results" className="mx-auto mt-10 w-full max-w-7xl scroll-mt-28">
+
+       {new URLSearchParams(location.search).get("matched") === "1" && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-950 shadow-sm"><div><p className="font-black">Your matching jobs are ready</p><p className="mt-1 text-sm text-emerald-800">Results use your chosen role, location, and work-style preferences.</p></div><button onClick={() => navigate("/candidate/job-alerts")} className="rounded-xl bg-white px-4 py-2 text-sm font-black text-emerald-800 shadow-sm">Edit preferences</button></div>}
 
        <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />
        {allJobs.length === 0 ? (

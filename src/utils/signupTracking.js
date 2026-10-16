@@ -5,7 +5,7 @@ const trackedAccounts = new Set();
 // Funnel events contain no email, name, token, resume, or other personal data.
 // They show where a visitor stops before completing a registration.
 export function trackSignupFunnel(eventName, parameters = {}, browser = globalThis.window) {
-  if (!browser || !/^signup_(view|google_started|google_failed|otp_sent|otp_failed|otp_verified)$/.test(eventName)) return false;
+  if (!browser || !/^signup_(view|google_started|google_failed|otp_sent|otp_failed|otp_verified|onboarding_view|onboarding_complete)$/.test(eventName)) return false;
 
   try {
     const testMode = new URL(browser.location.href).searchParams.get("ml_test");
