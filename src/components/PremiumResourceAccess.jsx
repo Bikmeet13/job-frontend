@@ -74,7 +74,7 @@ export default function PremiumResourceAccess({ onUnlocked, onClose }) {
         </div>
         <div className="p-6">
           <div className="flex items-baseline gap-2 rounded-2xl bg-indigo-50 px-5 py-4 text-indigo-950">
-            <span className="text-3xl font-black">₹99</span>
+            <span className="text-3xl font-black">₹599</span>
             <span className="text-sm font-semibold text-indigo-700">one-time access</span>
           </div>
           <ul className="mt-5 space-y-3 text-sm text-slate-700">
@@ -83,7 +83,7 @@ export default function PremiumResourceAccess({ onUnlocked, onClose }) {
             <li className="flex gap-3"><ShieldCheck className="shrink-0 text-indigo-600" size={19} />Secure payment processed by Razorpay</li>
           </ul>
           <button type="button" disabled={busy} onClick={purchase} className="mt-6 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3.5 font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-violet-700 disabled:cursor-wait disabled:opacity-70">
-            {busy ? "Opening secure checkout…" : "Pay ₹99 & unlock access"}
+            {busy ? "Opening secure checkout…" : "Pay ₹599 & unlock access"}
           </button>
           <p className="mt-3 text-center text-xs text-slate-500">Access is linked to this MarketLence account after payment verification.</p>
         </div>

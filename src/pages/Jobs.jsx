@@ -1002,7 +1002,7 @@ localStorage.removeItem("profilePic");
       onClick={openPremiumResources}
       className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
     >
-      {hasPremiumResourceAccess ? "Show sponsored jobs" : "Unlock for ₹99"}
+      {hasPremiumResourceAccess ? "Show sponsored jobs" : "Unlock for ₹599"}
     </button>
   </div>
   {hasPremiumResourceAccess ? (
@@ -1019,7 +1019,7 @@ localStorage.removeItem("profilePic");
     </details>
   ) : (
     <button type="button" onClick={openPremiumResources} className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-white bg-white text-slate-700"}`}>
-      <span><span className="font-semibold text-indigo-700">🔒 Official visa and international-job resources</span><span className="ml-2 text-sm opacity-75">Pay ₹99 to view</span></span>
+      <span><span className="font-semibold text-indigo-700">🔒 Official visa and international-job resources</span><span className="ml-2 text-sm opacity-75">Pay ₹599 to view</span></span>
       <span className="font-bold text-indigo-700">Unlock →</span>
     </button>
   )}

@@ -1344,7 +1344,7 @@ const featuredPlans = {
 const premiumResourceAccess = {
   id: "visa_sponsored_resources",
   name: "Visa & Sponsored Jobs Access",
-  amount: 9900,
+  amount: 59900,
   currency: "INR",
 };
 function employerPostingRateLimit(req, res, next) {
