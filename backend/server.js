@@ -1770,8 +1770,9 @@ app.post("/api/employer/applications/:id/onboard", verifyToken, isEmployer, asyn
     await db.query("INSERT INTO hr_employee_tasks (employer_id,employee_id,title,description,priority,due_date) VALUES ($1,$2,$3,$4,'High',$5),($1,$2,$6,$7,'Medium',$5),($1,$2,$8,$9,'Medium',$5)", [req.user.id, employee.id, "Verify joining documents", "Confirm required employment and identity documents are complete.", body.joiningDate || null, "Create work account and access", "Set up work email, systems access, and required tools.", "Complete induction", "Schedule orientation, manager introduction, and policy acknowledgement."]);
     await db.query("UPDATE applications SET status='Selected', status_note=$1, updated_at=NOW() WHERE id=$2", ["Selected and added to the employer People Hub.", application.id]);
     await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Selected',$2,$3)", [application.id, "Candidate converted into an employee record.", req.user.id]);
-    res.status(201).json({ message: "Candidate added to People Hub.", employee });
-    resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: email, subject: `Welcome to ${application.company}`, html: `<p>Hello ${escapeEmailHtml(fullName)},</p><p>You have been selected for <b>${escapeEmailHtml(application.title)}</b> at ${escapeEmailHtml(application.company)}.</p><p>Your employer will share the next onboarding steps shortly.</p>` }).catch((error) => console.error("New-hire email failed:", error.message));
+    let inviteSent = false;
+    try { await sendEmployeePortalInvite(employee); inviteSent = true; } catch (error) { console.error("New-hire invite failed:", error.message); }
+    res.status(201).json({ message: inviteSent ? "Candidate added to People Hub and invited to their employee portal." : "Candidate added to People Hub. Send the employee portal invite from People Hub when email delivery is configured.", employee, inviteSent });
   } catch (error) { console.error("Candidate onboarding failed:", error.message); res.status(500).json({ error: "Could not add candidate to People Hub." }); }
 });
 
@@ -1977,17 +1978,21 @@ async function ensureEmployeeLeaveBalances(employerId, employeeId) {
 }
 function hrEmployeePortalUrl() { return "https://jobs.marketlence.com/employee/login"; }
 function employeeEmailHtml(employee, password) { return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#172033"><h1 style="color:#5046d8">MarketLence People</h1><h2>You are invited to your employee portal</h2><p>Hi ${escapeEmailHtml(employee.full_name)},</p><p>Your employer has invited you to manage your attendance, leave, and work updates securely.</p><p><b>Email:</b> ${escapeEmailHtml(employee.work_email)}<br/><b>Temporary password:</b> ${escapeEmailHtml(password)}</p><p><a href="${hrEmployeePortalUrl()}" style="display:inline-block;background:#5046d8;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open employee portal</a></p><p style="font-size:12px;color:#64748b">Please change this temporary password after your first sign in.</p></div>`; }
+async function sendEmployeePortalInvite(employee) {
+  if (!employee?.work_email) throw new Error("Add the employee's work email before sending an invite.");
+  if (!process.env.RESEND_API_KEY) throw new Error("Email sending is not configured yet.");
+  const temporaryPassword = crypto.randomBytes(6).toString("base64url");
+  await db.query("INSERT INTO hr_employee_accounts (employee_id,password_hash,invited_at) VALUES ($1,$2,NOW()) ON CONFLICT (employee_id) DO UPDATE SET password_hash=EXCLUDED.password_hash, invited_at=NOW()", [employee.id, await bcrypt.hash(temporaryPassword, 10)]);
+  await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: employee.work_email, subject: "Your MarketLence People portal invite", html: employeeEmailHtml(employee, temporaryPassword) });
+  return employee.work_email;
+}
 
 app.post("/api/employer/hr/employees/:id/invite", verifyToken, isEmployer, async (req, res) => {
   const employee = (await db.query("SELECT * FROM hr_employees WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id])).rows[0];
   if (!employee) return res.status(404).json({ error: "Employee not found." });
-  if (!employee.work_email) return res.status(400).json({ error: "Add the employee's work email before sending an invite." });
-  if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "Email sending is not configured yet." });
-  const temporaryPassword = crypto.randomBytes(6).toString("base64url");
   try {
-    await db.query("INSERT INTO hr_employee_accounts (employee_id,password_hash,invited_at) VALUES ($1,$2,NOW()) ON CONFLICT (employee_id) DO UPDATE SET password_hash=EXCLUDED.password_hash, invited_at=NOW()", [employee.id, await bcrypt.hash(temporaryPassword, 10)]);
-    await resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: employee.work_email, subject: "Your MarketLence People portal invite", html: employeeEmailHtml(employee, temporaryPassword) });
-    res.json({ message: `Invite sent to ${employee.work_email}.` });
+    const email = await sendEmployeePortalInvite(employee);
+    res.json({ message: `Invite sent to ${email}.` });
   } catch (error) { console.error("Employee invite failed:", error.message); res.status(502).json({ error: "Could not send the employee invite." }); }
 });
 
