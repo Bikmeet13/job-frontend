@@ -1758,6 +1758,8 @@ app.post("/api/employer/applications/:id/onboard", verifyToken, isEmployer, asyn
     const fullName = cleanText(application.name, 180);
     const email = cleanText(application.email, 255).toLowerCase();
     if (!fullName || !email) return res.status(400).json({ error: "The candidate needs a name and email before onboarding." });
+    const acceptedOffer = (await db.query("SELECT id FROM employment_offers WHERE application_id=$1 AND employer_id=$2 AND status='Accepted' ORDER BY candidate_accepted_at DESC LIMIT 1", [application.id, req.user.id])).rows[0];
+    if (!acceptedOffer) return res.status(400).json({ error: "Send a formal offer and wait for the candidate to accept it before adding them to People Hub." });
     const existing = (await db.query("SELECT id FROM hr_employees WHERE employer_id=$1 AND LOWER(work_email)=LOWER($2)", [req.user.id, email])).rows[0];
     if (existing) return res.status(409).json({ error: "This candidate is already in your People Hub.", employeeId: existing.id });
     const employee = (await db.query(
@@ -1765,6 +1767,7 @@ app.post("/api/employer/applications/:id/onboard", verifyToken, isEmployer, asyn
       [req.user.id, fullName, email, cleanText(body.department, 120) || null, cleanText(body.jobTitle, 160) || application.title, cleanText(body.employmentType, 80) || "Full-time", body.joiningDate || null, cleanText(body.managerName, 180) || null, cleanText(body.notes, 3000) || `Hired from MarketLence application #${application.id}`]
     )).rows[0];
     await ensureEmployeeLeaveBalances(req.user.id, employee.id);
+    await db.query("INSERT INTO hr_employee_tasks (employer_id,employee_id,title,description,priority,due_date) VALUES ($1,$2,$3,$4,'High',$5),($1,$2,$6,$7,'Medium',$5),($1,$2,$8,$9,'Medium',$5)", [req.user.id, employee.id, "Verify joining documents", "Confirm required employment and identity documents are complete.", body.joiningDate || null, "Create work account and access", "Set up work email, systems access, and required tools.", "Complete induction", "Schedule orientation, manager introduction, and policy acknowledgement."]);
     await db.query("UPDATE applications SET status='Selected', status_note=$1, updated_at=NOW() WHERE id=$2", ["Selected and added to the employer People Hub.", application.id]);
     await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Selected',$2,$3)", [application.id, "Candidate converted into an employee record.", req.user.id]);
     res.status(201).json({ message: "Candidate added to People Hub.", employee });
