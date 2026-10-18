@@ -356,6 +356,9 @@ async function ensureApplicationTrackingTables() {
     db.query("CREATE TABLE IF NOT EXISTS application_document_requests (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, requested_by_user_id INTEGER NOT NULL, document_name TEXT NOT NULL, note TEXT, status TEXT NOT NULL DEFAULT 'requested', file_url TEXT, uploaded_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS application_scorecards (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, reviewer_id INTEGER NOT NULL, skills_score INTEGER NOT NULL DEFAULT 0 CHECK (skills_score BETWEEN 0 AND 5), experience_score INTEGER NOT NULL DEFAULT 0 CHECK (experience_score BETWEEN 0 AND 5), communication_score INTEGER NOT NULL DEFAULT 0 CHECK (communication_score BETWEEN 0 AND 5), culture_score INTEGER NOT NULL DEFAULT 0 CHECK (culture_score BETWEEN 0 AND 5), recommendation TEXT NOT NULL DEFAULT 'Hold', notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(application_id, reviewer_id))"),
     db.query("CREATE TABLE IF NOT EXISTS application_interviews (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, scheduled_at TIMESTAMPTZ NOT NULL, interview_type VARCHAR(80) NOT NULL DEFAULT 'Video interview', interviewer_name VARCHAR(180), meeting_link TEXT, note TEXT, status VARCHAR(40) NOT NULL DEFAULT 'Scheduled', created_by_user_id INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS candidate_response VARCHAR(40)"),
+    db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS candidate_response_note TEXT"),
+    db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS candidate_responded_at TIMESTAMPTZ"),
     db.query("CREATE TABLE IF NOT EXISTS employment_offers (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, candidate_id INTEGER, jurisdiction_country VARCHAR(120) NOT NULL, jurisdiction_state VARCHAR(160) NOT NULL, job_title VARCHAR(160) NOT NULL, department VARCHAR(120), employment_type VARCHAR(80) NOT NULL, compensation TEXT NOT NULL, currency VARCHAR(12) NOT NULL, joining_date DATE, probation_terms TEXT, notice_terms TEXT, conditions TEXT, employer_terms TEXT NOT NULL, status VARCHAR(40) NOT NULL DEFAULT 'Sent', expires_at TIMESTAMPTZ, candidate_signature VARCHAR(180), candidate_accepted_at TIMESTAMPTZ, candidate_declined_at TIMESTAMPTZ, candidate_response_note TEXT, version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS applications_candidate_tracking_idx ON applications (candidate_user_id, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_status_history_lookup_idx ON application_status_history (application_id, created_at ASC)"),
@@ -1826,13 +1829,24 @@ app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
       isEmployerOwner || ["admin", "superadmin"].includes(req.user.role)
         ? db.query("SELECT s.*, u.username AS reviewer_name FROM application_scorecards s LEFT JOIN users u ON u.id=s.reviewer_id WHERE s.application_id=$1 ORDER BY s.updated_at DESC", [application.id])
         : Promise.resolve({ rows: [] }),
-      isEmployerOwner || ["admin", "superadmin"].includes(req.user.role)
-        ? db.query("SELECT * FROM application_interviews WHERE application_id=$1 ORDER BY scheduled_at ASC", [application.id])
-        : Promise.resolve({ rows: [] }),
+      db.query("SELECT * FROM application_interviews WHERE application_id=$1 ORDER BY scheduled_at ASC", [application.id]),
       db.query("SELECT * FROM employment_offers WHERE application_id=$1 ORDER BY version DESC, created_at DESC", [application.id]),
     ]);
     res.json({ application, messages: messages.rows, documents: documents.rows, history: history.rows, scorecards: scorecards.rows, interviews: interviews.rows, offers: offers.rows });
   } catch (error) { console.error("Application workspace failed:", error.message); res.status(500).json({ error: "Could not load application workspace." }); }
+});
+
+app.post("/api/interviews/:id/respond", verifyToken, async (req, res) => {
+  try {
+    const interview = (await db.query("SELECT i.*, a.candidate_user_id, a.email FROM application_interviews i JOIN applications a ON a.id=i.application_id WHERE i.id=$1", [req.params.id])).rows[0];
+    if (!interview || req.user.role !== "user" || (interview.candidate_user_id !== req.user.id && interview.email !== req.user.email)) return res.status(404).json({ error: "Interview not found." });
+    const response = String(req.body?.response || "");
+    if (!["Confirmed", "Reschedule requested"].includes(response)) return res.status(400).json({ error: "Choose a valid interview response." });
+    const note = cleanText(req.body?.note, 1500) || null;
+    const result = await db.query("UPDATE application_interviews SET candidate_response=$1,candidate_response_note=$2,candidate_responded_at=NOW(),status=$3,updated_at=NOW() WHERE id=$4 RETURNING *", [response, note, response === "Confirmed" ? "Confirmed" : "Reschedule requested", interview.id]);
+    await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Interview Scheduled',$2,$3)", [interview.application_id, `Candidate ${response.toLowerCase()}.`, req.user.id]);
+    res.json({ message: response === "Confirmed" ? "Interview attendance confirmed." : "Your reschedule request was sent to the employer.", interview: result.rows[0] });
+  } catch (error) { console.error("Interview response failed:", error.message); res.status(500).json({ error: "Could not save interview response." }); }
 });
 
 app.post("/api/applications/:id/messages", verifyToken, async (req, res) => {
