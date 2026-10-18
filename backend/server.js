@@ -2099,6 +2099,14 @@ app.patch("/api/employee/tasks/:id", verifyToken, isHrEmployee, async (req, res)
   if (!result.rows.length) return res.status(404).json({ error: "Task not found." });
   res.json(result.rows[0]);
 });
+
+app.post("/api/employee/change-password", verifyToken, isHrEmployee, async (req, res) => {
+  const password = String(req.body?.password || "");
+  if (password.length < 10) return res.status(400).json({ error: "Use a password with at least 10 characters." });
+  const result = await db.query("UPDATE hr_employee_accounts SET password_hash=$1 WHERE employee_id=$2 RETURNING employee_id", [await bcrypt.hash(password, 12), req.user.employeeId]);
+  if (!result.rows.length) return res.status(404).json({ error: "Employee portal account not found." });
+  res.json({ message: "Your employee portal password has been updated." });
+});
 app.post("/api/employee/document-requests/:id/upload", verifyToken, isHrEmployee, upload.single("document"), async (req, res) => {
   if (!req.file?.path) return res.status(400).json({ error: "Choose a document to upload." });
   const request = (await db.query("UPDATE hr_document_requests SET status='Uploaded', file_url=$1, uploaded_at=NOW() WHERE id=$2 AND employee_id=$3 AND employer_id=$4 AND status='Requested' RETURNING *", [req.file.path, req.params.id, req.user.employeeId, req.user.employerId])).rows[0];
