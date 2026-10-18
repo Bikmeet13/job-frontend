@@ -1748,6 +1748,28 @@ app.post("/api/employer/applications/:id/interviews", verifyToken, isEmployer, a
   } catch (error) { console.error("Employer interview schedule failed:", error.message); res.status(500).json({ error: "Could not schedule interview." }); }
 });
 
+app.post("/api/employer/applications/:id/onboard", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const application = await getEmployerApplication(req.params.id, req.user.id);
+    if (!application) return res.status(404).json({ error: "Application not found." });
+    const body = req.body || {};
+    const fullName = cleanText(application.name, 180);
+    const email = cleanText(application.email, 255).toLowerCase();
+    if (!fullName || !email) return res.status(400).json({ error: "The candidate needs a name and email before onboarding." });
+    const existing = (await db.query("SELECT id FROM hr_employees WHERE employer_id=$1 AND LOWER(work_email)=LOWER($2)", [req.user.id, email])).rows[0];
+    if (existing) return res.status(409).json({ error: "This candidate is already in your People Hub.", employeeId: existing.id });
+    const employee = (await db.query(
+      "INSERT INTO hr_employees (employer_id,full_name,work_email,department,job_title,employment_type,employment_status,joining_date,manager_name,notes) VALUES ($1,$2,$3,$4,$5,$6,'Active',$7,$8,$9) RETURNING *",
+      [req.user.id, fullName, email, cleanText(body.department, 120) || null, cleanText(body.jobTitle, 160) || application.title, cleanText(body.employmentType, 80) || "Full-time", body.joiningDate || null, cleanText(body.managerName, 180) || null, cleanText(body.notes, 3000) || `Hired from MarketLence application #${application.id}`]
+    )).rows[0];
+    await ensureEmployeeLeaveBalances(req.user.id, employee.id);
+    await db.query("UPDATE applications SET status='Selected', status_note=$1, updated_at=NOW() WHERE id=$2", ["Selected and added to the employer People Hub.", application.id]);
+    await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Selected',$2,$3)", [application.id, "Candidate converted into an employee record.", req.user.id]);
+    res.status(201).json({ message: "Candidate added to People Hub.", employee });
+    resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: email, subject: `Welcome to ${application.company}`, html: `<p>Hello ${escapeEmailHtml(fullName)},</p><p>You have been selected for <b>${escapeEmailHtml(application.title)}</b> at ${escapeEmailHtml(application.company)}.</p><p>Your employer will share the next onboarding steps shortly.</p>` }).catch((error) => console.error("New-hire email failed:", error.message));
+  } catch (error) { console.error("Candidate onboarding failed:", error.message); res.status(500).json({ error: "Could not add candidate to People Hub." }); }
+});
+
 app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
   try {
     const application = (await db.query("SELECT a.*, j.title, j.company, j.employer_id FROM applications a JOIN jobs j ON j.id=a.jobid WHERE a.id=$1", [req.params.id])).rows[0];
