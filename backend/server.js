@@ -2078,7 +2078,7 @@ app.post("/api/employee/login", async (req, res) => {
 });
 app.get("/api/employee/portal", verifyToken, isHrEmployee, async (req, res) => {
   await ensureEmployeeLeaveBalances(req.user.employerId, req.user.employeeId);
-  const [employee, shifts, attendance, leaves, balances, documents, announcements, documentRequests] = await Promise.all([
+  const [employee, shifts, attendance, leaves, balances, documents, announcements, documentRequests, tasks] = await Promise.all([
     db.query("SELECT e.*, p.company_name, s.name AS default_shift_name, s.start_time AS default_shift_start, s.end_time AS default_shift_end FROM hr_employees e LEFT JOIN employer_profiles p ON p.user_id=e.employer_id LEFT JOIN hr_shifts s ON s.id=e.default_shift_id WHERE e.id=$1 AND e.employer_id=$2", [req.user.employeeId, req.user.employerId]),
     db.query("SELECT * FROM hr_shifts WHERE employer_id=$1 ORDER BY name", [req.user.employerId]),
     db.query("SELECT a.*, s.name AS shift_name FROM hr_attendance a LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employee_id=$1 AND a.work_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '7 days' ORDER BY a.work_date DESC", [req.user.employeeId]),
@@ -2087,8 +2087,17 @@ app.get("/api/employee/portal", verifyToken, isHrEmployee, async (req, res) => {
     db.query("SELECT id,document_name,document_type,file_url,expiry_date,status,created_at FROM hr_employee_documents WHERE employee_id=$1 AND employer_id=$2 ORDER BY expiry_date ASC NULLS LAST, created_at DESC", [req.user.employeeId, req.user.employerId]),
     db.query("SELECT id,channel,subject,message,delivery_status,created_at FROM hr_communications WHERE employee_id=$1 AND employer_id=$2 ORDER BY created_at DESC LIMIT 12", [req.user.employeeId, req.user.employerId]),
     db.query("SELECT id,document_name,document_type,note,due_date,status,created_at FROM hr_document_requests WHERE employee_id=$1 AND employer_id=$2 ORDER BY CASE WHEN status='Requested' THEN 0 ELSE 1 END, created_at DESC", [req.user.employeeId, req.user.employerId]),
+    db.query("SELECT id,title,description,status,priority,due_date,created_at FROM hr_employee_tasks WHERE employee_id=$1 AND employer_id=$2 ORDER BY CASE WHEN status='Done' THEN 1 ELSE 0 END, due_date ASC NULLS LAST, created_at DESC", [req.user.employeeId, req.user.employerId]),
   ]);
-  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows, documents: documents.rows, announcements: announcements.rows, documentRequests: documentRequests.rows });
+  res.json({ employee: employee.rows[0], shifts: shifts.rows, attendance: attendance.rows, leaves: leaves.rows, balances: balances.rows, documents: documents.rows, announcements: announcements.rows, documentRequests: documentRequests.rows, tasks: tasks.rows });
+});
+
+app.patch("/api/employee/tasks/:id", verifyToken, isHrEmployee, async (req, res) => {
+  const status = String(req.body?.status || "");
+  if (!["To do", "In progress", "Done"].includes(status)) return res.status(400).json({ error: "Choose a valid task status." });
+  const result = await db.query("UPDATE hr_employee_tasks SET status=$1, updated_at=NOW() WHERE id=$2 AND employee_id=$3 AND employer_id=$4 RETURNING *", [status, req.params.id, req.user.employeeId, req.user.employerId]);
+  if (!result.rows.length) return res.status(404).json({ error: "Task not found." });
+  res.json(result.rows[0]);
 });
 app.post("/api/employee/document-requests/:id/upload", verifyToken, isHrEmployee, upload.single("document"), async (req, res) => {
   if (!req.file?.path) return res.status(400).json({ error: "Choose a document to upload." });
