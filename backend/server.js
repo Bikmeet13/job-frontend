@@ -502,6 +502,12 @@ async function ensureCompanyJobAgentTables() {
     ["Mercado Libre Careers", "https://careers-meli.mercadolibre.com/", "ar"],
     ["Nubank Careers", "https://international.nubank.com.br/careers/", "br"],
     ["Turkcell Careers", "https://www.turkcell.com.tr/en/aboutus/careers", "tr"],
+    // Zimbabwe: use official vacancy pages and retain the correct country on
+    // every draft. Government listings live here rather than the India-only
+    // government agent so they can be filtered as Zimbabwe opportunities.
+    ["Econet Zimbabwe Careers", "https://econetafrica.com/careers", "zw"],
+    ["Zimbabwe Public Service E-Recruitment", "https://erecruitment.psc.gov.zw/", "zw", "Government"],
+    ["Zimbabwe Revenue Authority Vacancies", "https://zimra.co.zw/vacancies", "zw", "Government"],
     // India: use the country-specific listing pages where available. Generic
     // brand pages alone often contain no openings for a scanner to discover.
     ["TCS India Careers", "https://www.tcs.com/careers/india", "in"],
@@ -554,10 +560,10 @@ async function ensureCompanyJobAgentTables() {
     ["Stripe Careers", "https://stripe.com/jobs/search", "global"],
     ["Atlassian Careers", "https://www.atlassian.com/company/careers/all-jobs", "global"],
   ];
-  for (const [name, url, country] of companyJobDefaultSources) {
+  for (const [name, url, country, jobCategory = "Private"] of companyJobDefaultSources) {
     await db.query(
-      "INSERT INTO company_job_sources (name, url, job_category, country) VALUES ($1, $2, 'Private', $3) ON CONFLICT (url) DO NOTHING",
-      [name, url, country]
+      "INSERT INTO company_job_sources (name, url, job_category, country) VALUES ($1, $2, $3, $4) ON CONFLICT (url) DO NOTHING",
+      [name, url, jobCategory, country]
     );
   }
 
@@ -618,6 +624,7 @@ function inferSourceCountry(...values) {
     ["mexico", "mx"], ["argentina", "ar"], ["colombia", "co"], ["chile", "cl"], ["peru", "pe"],
     ["south africa", "za"], ["nigeria", "ng"], ["kenya", "ke"], ["egypt", "eg"], ["saudi", "sa"],
     ["united arab emirates", "ae"], ["uae", "ae"], ["turkey", "tr"], ["türkiye", "tr"], ["russia", "ru"],
+    ["zimbabwe", "zw"],
   ];
   const named = namedCountries.find(([name]) => text.includes(name));
   if (named) return named[1];

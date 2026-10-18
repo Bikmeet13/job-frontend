@@ -29,4 +29,5 @@ export const VISA_SPONSORSHIP_RESOURCES = [
   { country: "United Arab Emirates", name: "Work permits", url: "https://u.ae/en/information-and-services/jobs/working-in-uae/work-permits" },
   { country: "United Kingdom", name: "Skilled Worker visa", url: "https://www.gov.uk/skilled-worker-visa" },
   { country: "United States", name: "Temporary worker visas", url: "https://travel.state.gov/content/travel/en/us-visas/employment/temporary-worker-visas.html" },
+  { country: "Zimbabwe", name: "Temporary Employment Permit requirements", url: "https://www.zimimmigration.gov.zw/?p=7338" },
 ];
