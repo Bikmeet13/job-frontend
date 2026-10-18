@@ -356,12 +356,14 @@ async function ensureApplicationTrackingTables() {
     db.query("CREATE TABLE IF NOT EXISTS application_document_requests (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, requested_by_user_id INTEGER NOT NULL, document_name TEXT NOT NULL, note TEXT, status TEXT NOT NULL DEFAULT 'requested', file_url TEXT, uploaded_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS application_scorecards (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, reviewer_id INTEGER NOT NULL, skills_score INTEGER NOT NULL DEFAULT 0 CHECK (skills_score BETWEEN 0 AND 5), experience_score INTEGER NOT NULL DEFAULT 0 CHECK (experience_score BETWEEN 0 AND 5), communication_score INTEGER NOT NULL DEFAULT 0 CHECK (communication_score BETWEEN 0 AND 5), culture_score INTEGER NOT NULL DEFAULT 0 CHECK (culture_score BETWEEN 0 AND 5), recommendation TEXT NOT NULL DEFAULT 'Hold', notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(application_id, reviewer_id))"),
     db.query("CREATE TABLE IF NOT EXISTS application_interviews (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, scheduled_at TIMESTAMPTZ NOT NULL, interview_type VARCHAR(80) NOT NULL DEFAULT 'Video interview', interviewer_name VARCHAR(180), meeting_link TEXT, note TEXT, status VARCHAR(40) NOT NULL DEFAULT 'Scheduled', created_by_user_id INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS employment_offers (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, candidate_id INTEGER, jurisdiction_country VARCHAR(120) NOT NULL, jurisdiction_state VARCHAR(160) NOT NULL, job_title VARCHAR(160) NOT NULL, department VARCHAR(120), employment_type VARCHAR(80) NOT NULL, compensation TEXT NOT NULL, currency VARCHAR(12) NOT NULL, joining_date DATE, probation_terms TEXT, notice_terms TEXT, conditions TEXT, employer_terms TEXT NOT NULL, status VARCHAR(40) NOT NULL DEFAULT 'Sent', expires_at TIMESTAMPTZ, candidate_signature VARCHAR(180), candidate_accepted_at TIMESTAMPTZ, candidate_declined_at TIMESTAMPTZ, candidate_response_note TEXT, version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS applications_candidate_tracking_idx ON applications (candidate_user_id, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_status_history_lookup_idx ON application_status_history (application_id, created_at ASC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_messages_lookup_idx ON application_messages (application_id, created_at ASC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_document_requests_lookup_idx ON application_document_requests (application_id, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_scorecards_lookup_idx ON application_scorecards (application_id, employer_id, updated_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_interviews_lookup_idx ON application_interviews (application_id, employer_id, scheduled_at ASC)"),
+    db.query("CREATE INDEX IF NOT EXISTS employment_offers_lookup_idx ON employment_offers (application_id, employer_id, status, created_at DESC)"),
   ]);
   await db.query("UPDATE applications SET status='Applied' WHERE status IS NULL OR status IN ('Pending', 'Approved')");
   await db.query("UPDATE applications SET status='Not Selected' WHERE status='Rejected'");
@@ -1770,6 +1772,37 @@ app.post("/api/employer/applications/:id/onboard", verifyToken, isEmployer, asyn
   } catch (error) { console.error("Candidate onboarding failed:", error.message); res.status(500).json({ error: "Could not add candidate to People Hub." }); }
 });
 
+app.post("/api/employer/applications/:id/offers", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const application = await getEmployerApplication(req.params.id, req.user.id);
+    if (!application) return res.status(404).json({ error: "Application not found." });
+    const body = req.body || {};
+    const required = ["jurisdictionCountry", "jurisdictionState", "jobTitle", "employmentType", "compensation", "currency", "employerTerms"];
+    if (required.some((key) => !cleanText(body[key], 500))) return res.status(400).json({ error: "Complete the jurisdiction, role, compensation, currency, and employer terms." });
+    if (body.authorized !== true) return res.status(400).json({ error: "Confirm that you are authorized to issue this offer for the employer." });
+    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+    if (expiresAt && Number.isNaN(expiresAt.getTime())) return res.status(400).json({ error: "Choose a valid offer expiry date." });
+    const nextVersion = (await db.query("SELECT COALESCE(MAX(version),0)+1 AS version FROM employment_offers WHERE application_id=$1 AND employer_id=$2", [application.id, req.user.id])).rows[0].version;
+    await db.query("UPDATE employment_offers SET status='Superseded', updated_at=NOW() WHERE application_id=$1 AND employer_id=$2 AND status='Sent'", [application.id, req.user.id]);
+    const offer = (await db.query(`INSERT INTO employment_offers (application_id,employer_id,candidate_id,jurisdiction_country,jurisdiction_state,job_title,department,employment_type,compensation,currency,joining_date,probation_terms,notice_terms,conditions,employer_terms,expires_at,version)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`, [application.id, req.user.id, application.candidate_user_id || null, cleanText(body.jurisdictionCountry,120), cleanText(body.jurisdictionState,160), cleanText(body.jobTitle,160), cleanText(body.department,120) || null, cleanText(body.employmentType,80), cleanText(body.compensation,500), cleanText(body.currency,12).toUpperCase(), body.joiningDate || null, cleanText(body.probationTerms,2000) || null, cleanText(body.noticeTerms,2000) || null, cleanText(body.conditions,5000) || null, cleanText(body.employerTerms,10000), expiresAt?.toISOString() || null, nextVersion])).rows[0];
+    res.status(201).json({ message: "Offer letter issued.", offer });
+    resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: application.email, subject: `Employment offer: ${application.title}`, html: `<p>Hello ${escapeEmailHtml(application.name || "there")},</p><p>${escapeEmailHtml(application.company)} has issued an employment offer for <b>${escapeEmailHtml(offer.job_title)}</b>.</p><p>Sign in to your MarketLence Jobs application tracker to review and respond before ${offer.expires_at ? new Date(offer.expires_at).toLocaleDateString() : "the stated expiry"}.</p>` }).catch((error) => console.error("Offer email failed:", error.message));
+  } catch (error) { console.error("Offer issue failed:", error.message); res.status(500).json({ error: "Could not issue offer letter." }); }
+});
+
+app.post("/api/offers/:id/respond", verifyToken, async (req, res) => {
+  try {
+    const offer = (await db.query("SELECT o.*, a.candidate_user_id, a.email FROM employment_offers o JOIN applications a ON a.id=o.application_id WHERE o.id=$1", [req.params.id])).rows[0];
+    if (!offer || req.user.role !== "user" || (offer.candidate_user_id !== req.user.id && offer.email !== req.user.email)) return res.status(404).json({ error: "Offer not found." });
+    if (offer.status !== "Sent" || (offer.expires_at && new Date(offer.expires_at) < new Date())) return res.status(400).json({ error: "This offer is no longer available for response." });
+    const decision = String(req.body?.decision || ""); const signature = cleanText(req.body?.signature, 180); const responseNote = cleanText(req.body?.responseNote, 2000) || null;
+    if (!['Accepted','Declined'].includes(decision) || !signature) return res.status(400).json({ error: "Choose a response and enter your full name as signature." });
+    const result = await db.query("UPDATE employment_offers SET status=$1, candidate_signature=$2, candidate_response_note=$3, candidate_accepted_at=CASE WHEN $1='Accepted' THEN NOW() ELSE NULL END, candidate_declined_at=CASE WHEN $1='Declined' THEN NOW() ELSE NULL END, updated_at=NOW() WHERE id=$4 RETURNING *", [decision, signature, responseNote, offer.id]);
+    res.json({ message: `Offer ${decision.toLowerCase()}.`, offer: result.rows[0] });
+  } catch (error) { console.error("Offer response failed:", error.message); res.status(500).json({ error: "Could not save offer response." }); }
+});
+
 app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
   try {
     const application = (await db.query("SELECT a.*, j.title, j.company, j.employer_id FROM applications a JOIN jobs j ON j.id=a.jobid WHERE a.id=$1", [req.params.id])).rows[0];
@@ -1777,7 +1810,7 @@ app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
     const isEmployerOwner = req.user.role === "employer" && application.employer_id === req.user.id;
     const isCandidateOwner = req.user.role === "user" && (application.candidate_user_id === req.user.id || (!application.candidate_user_id && application.email === req.user.email));
     if (!isEmployerOwner && !isCandidateOwner && !["admin", "superadmin"].includes(req.user.role)) return res.status(403).json({ error: "You cannot view this application workspace." });
-    const [messages, documents, history, scorecards, interviews] = await Promise.all([
+    const [messages, documents, history, scorecards, interviews, offers] = await Promise.all([
       db.query("SELECT * FROM application_messages WHERE application_id=$1 ORDER BY created_at ASC", [application.id]),
       db.query("SELECT * FROM application_document_requests WHERE application_id=$1 ORDER BY created_at DESC", [application.id]),
       db.query("SELECT status,note,created_at FROM application_status_history WHERE application_id=$1 ORDER BY created_at ASC", [application.id]),
@@ -1787,8 +1820,9 @@ app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
       isEmployerOwner || ["admin", "superadmin"].includes(req.user.role)
         ? db.query("SELECT * FROM application_interviews WHERE application_id=$1 ORDER BY scheduled_at ASC", [application.id])
         : Promise.resolve({ rows: [] }),
+      db.query("SELECT * FROM employment_offers WHERE application_id=$1 ORDER BY version DESC, created_at DESC", [application.id]),
     ]);
-    res.json({ application, messages: messages.rows, documents: documents.rows, history: history.rows, scorecards: scorecards.rows, interviews: interviews.rows });
+    res.json({ application, messages: messages.rows, documents: documents.rows, history: history.rows, scorecards: scorecards.rows, interviews: interviews.rows, offers: offers.rows });
   } catch (error) { console.error("Application workspace failed:", error.message); res.status(500).json({ error: "Could not load application workspace." }); }
 });
 
