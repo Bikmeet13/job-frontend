@@ -354,10 +354,14 @@ async function ensureApplicationTrackingTables() {
     db.query("CREATE TABLE IF NOT EXISTS application_status_history (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, status TEXT NOT NULL, note TEXT, changed_by_user_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS application_messages (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, sender_user_id INTEGER NOT NULL, sender_role TEXT NOT NULL, body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS application_document_requests (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, requested_by_user_id INTEGER NOT NULL, document_name TEXT NOT NULL, note TEXT, status TEXT NOT NULL DEFAULT 'requested', file_url TEXT, uploaded_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS application_scorecards (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, reviewer_id INTEGER NOT NULL, skills_score INTEGER NOT NULL DEFAULT 0 CHECK (skills_score BETWEEN 0 AND 5), experience_score INTEGER NOT NULL DEFAULT 0 CHECK (experience_score BETWEEN 0 AND 5), communication_score INTEGER NOT NULL DEFAULT 0 CHECK (communication_score BETWEEN 0 AND 5), culture_score INTEGER NOT NULL DEFAULT 0 CHECK (culture_score BETWEEN 0 AND 5), recommendation TEXT NOT NULL DEFAULT 'Hold', notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(application_id, reviewer_id))"),
+    db.query("CREATE TABLE IF NOT EXISTS application_interviews (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, scheduled_at TIMESTAMPTZ NOT NULL, interview_type VARCHAR(80) NOT NULL DEFAULT 'Video interview', interviewer_name VARCHAR(180), meeting_link TEXT, note TEXT, status VARCHAR(40) NOT NULL DEFAULT 'Scheduled', created_by_user_id INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS applications_candidate_tracking_idx ON applications (candidate_user_id, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_status_history_lookup_idx ON application_status_history (application_id, created_at ASC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_messages_lookup_idx ON application_messages (application_id, created_at ASC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_document_requests_lookup_idx ON application_document_requests (application_id, created_at DESC)"),
+    db.query("CREATE INDEX IF NOT EXISTS application_scorecards_lookup_idx ON application_scorecards (application_id, employer_id, updated_at DESC)"),
+    db.query("CREATE INDEX IF NOT EXISTS application_interviews_lookup_idx ON application_interviews (application_id, employer_id, scheduled_at ASC)"),
   ]);
   await db.query("UPDATE applications SET status='Applied' WHERE status IS NULL OR status IN ('Pending', 'Approved')");
   await db.query("UPDATE applications SET status='Not Selected' WHERE status='Rejected'");
@@ -1703,6 +1707,47 @@ app.patch("/api/employer/applications/:id/status", verifyToken, isEmployer, asyn
   } catch (error) { console.error("Employer status update failed:", error.message); res.status(500).json({ error: "Could not update candidate status." }); }
 });
 
+app.put("/api/employer/applications/:id/scorecard", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const application = await getEmployerApplication(req.params.id, req.user.id);
+    if (!application) return res.status(404).json({ error: "Application not found." });
+    const toScore = (value) => Math.max(0, Math.min(5, Number(value) || 0));
+    const recommendation = String(req.body?.recommendation || "Hold");
+    if (!["Strong yes", "Yes", "Hold", "No"].includes(recommendation)) return res.status(400).json({ error: "Choose a valid recommendation." });
+    const notes = cleanText(req.body?.notes, 3000) || null;
+    const result = await db.query(
+      `INSERT INTO application_scorecards (application_id, employer_id, reviewer_id, skills_score, experience_score, communication_score, culture_score, recommendation, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (application_id, reviewer_id) DO UPDATE SET
+         skills_score=EXCLUDED.skills_score, experience_score=EXCLUDED.experience_score,
+         communication_score=EXCLUDED.communication_score, culture_score=EXCLUDED.culture_score,
+         recommendation=EXCLUDED.recommendation, notes=EXCLUDED.notes, updated_at=NOW()
+       RETURNING *`,
+      [application.id, req.user.id, req.user.id, toScore(req.body?.skillsScore), toScore(req.body?.experienceScore), toScore(req.body?.communicationScore), toScore(req.body?.cultureScore), recommendation, notes]
+    );
+    res.json({ message: "Scorecard saved.", scorecard: result.rows[0] });
+  } catch (error) { console.error("Employer scorecard failed:", error.message); res.status(500).json({ error: "Could not save scorecard." }); }
+});
+
+app.post("/api/employer/applications/:id/interviews", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const application = await getEmployerApplication(req.params.id, req.user.id);
+    if (!application) return res.status(404).json({ error: "Application not found." });
+    const scheduledAt = new Date(req.body?.scheduledAt);
+    if (Number.isNaN(scheduledAt.getTime())) return res.status(400).json({ error: "Choose a valid interview date and time." });
+    const interviewType = cleanText(req.body?.interviewType || "Video interview", 80);
+    const interviewerName = cleanText(req.body?.interviewerName, 180) || null;
+    const meetingLink = cleanText(req.body?.meetingLink, 1000) || null;
+    if (meetingLink && !/^https:\/\//i.test(meetingLink)) return res.status(400).json({ error: "Meeting link must start with https://" });
+    const note = cleanText(req.body?.note, 3000) || null;
+    const interview = (await db.query("INSERT INTO application_interviews (application_id, employer_id, scheduled_at, interview_type, interviewer_name, meeting_link, note, created_by_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *", [application.id, req.user.id, scheduledAt.toISOString(), interviewType, interviewerName, meetingLink, note, req.user.id])).rows[0];
+    await db.query("UPDATE applications SET status='Interview Scheduled', status_note=$1, updated_at=NOW() WHERE id=$2", [`Interview scheduled for ${scheduledAt.toLocaleString()}`, application.id]);
+    await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Interview Scheduled',$2,$3)", [application.id, `Interview scheduled for ${scheduledAt.toLocaleString()}`, req.user.id]);
+    res.status(201).json({ message: "Interview scheduled and candidate notified.", interview });
+    resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: application.email, subject: `Interview scheduled: ${application.title}`, html: `<p>Hello ${cleanText(application.name, 120) || "there"},</p><p>You have been invited to a <b>${interviewType}</b> for <b>${cleanText(application.title, 300)}</b>.</p><p><b>When:</b> ${scheduledAt.toLocaleString()}</p>${interviewerName ? `<p><b>Interviewer:</b> ${interviewerName}</p>` : ""}${meetingLink ? `<p><a href="${meetingLink}">Join interview</a></p>` : ""}${note ? `<p>${note}</p>` : ""}<p>Sign in to MarketLence Jobs to view your application tracker.</p>` }).catch((error) => console.error("Interview invitation email failed:", error.message));
+  } catch (error) { console.error("Employer interview schedule failed:", error.message); res.status(500).json({ error: "Could not schedule interview." }); }
+});
+
 app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
   try {
     const application = (await db.query("SELECT a.*, j.title, j.company, j.employer_id FROM applications a JOIN jobs j ON j.id=a.jobid WHERE a.id=$1", [req.params.id])).rows[0];
@@ -1710,12 +1755,18 @@ app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
     const isEmployerOwner = req.user.role === "employer" && application.employer_id === req.user.id;
     const isCandidateOwner = req.user.role === "user" && (application.candidate_user_id === req.user.id || (!application.candidate_user_id && application.email === req.user.email));
     if (!isEmployerOwner && !isCandidateOwner && !["admin", "superadmin"].includes(req.user.role)) return res.status(403).json({ error: "You cannot view this application workspace." });
-    const [messages, documents, history] = await Promise.all([
+    const [messages, documents, history, scorecards, interviews] = await Promise.all([
       db.query("SELECT * FROM application_messages WHERE application_id=$1 ORDER BY created_at ASC", [application.id]),
       db.query("SELECT * FROM application_document_requests WHERE application_id=$1 ORDER BY created_at DESC", [application.id]),
       db.query("SELECT status,note,created_at FROM application_status_history WHERE application_id=$1 ORDER BY created_at ASC", [application.id]),
+      isEmployerOwner || ["admin", "superadmin"].includes(req.user.role)
+        ? db.query("SELECT s.*, u.username AS reviewer_name FROM application_scorecards s LEFT JOIN users u ON u.id=s.reviewer_id WHERE s.application_id=$1 ORDER BY s.updated_at DESC", [application.id])
+        : Promise.resolve({ rows: [] }),
+      isEmployerOwner || ["admin", "superadmin"].includes(req.user.role)
+        ? db.query("SELECT * FROM application_interviews WHERE application_id=$1 ORDER BY scheduled_at ASC", [application.id])
+        : Promise.resolve({ rows: [] }),
     ]);
-    res.json({ application, messages: messages.rows, documents: documents.rows, history: history.rows });
+    res.json({ application, messages: messages.rows, documents: documents.rows, history: history.rows, scorecards: scorecards.rows, interviews: interviews.rows });
   } catch (error) { console.error("Application workspace failed:", error.message); res.status(500).json({ error: "Could not load application workspace." }); }
 });
 
