@@ -640,6 +640,8 @@ const visaJobDefaultSources = [
   ["Canada Job Bank", "https://www.jobbank.gc.ca/findajob/foreign-candidates", "ca"],
   ["Make it in Germany", "https://www.make-it-in-germany.com/en/working-in-germany/job-listings", "de"],
   ["UK Find a Job", "https://findajob.dwp.gov.uk/", "gb"],
+  ["UK Find a Job — Visa Sponsorship", "https://findajob.dwp.gov.uk/search?loc=86383&pp=50&q=Visa+sponsorship", "gb"],
+  ["NHS Jobs — Visa Sponsorship", "https://www.jobs.nhs.uk/candidate/search/results?keyword=visa%20sponsorship&language=en", "gb"],
   ["Workforce Australia", "https://www.workforceaustralia.gov.au/", "au"],
   ["JobsIreland", "https://www.jobsireland.ie/", "ie"],
   ["Work in Finland", "https://tyomarkkinatori.fi/en", "fi"],

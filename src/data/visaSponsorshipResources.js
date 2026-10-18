@@ -28,6 +28,10 @@ export const VISA_SPONSORSHIP_RESOURCES = [
   { country: "Switzerland", name: "Working in Switzerland", url: "https://www.sem.admin.ch/sem/en/home/overview-arbeit.html" },
   { country: "United Arab Emirates", name: "Work permits", url: "https://u.ae/en/information-and-services/jobs/working-in-uae/work-permits" },
   { country: "United Kingdom", name: "Skilled Worker visa", url: "https://www.gov.uk/skilled-worker-visa" },
+  { country: "United Kingdom", name: "Health and Care Worker visa", url: "https://www.gov.uk/health-care-worker-visa" },
+  { country: "United Kingdom", name: "Register of licensed worker sponsors", url: "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" },
+  { country: "United Kingdom", name: "Skilled Worker eligible occupations and codes", url: "https://www.gov.uk/government/publications/skilled-worker-visa-eligible-occupations" },
+  { country: "United Kingdom", name: "NHS Jobs", url: "https://www.jobs.nhs.uk/" },
   { country: "United States", name: "Temporary worker visas", url: "https://travel.state.gov/content/travel/en/us-visas/employment/temporary-worker-visas.html" },
   { country: "Zimbabwe", name: "Temporary Employment Permit requirements", url: "https://www.zimimmigration.gov.zw/?p=7338" },
 ];
