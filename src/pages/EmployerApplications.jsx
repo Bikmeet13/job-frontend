@@ -51,7 +51,7 @@ export default function EmployerApplications() {
   const schedule = async () => {
     if (!interview.scheduledAt) return toast.error("Choose an interview date and time.");
     setSaving(true);
-    try { await axios.post(API + "/employer/applications/" + active.id + "/interviews", interview, auth()); setInterview({ scheduledAt: "", interviewType: "Video interview", interviewerName: "", meetingLink: "", note: "" }); await refresh(); toast.success("Interview scheduled and candidate notified."); }
+    try { const payload = { ...interview, scheduledAt: new Date(interview.scheduledAt).toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" }; await axios.post(API + "/employer/applications/" + active.id + "/interviews", payload, auth()); setInterview({ scheduledAt: "", interviewType: "Video interview", interviewerName: "", meetingLink: "", note: "" }); await refresh(); toast.success("Interview scheduled and candidate notified."); }
     catch (error) { toast.error(error.response?.data?.error || "Could not schedule interview."); } finally { setSaving(false); }
   };
   const saveScore = async () => {
