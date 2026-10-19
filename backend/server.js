@@ -363,6 +363,7 @@ async function ensureApplicationTrackingTables() {
     db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS cancellation_note TEXT"),
     db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ"),
     db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS cancelled_by_user_id INTEGER"),
+    db.query("ALTER TABLE application_scorecards ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ"),
     db.query("CREATE TABLE IF NOT EXISTS employment_offers (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, candidate_id INTEGER, jurisdiction_country VARCHAR(120) NOT NULL, jurisdiction_state VARCHAR(160) NOT NULL, job_title VARCHAR(160) NOT NULL, department VARCHAR(120), employment_type VARCHAR(80) NOT NULL, compensation TEXT NOT NULL, currency VARCHAR(12) NOT NULL, joining_date DATE, probation_terms TEXT, notice_terms TEXT, conditions TEXT, employer_terms TEXT NOT NULL, status VARCHAR(40) NOT NULL DEFAULT 'Sent', expires_at TIMESTAMPTZ, candidate_signature VARCHAR(180), candidate_accepted_at TIMESTAMPTZ, candidate_declined_at TIMESTAMPTZ, candidate_response_note TEXT, version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS applications_candidate_tracking_idx ON applications (candidate_user_id, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_status_history_lookup_idx ON application_status_history (application_id, created_at ASC)"),
@@ -1720,10 +1721,13 @@ app.put("/api/employer/applications/:id/scorecard", verifyToken, isEmployer, asy
   try {
     const application = await getEmployerApplication(req.params.id, req.user.id);
     if (!application) return res.status(404).json({ error: "Application not found." });
+    const existing = (await db.query("SELECT submitted_at FROM application_scorecards WHERE application_id=$1 AND reviewer_id=$2", [application.id, req.user.id])).rows[0];
+    if (existing?.submitted_at) return res.status(409).json({ error: "This scorecard has been submitted and is now locked." });
     const toScore = (value) => Math.max(0, Math.min(5, Number(value) || 0));
     const recommendation = String(req.body?.recommendation || "Hold");
     if (!["Strong yes", "Yes", "Hold", "No"].includes(recommendation)) return res.status(400).json({ error: "Choose a valid recommendation." });
     const notes = cleanText(req.body?.notes, 3000) || null;
+    const submit = req.body?.submit === true;
     const result = await db.query(
       `INSERT INTO application_scorecards (application_id, employer_id, reviewer_id, skills_score, experience_score, communication_score, culture_score, recommendation, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
@@ -1734,7 +1738,10 @@ app.put("/api/employer/applications/:id/scorecard", verifyToken, isEmployer, asy
        RETURNING *`,
       [application.id, req.user.id, req.user.id, toScore(req.body?.skillsScore), toScore(req.body?.experienceScore), toScore(req.body?.communicationScore), toScore(req.body?.cultureScore), recommendation, notes]
     );
-    res.json({ message: "Scorecard saved.", scorecard: result.rows[0] });
+    let scorecard = result.rows[0];
+    if (submit) scorecard = (await db.query("UPDATE application_scorecards SET submitted_at=NOW(),updated_at=NOW() WHERE id=$1 RETURNING *", [scorecard.id])).rows[0];
+    if (submit) await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Under Review',$2,$3)", [application.id, "Employer submitted a structured interview scorecard.", req.user.id]);
+    res.json({ message: submit ? "Scorecard submitted and locked." : "Scorecard draft saved.", scorecard });
   } catch (error) { console.error("Employer scorecard failed:", error.message); res.status(500).json({ error: "Could not save scorecard." }); }
 });
 
