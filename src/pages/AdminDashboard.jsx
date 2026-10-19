@@ -43,6 +43,7 @@ const [governmentSourceState, setGovernmentSourceState] = useState("national");
 const [governmentScanning, setGovernmentScanning] = useState(false);
 const [companySources, setCompanySources] = useState([]);
 const [companyDrafts, setCompanyDrafts] = useState([]);
+const [companyDraftSearch, setCompanyDraftSearch] = useState("");
 const [companySourceName, setCompanySourceName] = useState("");
 const [companySourceUrl, setCompanySourceUrl] = useState("");
 const [companySourceCategory, setCompanySourceCategory] = useState("Private");
@@ -75,6 +76,7 @@ const [cleanupLoading, setCleanupLoading] = useState(false);
 const navigate = useNavigate();
 
 const role = localStorage.getItem("role");
+const filteredCompanyDrafts = companyDrafts.filter((draft) => String(draft.title || "").toLowerCase().includes(companyDraftSearch.trim().toLowerCase()));
 
 const loadEmployerModeration = async () => {
   setEmployerModerationLoading(true);
@@ -651,7 +653,11 @@ const toggleCompanyDraftSelection = (id) => {
 };
 
 const toggleAllCompanyDrafts = () => {
-  setSelectedCompanyDraftIds((current) => current.length === companyDrafts.length ? [] : companyDrafts.map((draft) => draft.id));
+  const matchingIds = filteredCompanyDrafts.map((draft) => draft.id);
+  setSelectedCompanyDraftIds((current) => matchingIds.every((id) => current.includes(id))
+    ? current.filter((id) => !matchingIds.includes(id))
+    : [...new Set([...current, ...matchingIds])]
+  );
 };
 
 const approveSelectedCompanyDrafts = async () => {
@@ -1012,12 +1018,12 @@ const filteredJobs = (jobs || []).filter((job) => {
           {companySources.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">Add an official company careers page first, then scan it.</p>}
         </div>
 
-        <h3 className="mb-2 font-bold text-blue-950">Company openings waiting for review ({companyDrafts.length})</h3>
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-blue-950">Company openings waiting for review ({filteredCompanyDrafts.length}{companyDraftSearch ? ` of ${companyDrafts.length}` : ""})</h3><input value={companyDraftSearch} onChange={(event) => setCompanyDraftSearch(event.target.value)} placeholder="Search pending jobs by title" className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 sm:max-w-sm" aria-label="Search pending company openings by title" /></div>
         {companyDrafts.length > 0 && (
           <div className="mb-3 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-100/70 p-3 sm:flex-row sm:items-center sm:justify-between">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-blue-950">
-              <input type="checkbox" checked={selectedCompanyDraftIds.length === companyDrafts.length} onChange={toggleAllCompanyDrafts} className="h-4 w-4 accent-blue-600" />
-              Select all openings
+              <input type="checkbox" checked={filteredCompanyDrafts.length > 0 && filteredCompanyDrafts.every((draft) => selectedCompanyDraftIds.includes(draft.id))} onChange={toggleAllCompanyDrafts} className="h-4 w-4 accent-blue-600" />
+              Select matching openings
             </label>
             <button type="button" onClick={approveSelectedCompanyDrafts} disabled={!selectedCompanyDraftIds.length || bulkApprovingCompany} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300">
               {bulkApprovingCompany ? "Publishing selected openings..." : `Approve selected (${selectedCompanyDraftIds.length})`}
@@ -1025,7 +1031,7 @@ const filteredJobs = (jobs || []).filter((job) => {
           </div>
         )}
         <div className="space-y-3">
-          {companyDrafts.map((draft) => (
+          {filteredCompanyDrafts.map((draft) => (
             <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm">
               <label className="flex cursor-pointer items-start gap-3">
                 <input type="checkbox" checked={selectedCompanyDraftIds.includes(draft.id)} onChange={() => toggleCompanyDraftSelection(draft.id)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" aria-label={`Select ${draft.title}`} />
@@ -1043,6 +1049,7 @@ const filteredJobs = (jobs || []).filter((job) => {
             </div>
           ))}
           {companyDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No new company openings are waiting for review.</p>}
+          {companyDrafts.length > 0 && filteredCompanyDrafts.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No pending company opening matches that title.</p>}
         </div>
         <div className="mt-5 flex justify-center">
           <button type="button" onClick={() => setShowCompanyAgent(false)} className="rounded-lg border border-blue-300 bg-white px-5 py-2 font-semibold text-blue-800 transition hover:bg-blue-100">
