@@ -1893,6 +1893,18 @@ app.post("/api/applications/:id/documents/:requestId", verifyToken, upload.singl
     res.json({ message: "Document uploaded.", request });
   } catch (error) { console.error("Candidate document upload failed:", error.message); res.status(500).json({ error: "Could not upload document." }); }
 });
+
+app.post("/api/applications/:id/resume", verifyToken, upload.single("resume"), async (req, res) => {
+  try {
+    if (req.user.role !== "user" || !req.file) return res.status(400).json({ error: "Choose your resume PDF to upload." });
+    if (req.file.mimetype !== "application/pdf" && !String(req.file.originalname || "").toLowerCase().endsWith(".pdf")) return res.status(400).json({ error: "Please upload your resume as a PDF." });
+    const application = (await db.query("SELECT id,status FROM applications WHERE id=$1 AND (candidate_user_id=$2 OR (candidate_user_id IS NULL AND email=$3))", [req.params.id, req.user.id, req.user.email])).rows[0];
+    if (!application) return res.status(403).json({ error: "You cannot update this application." });
+    const result = await db.query("UPDATE applications SET resume=$1, updated_at=NOW() WHERE id=$2 RETURNING id,resume,updated_at", [req.file.path, application.id]);
+    await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,$2,'Candidate uploaded an updated resume.', $3)", [application.id, application.status || "Applied", req.user.id]);
+    res.json({ message: "Your updated resume is now available to the employer.", application: result.rows[0] });
+  } catch (error) { console.error("Candidate resume update failed:", error.message); res.status(500).json({ error: "Could not update your resume." }); }
+});
 app.put("/api/employer/profile", verifyToken, isEmployer, async (req, res) => {
   const fields = ["company_name", "website", "industry", "company_size", "description", "address", "city", "state", "logo_url", "contact_email", "mobile", "company_type"];
   const values = fields.map((key) => cleanText(req.body[key], key === "description" ? 3000 : 300));
