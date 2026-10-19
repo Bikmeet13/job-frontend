@@ -360,6 +360,9 @@ async function ensureApplicationTrackingTables() {
     db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS candidate_response VARCHAR(40)"),
     db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS candidate_response_note TEXT"),
     db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS candidate_responded_at TIMESTAMPTZ"),
+    db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS cancellation_note TEXT"),
+    db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ"),
+    db.query("ALTER TABLE application_interviews ADD COLUMN IF NOT EXISTS cancelled_by_user_id INTEGER"),
     db.query("CREATE TABLE IF NOT EXISTS employment_offers (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, employer_id INTEGER NOT NULL, candidate_id INTEGER, jurisdiction_country VARCHAR(120) NOT NULL, jurisdiction_state VARCHAR(160) NOT NULL, job_title VARCHAR(160) NOT NULL, department VARCHAR(120), employment_type VARCHAR(80) NOT NULL, compensation TEXT NOT NULL, currency VARCHAR(12) NOT NULL, joining_date DATE, probation_terms TEXT, notice_terms TEXT, conditions TEXT, employer_terms TEXT NOT NULL, status VARCHAR(40) NOT NULL DEFAULT 'Sent', expires_at TIMESTAMPTZ, candidate_signature VARCHAR(180), candidate_accepted_at TIMESTAMPTZ, candidate_declined_at TIMESTAMPTZ, candidate_response_note TEXT, version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS applications_candidate_tracking_idx ON applications (candidate_user_id, created_at DESC)"),
     db.query("CREATE INDEX IF NOT EXISTS application_status_history_lookup_idx ON application_status_history (application_id, created_at ASC)"),
@@ -1839,6 +1842,19 @@ app.get("/api/applications/:id/workspace", verifyToken, async (req, res) => {
     ]);
     res.json({ application, messages: messages.rows, documents: documents.rows, history: history.rows, scorecards: scorecards.rows, interviews: interviews.rows, offers: offers.rows });
   } catch (error) { console.error("Application workspace failed:", error.message); res.status(500).json({ error: "Could not load application workspace." }); }
+});
+
+app.patch("/api/employer/interviews/:id/cancel", verifyToken, isEmployer, async (req, res) => {
+  try {
+    const interview = (await db.query("SELECT i.*, a.name, a.email, j.title, j.company FROM application_interviews i JOIN applications a ON a.id=i.application_id JOIN jobs j ON j.id=a.jobid WHERE i.id=$1 AND i.employer_id=$2", [req.params.id, req.user.id])).rows[0];
+    if (!interview) return res.status(404).json({ error: "Interview not found." });
+    if (interview.status === "Cancelled") return res.status(400).json({ error: "This interview is already cancelled." });
+    const cancellationNote = cleanText(req.body?.note, 1500) || null;
+    const result = await db.query("UPDATE application_interviews SET status='Cancelled',cancellation_note=$1,cancelled_at=NOW(),cancelled_by_user_id=$2,updated_at=NOW() WHERE id=$3 RETURNING *", [cancellationNote, req.user.id, interview.id]);
+    await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,'Interview Scheduled',$2,$3)", [interview.application_id, `Interview cancelled.${cancellationNote ? ` Note: ${cancellationNote}` : ""}`, req.user.id]);
+    res.json({ message: "Interview cancelled and candidate notified. You can now schedule a replacement.", interview: result.rows[0] });
+    resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: interview.email, subject: `Interview cancelled: ${interview.title}`, html: `<p>Hello ${escapeEmailHtml(interview.name || "there")},</p><p>Your ${escapeEmailHtml(interview.interview_type)} for <b>${escapeEmailHtml(interview.title)}</b> has been cancelled by ${escapeEmailHtml(interview.company || "the employer")}.</p>${cancellationNote ? `<p><b>Note from the employer:</b> ${escapeEmailHtml(cancellationNote)}</p>` : ""}<p>Please sign in to MarketLence Jobs for any replacement interview details.</p>` }).catch((error) => console.error("Interview cancellation email failed:", error.message));
+  } catch (error) { console.error("Employer interview cancellation failed:", error.message); res.status(500).json({ error: "Could not cancel interview." }); }
 });
 
 app.post("/api/interviews/:id/respond", verifyToken, async (req, res) => {
