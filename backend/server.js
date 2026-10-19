@@ -1898,10 +1898,15 @@ app.post("/api/applications/:id/resume", verifyToken, upload.single("resume"), a
   try {
     if (req.user.role !== "user" || !req.file) return res.status(400).json({ error: "Choose your resume PDF to upload." });
     if (req.file.mimetype !== "application/pdf" && !String(req.file.originalname || "").toLowerCase().endsWith(".pdf")) return res.status(400).json({ error: "Please upload your resume as a PDF." });
-    const application = (await db.query("SELECT id,status FROM applications WHERE id=$1 AND (candidate_user_id=$2 OR (candidate_user_id IS NULL AND email=$3))", [req.params.id, req.user.id, req.user.email])).rows[0];
+    const application = (await db.query("SELECT a.id,a.status,a.name,a.jobid,j.title,j.employer_id FROM applications a JOIN jobs j ON j.id=a.jobid WHERE a.id=$1 AND (a.candidate_user_id=$2 OR (a.candidate_user_id IS NULL AND a.email=$3))", [req.params.id, req.user.id, req.user.email])).rows[0];
     if (!application) return res.status(403).json({ error: "You cannot update this application." });
     const result = await db.query("UPDATE applications SET resume=$1, updated_at=NOW() WHERE id=$2 RETURNING id,resume,updated_at", [req.file.path, application.id]);
     await db.query("INSERT INTO application_status_history (application_id,status,note,changed_by_user_id) VALUES ($1,$2,'Candidate uploaded an updated resume.', $3)", [application.id, application.status || "Applied", req.user.id]);
+    if (application.employer_id) {
+      await db.query("INSERT INTO employer_notifications (employer_id,job_id,notification_type,title,message,action_url) VALUES ($1,$2,'resume_updated',$3,$4,$5) ON CONFLICT (employer_id,job_id,notification_type) DO UPDATE SET title=EXCLUDED.title,message=EXCLUDED.message,action_url=EXCLUDED.action_url,read_at=NULL,created_at=NOW()", [application.employer_id, application.jobid, "Candidate updated a resume", `${cleanText(application.name, 120) || "A candidate"} updated their resume for ${cleanText(application.title, 200)}.`, "/employer/applications"]);
+      const employer = (await db.query("SELECT email FROM users WHERE id=$1 AND role='employer'", [application.employer_id])).rows[0];
+      if (employer?.email) resend.emails.send({ from: "Marketlence Jobs <care@marketlence.com>", to: employer.email, subject: `Updated resume: ${application.title}`, html: `<p>${escapeEmailHtml(application.name || "A candidate")} uploaded an updated resume for <b>${escapeEmailHtml(application.title)}</b>.</p><p>Open Hiring Command Centre to review the latest file.</p>` }).catch((error) => console.error("Updated resume email failed:", error.message));
+    }
     res.json({ message: "Your updated resume is now available to the employer.", application: result.rows[0] });
   } catch (error) { console.error("Candidate resume update failed:", error.message); res.status(500).json({ error: "Could not update your resume." }); }
 });
