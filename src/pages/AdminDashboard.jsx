@@ -52,6 +52,7 @@ const [companyScanning, setCompanyScanning] = useState(false);
 const [companyScanScope, setCompanyScanScope] = useState(null);
 const [visaSources, setVisaSources] = useState([]);
 const [visaDrafts, setVisaDrafts] = useState([]);
+const [visaDraftSearch, setVisaDraftSearch] = useState("");
 const [visaScanning, setVisaScanning] = useState(false);
 const [showGovernmentAgent, setShowGovernmentAgent] = useState(false);
 const [showCompanyAgent, setShowCompanyAgent] = useState(false);
@@ -77,6 +78,7 @@ const navigate = useNavigate();
 
 const role = localStorage.getItem("role");
 const filteredCompanyDrafts = companyDrafts.filter((draft) => String(draft.title || "").toLowerCase().includes(companyDraftSearch.trim().toLowerCase()));
+const filteredVisaDrafts = visaDrafts.filter((draft) => String(draft.title || "").toLowerCase().includes(visaDraftSearch.trim().toLowerCase()));
 
 const loadEmployerModeration = async () => {
   setEmployerModerationLoading(true);
@@ -968,10 +970,11 @@ const filteredJobs = (jobs || []).filter((job) => {
           <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="mt-1 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-violet-700">{source.source_type || "job listings"}</span><span className="mt-1 block text-xs text-gray-500">{source.country.toUpperCase()} · {(source.source_type || "job listings") !== "job listings" ? "Reference resource — not scanned" : source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"} ↗</span></a>)}
           </div>
-          <h3 className="mb-2 font-bold text-violet-950">Visa openings waiting for review ({visaDrafts.length})</h3>
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-violet-950">Visa openings waiting for review ({filteredVisaDrafts.length}{visaDraftSearch ? ` of ${visaDrafts.length}` : ""})</h3><input type="search" value={visaDraftSearch} onChange={(event) => setVisaDraftSearch(event.target.value)} placeholder="Search pending visa jobs by title" className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 sm:max-w-sm" aria-label="Search pending visa openings by title" /></div>
           <div className="space-y-3">
-            {visaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold text-gray-900">{draft.title}</p><p className="mt-1 text-sm text-violet-700">Visa Job · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex gap-2"><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
+            {filteredVisaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold text-gray-900">{draft.title}</p><p className="mt-1 text-sm text-violet-700">Visa Job · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex gap-2"><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
             {!visaDrafts.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No verified sponsored openings are waiting for review.</p>}
+            {visaDrafts.length > 0 && !filteredVisaDrafts.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No pending sponsored opening matches that title.</p>}
           </div>
           <div className="mt-5 flex justify-center"><button type="button" onClick={() => setShowVisaAgent(false)} className="rounded-lg border border-violet-300 bg-white px-5 py-2 font-semibold text-violet-800 hover:bg-violet-100">Close Visa Jobs Agent</button></div>
         </>}
