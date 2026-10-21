@@ -53,6 +53,7 @@ const [companyScanScope, setCompanyScanScope] = useState(null);
 const [visaSources, setVisaSources] = useState([]);
 const [visaDrafts, setVisaDrafts] = useState([]);
 const [visaDraftSearch, setVisaDraftSearch] = useState("");
+const [visaCountryFilter, setVisaCountryFilter] = useState("all");
 const [visaScanning, setVisaScanning] = useState(false);
 const [showGovernmentAgent, setShowGovernmentAgent] = useState(false);
 const [showCompanyAgent, setShowCompanyAgent] = useState(false);
@@ -78,7 +79,9 @@ const navigate = useNavigate();
 
 const role = localStorage.getItem("role");
 const filteredCompanyDrafts = companyDrafts.filter((draft) => String(draft.title || "").toLowerCase().includes(companyDraftSearch.trim().toLowerCase()));
-const filteredVisaDrafts = visaDrafts.filter((draft) => String(draft.title || "").toLowerCase().includes(visaDraftSearch.trim().toLowerCase()));
+const filteredVisaSources = visaSources.filter((source) => visaCountryFilter === "all" || source.country === visaCountryFilter);
+const visaCountries = [...new Set(visaSources.map((source) => source.country).filter(Boolean))].sort();
+const filteredVisaDrafts = visaDrafts.filter((draft) => (visaCountryFilter === "all" || draft.country === visaCountryFilter) && String(draft.title || "").toLowerCase().includes(visaDraftSearch.trim().toLowerCase()));
 
 const loadEmployerModeration = async () => {
   setEmployerModerationLoading(true);
@@ -965,10 +968,10 @@ const filteredJobs = (jobs || []).filter((job) => {
         {showVisaAgent && <>
           <div className="mb-4 mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-violet-800">Job-listing sources are scanned separately. Official H-1B guidance and sponsor-research sources are provided for verification only and are never scanned or published as job openings.</p>
-            <button onClick={scanVisaSources} disabled={visaScanning || !visaSources.length} className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{visaScanning ? "Scanning sponsored jobs..." : "Scan visa resources"}</button>
+            <div className="flex shrink-0 flex-wrap gap-2"><select value={visaCountryFilter} onChange={(event) => setVisaCountryFilter(event.target.value)} className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-950" aria-label="Filter visa resources by country"><option value="all">All countries</option>{visaCountries.map((country) => <option key={country} value={country}>{(COUNTRIES.find((item) => item.code === country)?.name) || country.toUpperCase()}</option>)}</select><button onClick={scanVisaSources} disabled={visaScanning || !visaSources.length} className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{visaScanning ? "Scanning sponsored jobs..." : "Scan visa resources"}</button></div>
           </div>
           <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="mt-1 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-violet-700">{source.source_type || "job listings"}</span><span className="mt-1 block text-xs text-gray-500">{source.country.toUpperCase()} · {(source.source_type || "job listings") !== "job listings" ? "Reference resource — not scanned" : source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"} ↗</span></a>)}
+            {filteredVisaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="mt-1 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-violet-700">{source.source_type || "job listings"}</span><span className="mt-1 block text-xs text-gray-500">{source.country.toUpperCase()} · {(source.source_type || "job listings") !== "job listings" ? "Reference resource — not scanned" : source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"} ↗</span></a>)}
           </div>
           <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-violet-950">Visa openings waiting for review ({filteredVisaDrafts.length}{visaDraftSearch ? ` of ${visaDrafts.length}` : ""})</h3><input type="search" value={visaDraftSearch} onChange={(event) => setVisaDraftSearch(event.target.value)} placeholder="Search pending visa jobs by title" className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 sm:max-w-sm" aria-label="Search pending visa openings by title" /></div>
           <div className="space-y-3">
