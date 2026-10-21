@@ -526,6 +526,21 @@ localStorage.setItem(
     return getPostedTime(b) - getPostedTime(a);
   });
 
+  const activeFilterLabels = [
+    search && `Search: ${search}`,
+    country !== "in" && `Country: ${countryNames[country] || country.toUpperCase()}`,
+    locationFilter && `Location: ${locationFilter}`,
+    modeFilter && `Mode: ${modeFilter}`,
+    jobCategoryFilter !== "Private" && `Sector: ${jobCategoryFilter || "All"}`,
+    experienceFilter && `Experience: ${experienceFilter}`,
+    salaryFilter && `Salary: ${salaryFilter}`,
+    sortFilter !== "newest" && `Sort: ${sortFilter === "deadline" ? "Closing soon" : "Oldest"}`,
+  ].filter(Boolean);
+  const resetJobFilters = () => {
+    setSearch(""); setCountry("in"); setLocationFilter(""); setModeFilter("");
+    setJobCategoryFilter("Private"); setExperienceFilter(""); setSalaryFilter(""); setSortFilter("newest");
+  };
+
     useEffect(() => {
   const checkAppliedJobs = async () => {
     const email = localStorage.getItem("email"); // 👈 make sure email exists
@@ -1110,6 +1125,11 @@ localStorage.removeItem("profilePic");
 
 </div>
 
+<div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-1">
+  <p className={`text-sm font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{allJobs.length} {allJobs.length === 1 ? "job" : "jobs"} found</p>
+  {activeFilterLabels.length > 0 && <div className="flex flex-wrap items-center justify-end gap-2"><span className={`text-xs font-bold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Active:</span>{activeFilterLabels.map((label) => <span key={label} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${darkMode ? "border-slate-700 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{label}</span>)}<button type="button" onClick={resetJobFilters} className="rounded-full px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50">Clear all</button></div>}
+</div>
+
       {/* 📋 Job List */}
 
       <div id="job-results" className="mx-auto mt-10 w-full max-w-7xl scroll-mt-28">
@@ -1119,9 +1139,7 @@ localStorage.removeItem("profilePic");
        <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />
        {allJobs.length === 0 ? (
 
-          <p className="text-center text-gray-500">
-            No jobs found
-          </p>
+          <div className={`mx-auto max-w-xl rounded-3xl border p-8 text-center shadow-sm ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-900"}`}><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-100 text-xl">🔎</div><h2 className="mt-4 text-xl font-black">No roles match these filters</h2><p className={`mt-2 text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Try a broader role, another location, or reset the filters to view all available opportunities.</p>{activeFilterLabels.length > 0 && <button type="button" onClick={resetJobFilters} className="mt-5 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-700">Clear filters and show jobs</button>}</div>
 
         ) : (
 
