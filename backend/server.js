@@ -667,7 +667,15 @@ const visaJobDefaultSources = [
   ["EURES European Job Network", "https://eures.europa.eu/index_en", "global"],
   ["Relocate.me", "https://relocate.me/", "global"],
   ["Visa Jobs", "https://www.visajobs.com/", "global"],
-  ["MyVisaJobs", "https://www.myvisajobs.com/", "us"],
+  ["MyVisaJobs — H-1B Jobs", "https://www.myvisajobs.com/", "us", "job listings"],
+  ["USCIS — H-1B Specialty Occupations", "https://www.uscis.gov/working-in-the-united-states/h-1b-specialty-occupations", "us", "official guidance", false],
+  ["USCIS — H-1B Electronic Registration", "https://www.uscis.gov/working-in-the-united-states/h-1b-electronic-registration-process", "us", "official guidance", false],
+  ["U.S. DOL FLAG — H-1B Labor Condition Application", "https://flag.dol.gov/programs/H-1B", "us", "official guidance", false],
+  ["U.S. DOL — H-1B Advisor", "https://webapps.dol.gov/elaws/h1b/default.aspx", "us", "official guidance", false],
+  ["U.S. DOL — H-1B Disclosure Data", "https://www.dol.gov/agencies/eta/foreign-labor/performance", "us", "sponsor research", false],
+  ["U.S. Department of State — Temporary Worker Visas", "https://travel.state.gov/content/travel/en/us-visas/employment/temporary-worker-visas.html", "us", "official guidance", false],
+  ["H1BGrader — Sponsor Database", "https://h1bgrader.com/", "us", "sponsor research", false],
+  ["H1BData — Sponsor & Salary Database", "https://h1bdata.info/", "us", "sponsor research", false],
   ["Jobbatical Jobs", "https://jobbatical.com/jobs", "global"],
   ["New Zealand Government Jobs", "https://jobs.govt.nz/", "nz"],
   ["Poland ePraca", "https://oferty.praca.gov.pl/portal/pl", "pl"],
@@ -715,6 +723,7 @@ async function ensureVisaJobAgentTables() {
     country TEXT NOT NULL DEFAULT 'global', enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
   await Promise.all([
+    db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'job listings'"),
     db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS last_scan_at TIMESTAMPTZ"),
     db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS last_scan_error TEXT"),
     db.query("ALTER TABLE visa_job_sources ADD COLUMN IF NOT EXISTS last_found_count INTEGER NOT NULL DEFAULT 0"),
@@ -723,8 +732,8 @@ async function ensureVisaJobAgentTables() {
     id SERIAL PRIMARY KEY, source_id INTEGER, source_name TEXT NOT NULL, source_url TEXT NOT NULL,
     country TEXT NOT NULL DEFAULT 'global', title TEXT NOT NULL, apply_link TEXT NOT NULL UNIQUE,
     status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), reviewed_at TIMESTAMPTZ)`);
-  for (const [name, url, country] of visaJobDefaultSources) {
-    await db.query("INSERT INTO visa_job_sources (name, url, country) VALUES ($1, $2, $3) ON CONFLICT (url) DO NOTHING", [name, url, country]);
+  for (const [name, url, country, sourceType = "job listings", enabled = true] of visaJobDefaultSources) {
+    await db.query("INSERT INTO visa_job_sources (name, url, country, source_type, enabled) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (url) DO UPDATE SET name=EXCLUDED.name, country=EXCLUDED.country, source_type=EXCLUDED.source_type", [name, url, country, sourceType, enabled]);
   }
 }
 
@@ -1032,7 +1041,7 @@ async function scanVisaJobSources() {
   if (visaJobScanRunning) return { running: true, sourcesChecked: 0, discovered: 0 };
   visaJobScanRunning = true;
   try {
-    const { rows: sources } = await db.query("SELECT id, name, url, country FROM visa_job_sources WHERE enabled = TRUE");
+    const { rows: sources } = await db.query("SELECT id, name, url, country FROM visa_job_sources WHERE enabled = TRUE AND source_type = 'job listings'");
     let discovered = 0;
     for (let index = 0; index < sources.length; index += 4) {
       const results = await Promise.all(sources.slice(index, index + 4).map(async (source) => {

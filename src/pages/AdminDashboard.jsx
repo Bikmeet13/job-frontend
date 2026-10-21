@@ -962,11 +962,11 @@ const filteredJobs = (jobs || []).filter((job) => {
         </button>
         {showVisaAgent && <>
           <div className="mb-4 mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-violet-800">Official international job resources are scanned separately. Listings from trusted public work-visa resources are sent for your review; always confirm visa eligibility on the official listing.</p>
+            <p className="text-sm text-violet-800">Job-listing sources are scanned separately. Official H-1B guidance and sponsor-research sources are provided for verification only and are never scanned or published as job openings.</p>
             <button onClick={scanVisaSources} disabled={visaScanning || !visaSources.length} className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{visaScanning ? "Scanning sponsored jobs..." : "Scan visa resources"}</button>
           </div>
           <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="block text-xs text-gray-500">{source.country.toUpperCase()} · {source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"} ↗</span></a>)}
+            {visaSources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white p-3 text-sm text-violet-900 shadow-sm hover:ring-2 hover:ring-violet-300"><b>{source.name}</b><span className="mt-1 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-violet-700">{source.source_type || "job listings"}</span><span className="mt-1 block text-xs text-gray-500">{source.country.toUpperCase()} · {(source.source_type || "job listings") !== "job listings" ? "Reference resource — not scanned" : source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"} ↗</span></a>)}
           </div>
           <h3 className="mb-2 font-bold text-violet-950">Visa openings waiting for review ({visaDrafts.length})</h3>
           <div className="space-y-3">
