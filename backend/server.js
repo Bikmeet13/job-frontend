@@ -698,6 +698,16 @@ const visaJobDefaultSources = [
   ["Türkiye İşkur", "https://www.iskur.gov.tr/en/", "tr"],
   ["Spain Empléate", "https://empleate.gob.es/empleo/", "es"],
   ["Belgium Actiris", "https://www.actiris.brussels/en/citizens/jobseekers/", "be"],
+  ["Canada — Work in Canada", "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada.html", "ca", "official guidance", false],
+  ["UK — Register of Licensed Sponsors", "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers", "gb", "sponsor research", false],
+  ["Germany — EU Blue Card", "https://www.make-it-in-germany.com/en/visa-residence/types/eu-blue-card", "de", "official guidance", false],
+  ["Australia — Employing Overseas Workers", "https://immi.homeaffairs.gov.au/employing-overseas-workers", "au", "official guidance", false],
+  ["Ireland — Employment Permits", "https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/", "ie", "official guidance", false],
+  ["Netherlands — Recognised Sponsor Register", "https://ind.nl/en/public-register-recognised-sponsors", "nl", "sponsor research", false],
+  ["New Zealand — Accredited Employer Work Visa", "https://www.immigration.govt.nz/visas/accredited-employer-work-visa/", "nz", "official guidance", false],
+  ["Sweden — Work Permit", "https://www.migrationsverket.se/en/you-want-to-apply/work/employee-or-self-employed/employees.html", "se", "official guidance", false],
+  ["Finland — Residence Permit for an Employed Person", "https://migri.fi/en/residence-permit-for-an-employed-person", "fi", "official guidance", false],
+  ["Singapore — Employment Pass", "https://www.mom.gov.sg/passes-and-permits/employment-pass", "sg", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
