@@ -1,47 +1,51 @@
-import ApplyForm from "./components/ApplyForm";
-import AdminApplications from "./pages/AdminApplications";
-import Profile from "./pages/Profile";
+import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Dashboard from "./pages/Dashboard";
-import SavedJobs from "./pages/SavedJobs";
-import JobDetails from "./pages/JobDetails";
-import ChatbotForm from "./components/ChatbotForm";
-import ForgotPassword from "./pages/ForgotPassword";
-
 import Jobs from "./pages/Jobs";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminCandidates from "./pages/AdminCandidates";
-import ResumeBuilder from "./pages/ResumeBuilder";
-import DocumentGenerator from "./pages/DocumentGenerator";
-import EmployerLanding from "./pages/EmployerLanding";
-import EmployerAuth from "./pages/EmployerAuth";
-import EmployerDashboard from "./pages/EmployerDashboard";
-import EmployerPostJob from "./pages/EmployerPostJob";
-import EmployerProfile from "./pages/EmployerProfile";
-import EmployerApplications from "./pages/EmployerApplications";
-import EmployerHRServices from "./pages/EmployerHRServices";
-import EmployerLeaveApprovals from "./pages/EmployerLeaveApprovals";
-import EmployerDocumentRequests from "./pages/EmployerDocumentRequests";
-import MarketlencePeopleCRM from "./pages/MarketlencePeopleCRM";
-import TelephonyCRM from "./pages/TelephonyCRM";
-import EmployeePortal from "./pages/EmployeePortal";
 import GlexaAssistant from "./components/GlexaAssistant";
-import CandidateJobAlerts from "./pages/CandidateJobAlerts";
-import CandidateOnboarding from "./pages/CandidateOnboarding";
-import LegalPolicies from "./pages/LegalPolicies";
-import FreelanceLanding from "./pages/FreelanceLanding";
-import FreelanceHire from "./pages/FreelanceHire";
-import FreelanceWork from "./pages/FreelanceWork";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
+
+// Only the public Jobs screen is part of the initial download. The remaining
+// dashboards and tools load only when a visitor opens their route.
+const ApplyForm = lazy(() => import("./components/ApplyForm"));
+const AdminApplications = lazy(() => import("./pages/AdminApplications"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const SavedJobs = lazy(() => import("./pages/SavedJobs"));
+const JobDetails = lazy(() => import("./pages/JobDetails"));
+const ChatbotForm = lazy(() => import("./components/ChatbotForm"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminCandidates = lazy(() => import("./pages/AdminCandidates"));
+const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
+const DocumentGenerator = lazy(() => import("./pages/DocumentGenerator"));
+const EmployerLanding = lazy(() => import("./pages/EmployerLanding"));
+const EmployerAuth = lazy(() => import("./pages/EmployerAuth"));
+const EmployerDashboard = lazy(() => import("./pages/EmployerDashboard"));
+const EmployerPostJob = lazy(() => import("./pages/EmployerPostJob"));
+const EmployerProfile = lazy(() => import("./pages/EmployerProfile"));
+const EmployerApplications = lazy(() => import("./pages/EmployerApplications"));
+const EmployerHRServices = lazy(() => import("./pages/EmployerHRServices"));
+const EmployerLeaveApprovals = lazy(() => import("./pages/EmployerLeaveApprovals"));
+const EmployerDocumentRequests = lazy(() => import("./pages/EmployerDocumentRequests"));
+const MarketlencePeopleCRM = lazy(() => import("./pages/MarketlencePeopleCRM"));
+const TelephonyCRM = lazy(() => import("./pages/TelephonyCRM"));
+const EmployeePortal = lazy(() => import("./pages/EmployeePortal"));
+const CandidateJobAlerts = lazy(() => import("./pages/CandidateJobAlerts"));
+const CandidateOnboarding = lazy(() => import("./pages/CandidateOnboarding"));
+const LegalPolicies = lazy(() => import("./pages/LegalPolicies"));
+const FreelanceLanding = lazy(() => import("./pages/FreelanceLanding"));
+const FreelanceHire = lazy(() => import("./pages/FreelanceHire"));
+const FreelanceWork = lazy(() => import("./pages/FreelanceWork"));
 
 function App() {
   return (<>
       <Toaster position="top-right" />
 
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
     <Routes>
 
       <Route path="/apply/:jobId" element={<ProtectedRoute><ApplyForm /></ProtectedRoute>} />
@@ -142,6 +146,7 @@ function App() {
 
 
     </Routes>
+    </Suspense>
     <GlexaAssistant />
 
        

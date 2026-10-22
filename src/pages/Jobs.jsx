@@ -587,8 +587,12 @@ useEffect(() => {
 
 if (loading) {
   return (
-    <div className="flex justify-center items-center h-screen">
-       <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-indigo-50 to-white flex items-center justify-center p-6">
+      <div className="max-w-sm w-full rounded-3xl border border-indigo-100 bg-white/85 p-8 text-center shadow-xl shadow-indigo-100/60 backdrop-blur">
+        <div className="mx-auto mb-5 h-12 w-12 rounded-2xl border-4 border-indigo-500 border-t-transparent animate-spin" />
+        <h1 className="text-xl font-extrabold text-slate-900">Loading Marketlence Jobs</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Finding the newest opportunities for you…</p>
+      </div>
     </div>
   );
 }

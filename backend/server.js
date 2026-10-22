@@ -4295,21 +4295,45 @@ const telephony = createTelephony({ db, axios, verifyToken, cleanText });
 app.use("/api/telephony/webhooks", telephony.webhook);
 app.use("/api/telephony", telephony.router);
 
-Promise.all([ensurePushSubscriptionsTable(), ensureJobColumns(), ensureApplicationTrackingTables(), ensureGovernmentJobAgentTables(), ensureCompanyJobAgentTables(), ensureVisaJobAgentTables(), ensureEmployerPostingTables(), ensureHrServiceTables(), ensureMarketlenceCrmTables(), ensureJobAlertTables(), ensureFreelanceTables()])
-  .then(async () => {
+// Keep the public API available while the non-critical maintenance work runs.
+// The company and visa catalogues contain many sources, and seeding/migrating
+// them before app.listen meant a freshly started Railway container could not
+// answer /api/jobs for several minutes.
+async function initializeBackgroundServices() {
+  try {
+    await Promise.all([
+      ensurePushSubscriptionsTable(),
+      ensureJobColumns(),
+      ensureApplicationTrackingTables(),
+      ensureGovernmentJobAgentTables(),
+      ensureCompanyJobAgentTables(),
+      ensureVisaJobAgentTables(),
+      ensureEmployerPostingTables(),
+      ensureHrServiceTables(),
+      ensureMarketlenceCrmTables(),
+      ensureJobAlertTables(),
+      ensureFreelanceTables(),
+    ]);
+
     await telephony.ensureSchema();
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on port ${PORT}`);
-      startGovernmentJobAgent();
-      startCompanyJobAgent();
-      startVisaJobAgent();
-      startJobAlertAgent();
-      setInterval(() => { void deactivateExpiredFeaturedJobs(); }, 60 * 60 * 1000);
-    });
-  })
-  .catch((error) => {
-    console.error("Could not initialize push subscriptions:", error);
-    process.exit(1);
-  });
+
+    startGovernmentJobAgent();
+    startCompanyJobAgent();
+    startVisaJobAgent();
+    startJobAlertAgent();
+    setInterval(() => { void deactivateExpiredFeaturedJobs(); }, 60 * 60 * 1000);
+    console.log("Background database setup complete");
+  } catch (error) {
+    // Do not take down the public jobs site because an optional agent or a
+    // one-time schema update has a problem. The error remains visible in
+    // Railway logs for follow-up.
+    console.error("Background database setup failed:", error);
+  }
+}
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+  void initializeBackgroundServices();
+});
