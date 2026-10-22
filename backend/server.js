@@ -490,6 +490,8 @@ async function ensureCompanyJobAgentTables() {
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS scan_failure_count INTEGER NOT NULL DEFAULT 0"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS application_email TEXT"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS application_email_verified BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS application_email_provenance TEXT"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS application_email_discovered_at TIMESTAMPTZ"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'global'"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS location TEXT"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE"),
@@ -948,6 +950,60 @@ function isSafeCompanySourceUrl(value) {
   }
 }
 
+function registeredDomain(hostname) {
+  const labels = String(hostname || "").toLowerCase().split(".").filter(Boolean);
+  if (labels.length < 2) return "";
+  const compoundTlds = new Set(["co.uk", "org.uk", "ac.uk", "com.au", "com.br", "co.in", "com.mx", "co.nz", "co.za", "com.sg", "com.tr"]);
+  const lastTwo = labels.slice(-2).join(".");
+  return compoundTlds.has(lastTwo) && labels.length >= 3 ? labels.slice(-3).join(".") : lastTwo;
+}
+
+function isOfficialHiringEmailForSource(email, sourceUrl) {
+  const value = String(email || "").trim().toLowerCase();
+  const [, localPart, emailDomain] = value.match(/^([^@\s]+)@([^@\s]+)$/) || [];
+  if (!localPart || !emailDomain || !/career|recruit|talent|hiring|jobs?|hr|people|apply/.test(localPart)) return false;
+  try {
+    const sourceDomain = registeredDomain(new URL(sourceUrl).hostname);
+    return Boolean(sourceDomain) && registeredDomain(emailDomain) === sourceDomain;
+  } catch {
+    return false;
+  }
+}
+
+function discoverOfficialHiringEmail(page, sourceUrl) {
+  const text = String(page || "").replace(/&commat;|&#64;/gi, "@");
+  const emails = [...new Set(text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [])]
+    .map((email) => email.toLowerCase())
+    .filter((email) => isOfficialHiringEmailForSource(email, sourceUrl));
+  return emails[0] || null;
+}
+
+async function saveDiscoveredHiringEmail(source, email) {
+  if (!email || source.application_email_verified) return false;
+  const result = await db.query(
+    `UPDATE company_job_sources
+     SET application_email=$1, application_email_verified=TRUE,
+         application_email_provenance='auto_discovered', application_email_discovered_at=NOW()
+     WHERE id=$2 AND application_email_verified=FALSE
+     RETURNING name`,
+    [email, source.id]
+  );
+  if (!result.rows.length) return false;
+
+  // Existing official-source jobs can immediately use the verified contact;
+  // do not alter employer-managed or manually configured listings.
+  await db.query(
+    `UPDATE jobs
+     SET apply_enabled=TRUE, application_method='marketlence_email',
+         application_delivery_email=$1, application_delivery_verified=TRUE
+     WHERE employer_id IS NULL AND LOWER(company)=LOWER($2) AND apply_link IS NOT NULL
+       AND COALESCE(application_method, 'url')='url'`,
+    [email, source.name]
+  );
+  console.log(`Official hiring email discovered for ${source.name}`);
+  return true;
+}
+
 function companySourceFailurePolicy(errorMessage) {
   const message = String(errorMessage || "").toLowerCase();
   const permanentlyUnavailable = /status code 404|enotfound|certificate has expired|self-signed certificate|unable to verify the first certificate|hostname\/ip does not match certificate|unsupported protocol/.test(message);
@@ -980,7 +1036,7 @@ async function scanCompanyJobSources(country = null) {
       ? country.toLowerCase()
       : null;
     const { rows: sources } = await db.query(
-      `SELECT id, name, url, job_category, country, scan_failure_count
+      `SELECT id, name, url, job_category, country, scan_failure_count, application_email_verified
        FROM company_job_sources
        WHERE enabled = TRUE${targetCountry ? " AND country = $1" : ""}`,
       targetCountry ? [targetCountry] : []
@@ -999,6 +1055,8 @@ async function scanCompanyJobSources(country = null) {
             responseType: "text",
             headers: { "User-Agent": "MarketlenceJobsBot/1.0 (company-job-review-agent)" },
           });
+          const discoveredHiringEmail = discoverOfficialHiringEmail(response.data, source.url);
+          await saveDiscoveredHiringEmail(source, discoveredHiringEmail);
           const listings = findGovernmentJobLinks(response.data, source.url);
           let found = 0;
 
@@ -2644,7 +2702,9 @@ app.patch("/api/company-job-agent/sources/:id", verifyToken, isAdmin, async (req
            scan_failure_count=CASE WHEN $1 AND $2 THEN 0 ELSE scan_failure_count END,
            last_scan_error=CASE WHEN $1 AND $2 THEN NULL ELSE last_scan_error END,
            application_email=CASE WHEN $3 THEN NULLIF($4, '') ELSE application_email END,
-           application_email_verified=CASE WHEN $3 THEN $5 ELSE application_email_verified END
+           application_email_verified=CASE WHEN $3 THEN $5 ELSE application_email_verified END,
+           application_email_provenance=CASE WHEN $3 THEN CASE WHEN $4='' THEN NULL ELSE 'manual_verified' END ELSE application_email_provenance END,
+           application_email_discovered_at=CASE WHEN $3 THEN NULL ELSE application_email_discovered_at END
        WHERE id=$6 RETURNING *`,
       [hasEnabledValue, enabled, hasApplicationEmail, applicationEmail, Boolean(emailVerified), req.params.id]
     );
