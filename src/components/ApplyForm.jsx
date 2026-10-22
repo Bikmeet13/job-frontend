@@ -110,7 +110,7 @@ localStorage.setItem(`app_${jobId}`, res.data.applicationId);
         <div className="flex gap-4 mt-3 text-sm text-gray-500">
           <span>📍 {job?.location}</span>
           <span>💼 {job?.experience}</span>
-          <span className="text-green-600 font-semibold">
+          <span className="text-slate-700 font-semibold">
             💰 {job?.salary}
           </span>
         </div>

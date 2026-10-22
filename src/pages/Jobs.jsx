@@ -1223,11 +1223,11 @@ localStorage.removeItem("profilePic");
   {job.description || "No description available"}
 </p>
 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-  <p className="rounded-xl border border-emerald-100/70 bg-emerald-50/70 px-2.5 py-2 font-semibold text-emerald-700 backdrop-blur"><span className="block text-[10px] uppercase tracking-wide text-emerald-600">Salary</span>{job.salary || "Not disclosed"}</p>
+  <p className="rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-2 font-semibold text-slate-700 backdrop-blur"><span className="block text-[10px] uppercase tracking-wide text-slate-500">Salary</span>{job.salary || "Not disclosed"}</p>
   <p className={`rounded-xl border px-2.5 py-2 font-semibold backdrop-blur ${darkMode ? "border-white/10 bg-slate-700/60 text-slate-200" : "border-white/70 bg-white/55 text-slate-600"}`}><span className="block text-[10px] uppercase tracking-wide text-slate-400">Experience</span>{job.experience || "Not specified"}</p>
 </div>
-{job.skills && <p className={`mt-3 line-clamp-1 text-xs ${darkMode ? "text-sky-300" : "text-sky-700"}`}><span className="font-bold">Skills:</span> {job.skills}</p>}
-<p className="mt-3 inline-flex w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200">Last date: {lastDateLabel}</p>
+{job.skills && <p className={`mt-3 line-clamp-1 text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}><span className="font-bold">Skills:</span> {job.skills}</p>}
+<p className="mt-3 inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">Last date: {lastDateLabel}</p>
                   </div>
 
                 </div>
@@ -1235,11 +1235,11 @@ localStorage.removeItem("profilePic");
                 {/* 🏷️ Tags */}
                 <div className="mt-5 flex flex-wrap gap-2">
 
-                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                     {job.type || "Full-time"}
                   </span>
 
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-violet-100 font-bold text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-indigo-50 font-bold text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
                     {job.mode || "Onsite"}
                   </span>
 
