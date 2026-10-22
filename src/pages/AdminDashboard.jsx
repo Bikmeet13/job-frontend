@@ -62,6 +62,7 @@ const [showVisaAgent, setShowVisaAgent] = useState(false);
 const [showPostedJobs, setShowPostedJobs] = useState(false);
 const [selectedGovernmentDraftIds, setSelectedGovernmentDraftIds] = useState([]);
 const [selectedCompanyDraftIds, setSelectedCompanyDraftIds] = useState([]);
+const [selectedVisaDraftIds, setSelectedVisaDraftIds] = useState([]);
 const [bulkApprovingGovernment, setBulkApprovingGovernment] = useState(false);
 const [bulkApprovingCompany, setBulkApprovingCompany] = useState(false);
 const [employerJobs, setEmployerJobs] = useState([]);
@@ -540,6 +541,11 @@ const reviewGovernmentDraft = async (id, action) => {
     toast.error(err.response?.data?.error || "Could not review this notification");
   }
 };
+const editGovernmentDraft = async (draft) => {
+  const title = window.prompt("Edit job title", draft.title || ""); if (title === null) return;
+  const state = window.prompt("Edit state (use national for nationwide jobs)", draft.state || "national"); if (state === null) return;
+  try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/drafts/${draft.id}`, { title, state }, governmentAgentHeaders()); toast.success("Draft updated"); fetchGovernmentJobAgentData(); } catch (err) { toast.error(err.response?.data?.error || "Could not update draft"); }
+};
 
 const toggleGovernmentDraftSelection = (id) => {
   setSelectedGovernmentDraftIds((current) => current.includes(id)
@@ -570,6 +576,13 @@ const approveSelectedGovernmentDrafts = async () => {
   approved === selectedIds.length
     ? toast.success(`${approved} government opening(s) published`)
     : toast.error(`${approved} of ${selectedIds.length} government openings were published. Please retry the remaining ones.`);
+};
+const dismissSelectedGovernmentDrafts = async () => {
+  if (!selectedGovernmentDraftIds.length || !window.confirm(`Dismiss ${selectedGovernmentDraftIds.length} selected government opening(s)?`)) return;
+  const ids = [...selectedGovernmentDraftIds];
+  const results = await Promise.allSettled(ids.map((id) => axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/government-job-agent/drafts/${id}/dismiss`, {}, governmentAgentHeaders())));
+  setSelectedGovernmentDraftIds([]); await fetchGovernmentJobAgentData();
+  toast.success(`${results.filter((item) => item.status === "fulfilled").length} opening(s) dismissed`);
 };
 
 const removeGovernmentSource = async (id) => {
@@ -650,6 +663,11 @@ const reviewCompanyDraft = async (id, action) => {
     toast.error(err.response?.data?.error || "Could not review this opening");
   }
 };
+const editCompanyDraft = async (draft) => {
+  const title = window.prompt("Edit job title", draft.title || ""); if (title === null) return;
+  const location = window.prompt("Edit job location", draft.location || ""); if (location === null) return;
+  try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/drafts/${draft.id}`, { title, location }, governmentAgentHeaders()); toast.success("Draft updated"); fetchCompanyJobAgentData(); } catch (err) { toast.error(err.response?.data?.error || "Could not update draft"); }
+};
 
 const toggleCompanyDraftSelection = (id) => {
   setSelectedCompanyDraftIds((current) => current.includes(id)
@@ -684,6 +702,13 @@ const approveSelectedCompanyDrafts = async () => {
   approved === selectedIds.length
     ? toast.success(`${approved} company opening(s) published`)
     : toast.error(`${approved} of ${selectedIds.length} company openings were published. Please retry the remaining ones.`);
+};
+const dismissSelectedCompanyDrafts = async () => {
+  if (!selectedCompanyDraftIds.length || !window.confirm(`Dismiss ${selectedCompanyDraftIds.length} selected company opening(s)?`)) return;
+  const ids = [...selectedCompanyDraftIds];
+  const results = await Promise.allSettled(ids.map((id) => axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/drafts/${id}/dismiss`, {}, governmentAgentHeaders())));
+  setSelectedCompanyDraftIds([]); await fetchCompanyJobAgentData();
+  toast.success(`${results.filter((item) => item.status === "fulfilled").length} opening(s) dismissed`);
 };
 
 const removeCompanySource = async (id) => {
@@ -753,6 +778,23 @@ const reviewVisaDraft = async (id, action) => {
     toast.success(action === "approve" ? "Sponsored job published" : "Opening dismissed");
     fetchVisaJobAgentData();
   } catch (err) { toast.error(err.response?.data?.error || "Could not review sponsored opening"); }
+};
+const editVisaDraft = async (draft) => {
+  const title = window.prompt("Edit job title", draft.title || ""); if (title === null) return;
+  const country = window.prompt("Edit two-letter country code", draft.country || "global"); if (country === null) return;
+  try { await axios.patch(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-job-agent/drafts/${draft.id}`, { title, country }, governmentAgentHeaders()); toast.success("Draft updated"); fetchVisaJobAgentData(); } catch (err) { toast.error(err.response?.data?.error || "Could not update draft"); }
+};
+const toggleVisaDraftSelection = (id) => setSelectedVisaDraftIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]);
+const toggleAllVisaDrafts = () => {
+  const ids = filteredVisaDrafts.map((draft) => draft.id);
+  setSelectedVisaDraftIds((current) => ids.every((id) => current.includes(id)) ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]);
+};
+const dismissSelectedVisaDrafts = async () => {
+  if (!selectedVisaDraftIds.length || !window.confirm(`Dismiss ${selectedVisaDraftIds.length} selected sponsored opening(s)?`)) return;
+  const ids = [...selectedVisaDraftIds];
+  const results = await Promise.allSettled(ids.map((id) => axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-job-agent/drafts/${id}/dismiss`, {}, governmentAgentHeaders())));
+  setSelectedVisaDraftIds([]); await fetchVisaJobAgentData();
+  toast.success(`${results.filter((item) => item.status === "fulfilled").length} opening(s) dismissed`);
 };
 
 
@@ -947,9 +989,14 @@ const filteredJobs = (jobs || []).filter((job) => {
               <input type="checkbox" checked={selectedGovernmentDraftIds.length === governmentDrafts.length} onChange={toggleAllGovernmentDrafts} className="h-4 w-4 accent-emerald-600" />
               Select all openings
             </label>
-            <button type="button" onClick={approveSelectedGovernmentDrafts} disabled={!selectedGovernmentDraftIds.length || bulkApprovingGovernment} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-300">
-              {bulkApprovingGovernment ? "Publishing selected openings..." : `Approve selected (${selectedGovernmentDraftIds.length})`}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={approveSelectedGovernmentDrafts} disabled={!selectedGovernmentDraftIds.length || bulkApprovingGovernment} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-300">
+                {bulkApprovingGovernment ? "Publishing selected openings..." : `Approve selected (${selectedGovernmentDraftIds.length})`}
+              </button>
+              <button type="button" onClick={dismissSelectedGovernmentDrafts} disabled={!selectedGovernmentDraftIds.length} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300">
+                Dismiss selected ({selectedGovernmentDraftIds.length})
+              </button>
+            </div>
           </div>
         )}
         <div className="space-y-3">
@@ -961,7 +1008,8 @@ const filteredJobs = (jobs || []).filter((job) => {
               </label>
               <p className="mt-1 text-sm text-gray-600">Source: {draft.source_name}</p>
               <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official notification</a>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => editGovernmentDraft(draft)} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">Edit</button>
                 <button onClick={() => reviewGovernmentDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button>
                 <button onClick={() => reviewGovernmentDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button>
               </div>
@@ -992,8 +1040,9 @@ const filteredJobs = (jobs || []).filter((job) => {
             {!filteredVisaSources.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600 sm:col-span-2 lg:col-span-3">No visa resources match these filters.</p>}
           </div>
           <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h3 className="font-bold text-violet-950">Visa openings waiting for review ({filteredVisaDrafts.length}{visaDraftSearch ? ` of ${visaDrafts.length}` : ""})</h3><input type="search" value={visaDraftSearch} onChange={(event) => setVisaDraftSearch(event.target.value)} placeholder="Search pending visa jobs by title" className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 sm:max-w-sm" aria-label="Search pending visa openings by title" /></div>
+          {filteredVisaDrafts.length > 0 && <div className="mb-3 flex flex-col gap-3 rounded-xl border border-violet-200 bg-violet-100/70 p-3 sm:flex-row sm:items-center sm:justify-between"><label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-violet-950"><input type="checkbox" checked={filteredVisaDrafts.every((draft) => selectedVisaDraftIds.includes(draft.id))} onChange={toggleAllVisaDrafts} className="h-4 w-4 accent-violet-600" />Select matching openings</label><button type="button" onClick={dismissSelectedVisaDrafts} disabled={!selectedVisaDraftIds.length} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300">Dismiss selected ({selectedVisaDraftIds.length})</button></div>}
           <div className="space-y-3">
-            {filteredVisaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><p className="font-semibold text-gray-900">{draft.title}</p><p className="mt-1 text-sm text-violet-700">Visa Job · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex gap-2"><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
+            {filteredVisaDrafts.map((draft) => <div key={draft.id} className="rounded-xl bg-white p-4 shadow-sm"><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" checked={selectedVisaDraftIds.includes(draft.id)} onChange={() => toggleVisaDraftSelection(draft.id)} className="mt-1 h-4 w-4 shrink-0 accent-violet-600" aria-label={`Select ${draft.title}`} /><span className="font-semibold text-gray-900">{draft.title}</span></label><p className="mt-1 text-sm text-violet-700">Visa Job · {draft.source_name} · {draft.country.toUpperCase()}</p><a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official listing</a><div className="mt-3 flex flex-wrap gap-2"><button onClick={() => editVisaDraft(draft)} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">Edit</button><button onClick={() => reviewVisaDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button><button onClick={() => reviewVisaDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button></div></div>)}
             {!visaDrafts.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No verified sponsored openings are waiting for review.</p>}
             {visaDrafts.length > 0 && !filteredVisaDrafts.length && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">No pending sponsored opening matches that title.</p>}
           </div>
@@ -1049,9 +1098,14 @@ const filteredJobs = (jobs || []).filter((job) => {
               <input type="checkbox" checked={filteredCompanyDrafts.length > 0 && filteredCompanyDrafts.every((draft) => selectedCompanyDraftIds.includes(draft.id))} onChange={toggleAllCompanyDrafts} className="h-4 w-4 accent-blue-600" />
               Select matching openings
             </label>
-            <button type="button" onClick={approveSelectedCompanyDrafts} disabled={!selectedCompanyDraftIds.length || bulkApprovingCompany} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300">
-              {bulkApprovingCompany ? "Publishing selected openings..." : `Approve selected (${selectedCompanyDraftIds.length})`}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={approveSelectedCompanyDrafts} disabled={!selectedCompanyDraftIds.length || bulkApprovingCompany} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300">
+                {bulkApprovingCompany ? "Publishing selected openings..." : `Approve selected (${selectedCompanyDraftIds.length})`}
+              </button>
+              <button type="button" onClick={dismissSelectedCompanyDrafts} disabled={!selectedCompanyDraftIds.length} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300">
+                Dismiss selected ({selectedCompanyDraftIds.length})
+              </button>
+            </div>
           </div>
         )}
         <div className="space-y-3">
@@ -1066,7 +1120,8 @@ const filteredJobs = (jobs || []).filter((job) => {
                 {draft.visa_sponsorship && <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-700">Visa detected</span>}
               </p>
               <a href={draft.apply_link} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-blue-600 underline">Open official company listing</a>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => editCompanyDraft(draft)} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">Edit</button>
                 <button onClick={() => reviewCompanyDraft(draft.id, "approve")} className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">Approve & publish</button>
                 <button onClick={() => reviewCompanyDraft(draft.id, "dismiss")} className="rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300">Dismiss</button>
               </div>

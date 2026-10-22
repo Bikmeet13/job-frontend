@@ -2501,6 +2501,16 @@ app.get("/api/government-job-agent/drafts", verifyToken, isAdmin, async (req, re
     res.status(500).json({ error: "Could not load government job drafts" });
   }
 });
+app.patch("/api/government-job-agent/drafts/:id", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const title = cleanText(req.body?.title, 300);
+    const state = cleanText(req.body?.state, 120) || "national";
+    if (!title) return res.status(400).json({ error: "Job title is required." });
+    const result = await db.query("UPDATE government_job_drafts SET title=$1, state=$2 WHERE id=$3 AND status='pending' RETURNING *", [title, state, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Pending government job draft not found." });
+    res.json(result.rows[0]);
+  } catch { res.status(500).json({ error: "Could not update government job draft." }); }
+});
 
 app.post("/api/government-job-agent/scan", verifyToken, isAdmin, async (req, res) => {
   try {
@@ -2666,6 +2676,16 @@ app.get("/api/company-job-agent/drafts", verifyToken, isAdmin, async (req, res) 
     res.status(500).json({ error: "Could not load company job drafts" });
   }
 });
+app.patch("/api/company-job-agent/drafts/:id", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const title = cleanText(req.body?.title, 300);
+    const location = cleanText(req.body?.location, 180);
+    if (!title) return res.status(400).json({ error: "Job title is required." });
+    const result = await db.query("UPDATE company_job_drafts SET title=$1, location=$2 WHERE id=$3 AND status='pending' RETURNING *", [title, location || null, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Pending company job draft not found." });
+    res.json(result.rows[0]);
+  } catch { res.status(500).json({ error: "Could not update company job draft." }); }
+});
 
 app.post("/api/company-job-agent/scan", verifyToken, isAdmin, async (req, res) => {
   if (companyJobScanRunning) {
@@ -2770,6 +2790,16 @@ app.get("/api/visa-job-agent/sources", verifyToken, isAdmin, async (req, res) =>
 app.get("/api/visa-job-agent/drafts", verifyToken, isAdmin, async (req, res) => {
   try { res.json((await db.query("SELECT * FROM visa_job_drafts WHERE status = 'pending' ORDER BY created_at DESC")).rows); }
   catch { res.status(500).json({ error: "Could not load sponsored job drafts" }); }
+});
+app.patch("/api/visa-job-agent/drafts/:id", verifyToken, isAdmin, async (req, res) => {
+  try {
+    const title = cleanText(req.body?.title, 300);
+    const country = cleanText(req.body?.country, 12).toLowerCase();
+    if (!title) return res.status(400).json({ error: "Job title is required." });
+    const result = await db.query("UPDATE visa_job_drafts SET title=$1, country=$2 WHERE id=$3 AND status='pending' RETURNING *", [title, /^[a-z]{2}$/.test(country) ? country : "global", req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: "Pending sponsored job draft not found." });
+    res.json(result.rows[0]);
+  } catch { res.status(500).json({ error: "Could not update sponsored job draft." }); }
 });
 app.post("/api/visa-job-agent/scan", verifyToken, isAdmin, (req, res) => {
   if (visaJobScanRunning) return res.status(202).json({ started: false, message: "A visa sponsorship scan is already running" });
