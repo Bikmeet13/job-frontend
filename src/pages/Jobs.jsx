@@ -1262,14 +1262,14 @@ localStorage.removeItem("profilePic");
 >
     Start Interview 🚀
   </button>
-) : job.applyLink ? (
+) : job.applyLink && job.application_method !== "marketlence_email" ? (
   <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="glass-job-action glass-job-official mt-6 flex w-full cursor-pointer items-center justify-center px-4 py-3 font-bold transition-all duration-300">
     Apply on Official Job Page
   </button>
 ) : applicationEnabled ? (
   <button onClick={(event) => { event.stopPropagation(); if (!token || role !== "user") return navigate("/login", { state: { from: `/jobs/${job.job_slug || job.id}` } }); navigate(`/jobs/${job.job_slug || job.id}`, { state: { job } }); }} className="glass-job-action glass-job-primary mt-6 flex w-full cursor-pointer items-center justify-center px-4 py-3 font-bold transition-all duration-300"
 >
-    Check Details & Apply </button>
+    {job.application_method === "marketlence_email" ? "Apply with Marketlence" : "Check Details & Apply"} </button>
 ) : (
   <span className="mt-6 flex w-full cursor-pointer items-center justify-center rounded-xl bg-slate-200 px-4 py-3 font-bold text-slate-600 transition hover:bg-slate-300">
     View Details — Applications Closed

@@ -94,7 +94,7 @@ function JobDetails() {
 
   const applicationsEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
   const applyLink = job.applyLink || job.apply_link;
-  const appliesWithMarketlence = job.application_method === "email" && Boolean(job.employer_id);
+  const appliesWithMarketlence = ["email", "marketlence_email"].includes(job.application_method);
   const isPremiumJob = Boolean(job.is_featured || job.feature_requested_plan || job.featureRequestedPlan);
   const requireCandidateLogin = () => {
     if (localStorage.getItem("token") && localStorage.getItem("role") === "user") return true;

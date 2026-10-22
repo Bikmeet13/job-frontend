@@ -710,6 +710,22 @@ const setCompanySourceEnabled = async (source, enabled) => {
   } catch (err) { toast.error("Could not update this source"); }
 };
 
+const setCompanySourceHiringEmail = async (source) => {
+  const email = window.prompt(`Official hiring email for ${source.name}. Only add an address you have verified belongs to this organisation. Leave blank to remove it.`, source.application_email || "");
+  if (email === null) return;
+  const cleanEmail = email.trim().toLowerCase();
+  if (cleanEmail && !window.confirm(`Confirm that ${cleanEmail} is the official hiring recipient for ${source.name}. Candidate applications will be sent there.`)) return;
+  try {
+    await axios.patch(
+      `https://humorous-fulfillment-production-1f5e.up.railway.app/api/company-job-agent/sources/${source.id}`,
+      { applicationEmail: cleanEmail, applicationEmailVerified: Boolean(cleanEmail) },
+      governmentAgentHeaders()
+    );
+    toast.success(cleanEmail ? "Verified hiring email saved" : "Hiring email removed");
+    fetchCompanyJobAgentData();
+  } catch (err) { toast.error(err.response?.data?.error || "Could not update the hiring email"); }
+};
+
 const fetchVisaJobAgentData = async () => {
   try {
     const [sources, drafts] = await Promise.all([
@@ -994,7 +1010,7 @@ const filteredJobs = (jobs || []).filter((job) => {
           <>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it.</p>
+            <p className="text-sm text-blue-800">Add only verified official company careers pages. Every opening stays in review until you approve it. Add a verified hiring email to enable secure Marketlence applications for that source.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={(event) => { event.preventDefault(); scanCompanySources("in"); }} disabled={companyScanning || companySources.length === 0} className="rounded-lg bg-indigo-700 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300 hover:bg-indigo-800">{companyScanScope === "in" ? "Scanning India resources..." : companyScanning ? "Other scan in progress" : "Scan India private resources"}</button>
@@ -1019,8 +1035,8 @@ const filteredJobs = (jobs || []).filter((job) => {
         <div className="mb-5 space-y-2">
           {companySources.map((source) => (
             <div key={source.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <span><b>{source.name}</b> ({source.job_category} · {(COUNTRIES.find((country) => country.code === source.country)?.name) || "Global"}) — {source.url}<small className={`block mt-1 ${source.last_scan_error ? "text-red-600" : "text-gray-500"}`}>{source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"}</small></span>
-              <div className="flex gap-3"><button onClick={() => setCompanySourceEnabled(source, !source.enabled)} className="font-semibold text-blue-700 hover:text-blue-900">{source.enabled ? "Pause" : "Retry"}</button><button onClick={() => removeCompanySource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button></div>
+              <span><b>{source.name}</b> ({source.job_category} · {(COUNTRIES.find((country) => country.code === source.country)?.name) || "Global"}) — {source.url}<small className={`block mt-1 ${source.last_scan_error ? "text-red-600" : "text-gray-500"}`}>{source.last_scan_error ? `Scan issue: ${source.last_scan_error}` : source.last_scan_at ? `Last scan found ${source.last_found_count || 0} new listing(s)` : "Not scanned yet"}</small><small className={`mt-1 block font-semibold ${source.application_email_verified ? "text-emerald-700" : "text-amber-700"}`}>{source.application_email_verified ? `Marketlence forwarding enabled → ${source.application_email}` : "Official site apply only — no verified hiring email"}</small></span>
+              <div className="flex flex-wrap gap-3"><button onClick={() => setCompanySourceHiringEmail(source)} className="font-semibold text-emerald-700 hover:text-emerald-900">{source.application_email_verified ? "Change hiring email" : "Add verified hiring email"}</button><button onClick={() => setCompanySourceEnabled(source, !source.enabled)} className="font-semibold text-blue-700 hover:text-blue-900">{source.enabled ? "Pause" : "Retry"}</button><button onClick={() => removeCompanySource(source.id)} className="font-semibold text-red-600 hover:text-red-800">Remove</button></div>
             </div>
           ))}
           {companySources.length === 0 && <p className="rounded-lg bg-white p-3 text-sm text-gray-600">Add an official company careers page first, then scan it.</p>}

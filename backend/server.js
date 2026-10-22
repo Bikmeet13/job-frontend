@@ -338,6 +338,9 @@ async function ensureJobColumns() {
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS last_date TEXT"),
     db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_method TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_delivery_email TEXT"),
+    db.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS application_delivery_verified BOOLEAN NOT NULL DEFAULT FALSE"),
     db.query("ALTER TABLE jobs ALTER COLUMN title TYPE VARCHAR(300)"),
   ]);
 }
@@ -485,6 +488,8 @@ async function ensureCompanyJobAgentTables() {
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_scan_error TEXT"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS last_found_count INTEGER NOT NULL DEFAULT 0"),
     db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS scan_failure_count INTEGER NOT NULL DEFAULT 0"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS application_email TEXT"),
+    db.query("ALTER TABLE company_job_sources ADD COLUMN IF NOT EXISTS application_email_verified BOOLEAN NOT NULL DEFAULT FALSE"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'global'"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS location TEXT"),
     db.query("ALTER TABLE company_job_drafts ADD COLUMN IF NOT EXISTS visa_sponsorship BOOLEAN NOT NULL DEFAULT FALSE"),
@@ -2615,12 +2620,38 @@ app.delete("/api/company-job-agent/sources/:id", verifyToken, isAdmin, async (re
 
 app.patch("/api/company-job-agent/sources/:id", verifyToken, isAdmin, async (req, res) => {
   try {
+    const hasEnabledValue = typeof req.body?.enabled === "boolean";
     const enabled = req.body?.enabled === true;
+    const applicationEmail = cleanText(req.body?.applicationEmail, 255).toLowerCase();
+    const hasApplicationEmail = Object.prototype.hasOwnProperty.call(req.body || {}, "applicationEmail");
+    if (hasApplicationEmail && applicationEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicationEmail)) {
+      return res.status(400).json({ error: "Enter a valid official hiring email." });
+    }
+    const emailVerified = hasApplicationEmail && applicationEmail && req.body?.applicationEmailVerified === true;
     const result = await db.query(
-      "UPDATE company_job_sources SET enabled=$1, scan_failure_count=CASE WHEN $1 THEN 0 ELSE scan_failure_count END, last_scan_error=CASE WHEN $1 THEN NULL ELSE last_scan_error END WHERE id=$2 RETURNING *",
-      [enabled, req.params.id]
+      `UPDATE company_job_sources
+       SET enabled=CASE WHEN $1 THEN $2 ELSE enabled END,
+           scan_failure_count=CASE WHEN $1 AND $2 THEN 0 ELSE scan_failure_count END,
+           last_scan_error=CASE WHEN $1 AND $2 THEN NULL ELSE last_scan_error END,
+           application_email=CASE WHEN $3 THEN NULLIF($4, '') ELSE application_email END,
+           application_email_verified=CASE WHEN $3 THEN $5 ELSE application_email_verified END
+       WHERE id=$6 RETURNING *`,
+      [hasEnabledValue, enabled, hasApplicationEmail, applicationEmail, Boolean(emailVerified), req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: "Source not found" });
+    if (hasApplicationEmail) {
+      // Apply the verified-source setting to already-published openings too;
+      // future approvals are handled in the draft approval route below.
+      await db.query(
+        `UPDATE jobs
+         SET apply_enabled=$1,
+             application_method=CASE WHEN $1 THEN 'marketlence_email' ELSE 'url' END,
+             application_delivery_email=CASE WHEN $1 THEN $2 ELSE NULL END,
+             application_delivery_verified=$1
+         WHERE employer_id IS NULL AND LOWER(company)=LOWER($3) AND apply_link IS NOT NULL`,
+        [Boolean(emailVerified), emailVerified ? applicationEmail : null, result.rows[0].name]
+      );
+    }
     res.json(result.rows[0]);
   } catch (error) { res.status(500).json({ error: "Could not update company source" }); }
 });
@@ -2661,16 +2692,20 @@ app.post("/api/company-job-agent/scan", verifyToken, isAdmin, async (req, res) =
 app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {
   try {
     const draftResult = await db.query(
-      "SELECT * FROM company_job_drafts WHERE id = $1 AND status = 'pending'",
+      `SELECT d.*, s.application_email, s.application_email_verified
+       FROM company_job_drafts d
+       LEFT JOIN company_job_sources s ON s.id=d.source_id
+       WHERE d.id = $1 AND d.status = 'pending'`,
       [req.params.id]
     );
     const draft = draftResult.rows[0];
     if (!draft) return res.status(404).json({ error: "Pending company job draft not found" });
+    const canForwardApplication = draft.application_email_verified === true && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(draft.application_email || ""));
 
     const jobResult = await db.query(
       `INSERT INTO jobs
-       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, application_method, application_delivery_email, application_delivery_verified, job_category, country, last_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING id`,
       [
         draft.title.slice(0, 300),
@@ -2683,8 +2718,11 @@ app.post("/api/company-job-agent/drafts/:id/approve", verifyToken, isAdmin, asyn
         "Company recruitment",
         draft.visa_sponsorship ? "Visa" : "As per company posting",
         [],
-        false,
+        canForwardApplication,
         draft.apply_link,
+        canForwardApplication ? "marketlence_email" : "url",
+        canForwardApplication ? draft.application_email : null,
+        canForwardApplication,
         draft.job_category === "Government" ? "Government" : "Private",
         draft.country || inferSourceCountry(draft.source_name, draft.source_url),
         "Check company careers page",
@@ -2822,16 +2860,26 @@ app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) =>
 
     const resume = req.file ? req.file.path : null;
 
-    const job = await db.query(`SELECT j.id, j.title, j.company, j.apply_enabled, j.apply_link, j.application_method, j.employer_id, j.employer_status,
+    const job = await db.query(`SELECT j.id, j.title, j.company, j.apply_enabled, j.apply_link, j.application_method, j.application_delivery_email, j.application_delivery_verified, j.employer_id, j.employer_status,
       u.email AS employer_email, u.employer_email_verified
       FROM jobs j LEFT JOIN users u ON u.id=j.employer_id WHERE j.id=$1`, [jobId]);
     const selectedJob = job.rows[0];
-    const marketlenceManaged = selectedJob?.application_method === "email" || selectedJob?.application_method === "manage";
+    const marketlenceManaged = ["email", "manage", "marketlence_email"].includes(selectedJob?.application_method);
     if (!selectedJob || selectedJob.apply_enabled === false || (!marketlenceManaged && selectedJob.apply_link) || (selectedJob.employer_id && selectedJob.employer_status !== "Live")) {
       return res.status(400).json({ error: "This job is not accepting applications on Marketlence Jobs." });
     }
-    const sendToEmployer = selectedJob.application_method === "email" && Boolean(selectedJob.employer_id);
-    if (sendToEmployer && (!selectedJob.employer_email_verified || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(selectedJob.employer_email || "")))) {
+    const employerRecipient = selectedJob.application_method === "email" && selectedJob.employer_id && selectedJob.employer_email_verified
+      ? selectedJob.employer_email
+      : null;
+    const sourceRecipient = selectedJob.application_method === "marketlence_email" && selectedJob.application_delivery_verified
+      ? selectedJob.application_delivery_email
+      : null;
+    const deliveryRecipient = employerRecipient || sourceRecipient;
+    const sendToEmployer = Boolean(deliveryRecipient);
+    if (selectedJob.application_method === "marketlence_email" && !sendToEmployer) {
+      return res.status(409).json({ error: "This official source has not completed hiring-email verification yet. Please use its official application page." });
+    }
+    if (selectedJob.application_method === "email" && selectedJob.employer_id && !sendToEmployer) {
       return res.status(409).json({ error: "This employer's verified hiring email is not ready yet. Please try again later." });
     }
 
@@ -2894,7 +2942,7 @@ app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) =>
         try {
           await sendEmailOrThrow(resend, {
             from: "Marketlence Jobs <care@marketlence.com>",
-            to: selectedJob.employer_email,
+            to: deliveryRecipient,
             reply_to: email,
             subject: `New Marketlence application: ${cleanText(selectedJob.title, 180)}`,
             html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h1 style="color:#2563eb">New candidate application</h1><p>A candidate has applied through Marketlence Jobs for your verified listing.</p><div style="border:1px solid #dbeafe;border-radius:12px;padding:16px;margin:18px 0"><h2 style="margin-top:0">${escapeEmailHtml(selectedJob.title)}</h2><p><b>Company:</b> ${escapeEmailHtml(selectedJob.company)}</p><p><b>Application ID:</b> #${applicationId}</p></div><div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px"><h2 style="margin-top:0">Candidate details</h2><p><b>Name:</b> ${escapeEmailHtml(name)}</p><p><b>Email:</b> <a href="mailto:${encodeURIComponent(email)}">${escapeEmailHtml(email)}</a></p><p><b>Mobile:</b> ${escapeEmailHtml(mobile)}</p><p><a href="${escapeEmailHtml(resume)}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 16px;border-radius:8px;text-decoration:none">View candidate resume</a></p></div><p style="font-size:12px;color:#64748b">The candidate consented to share these details with your company for this application. Replying to this message replies directly to the candidate.</p></div>`,
