@@ -350,6 +350,12 @@ async function ensureApplicationTrackingTables() {
     db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
     db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
     db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_note TEXT"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS candidate_phone VARCHAR(40)"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS candidate_consent BOOLEAN NOT NULL DEFAULT FALSE"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS candidate_consent_at TIMESTAMPTZ"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS employer_delivery_status VARCHAR(40) NOT NULL DEFAULT 'not_required'"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS employer_delivered_at TIMESTAMPTZ"),
+    db.query("ALTER TABLE applications ADD COLUMN IF NOT EXISTS employer_delivery_error TEXT"),
     db.query("ALTER TABLE applications ALTER COLUMN status SET DEFAULT 'Applied'"),
     db.query("CREATE TABLE IF NOT EXISTS application_status_history (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, status TEXT NOT NULL, note TEXT, changed_by_user_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS application_messages (id SERIAL PRIMARY KEY, application_id INTEGER NOT NULL, sender_user_id INTEGER NOT NULL, sender_role TEXT NOT NULL, body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
@@ -2333,12 +2339,11 @@ app.post("/api/employer/jobs", verifyToken, isEmployer, employerPostingRateLimit
     const required = ["title", "city", "state", "description", "applicationMethod"];
     if (required.some((key) => !cleanText(body[key]))) return res.status(400).json({ error: "Complete the required job fields." });
     const applicationMethod = ["url", "email", "manage"].includes(String(body.applicationMethod)) ? String(body.applicationMethod) : "url";
-    if (applicationMethod === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Enter a valid application email." });
     if (applicationMethod === "url" && !/^https:\/\//i.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Application URL must start with https://" });
     const featureRequestedPlan = featuredPlans[String(body.featureRequestedPlan || "")] ? String(body.featureRequestedPlan) : null;
     const profile = (await db.query("SELECT company_name FROM employer_profiles WHERE user_id = $1", [req.user.id])).rows[0];
     const questions = Array.isArray(body.chatbotQuestions) ? body.chatbotQuestions.map((question) => cleanText(question, 300)).filter(Boolean).slice(0, 8) : [];
-    const result = await db.query(`INSERT INTO jobs (title, company, location, salary, experience, skills, description, type, mode, apply_enabled, apply_link, job_category, country, last_date, employer_id, employer_status, roles_responsibilities, education, openings, application_method, feature_requested_plan, chatbot_questions) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'in',$13,$14,'Pending Review',$15,$16,$17,$18,$19,$20) RETURNING id`, [cleanText(body.title,300), profile?.company_name || cleanText(body.companyName,200), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), applicationMethod === "manage", applicationMethod === "manage" ? null : cleanText(body.applicationValue,500), cleanText(body.jobCategory,120), cleanText(body.deadline,40), req.user.id, cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, applicationMethod, featureRequestedPlan, questions]);
+    const result = await db.query(`INSERT INTO jobs (title, company, location, salary, experience, skills, description, type, mode, apply_enabled, apply_link, job_category, country, last_date, employer_id, employer_status, roles_responsibilities, education, openings, application_method, feature_requested_plan, chatbot_questions) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'in',$13,$14,'Pending Review',$15,$16,$17,$18,$19,$20) RETURNING id`, [cleanText(body.title,300), profile?.company_name || cleanText(body.companyName,200), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), applicationMethod !== "url", applicationMethod === "url" ? cleanText(body.applicationValue,500) : null, cleanText(body.jobCategory,120), cleanText(body.deadline,40), req.user.id, cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, applicationMethod, featureRequestedPlan, questions]);
     const slug = makeJobSlug(body.title, profile?.company_name || body.companyName, result.rows[0].id);
     await db.query("UPDATE jobs SET job_slug = $1 WHERE id = $2", [slug, result.rows[0].id]);
     employerPostAttempts.set(req.user.id, Date.now());
@@ -2356,11 +2361,10 @@ app.put("/api/employer/jobs/:id", verifyToken, isEmployer, async (req, res) => {
     const body = req.body;
     if (!cleanText(body.title, 300) || !cleanText(body.city, 120) || !cleanText(body.state, 120) || !cleanText(body.description, 8000)) return res.status(400).json({ error: "Complete the required job fields." });
     const applicationMethod = ["url", "email", "manage"].includes(String(body.applicationMethod)) ? String(body.applicationMethod) : "url";
-    if (applicationMethod === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Enter a valid application email." });
     if (applicationMethod === "url" && !/^https:\/\//i.test(String(body.applicationValue || ""))) return res.status(400).json({ error: "Application URL must start with https://" });
     const featureRequestedPlan = featuredPlans[String(body.featureRequestedPlan || "")] ? String(body.featureRequestedPlan) : null;
     const questions = Array.isArray(body.chatbotQuestions) ? body.chatbotQuestions.map((question) => cleanText(question, 300)).filter(Boolean).slice(0, 8) : [];
-    const update = await db.query(`UPDATE jobs SET title=$1, location=$2, salary=$3, experience=$4, skills=$5, description=$6, type=$7, mode=$8, apply_enabled=$9, apply_link=$10, job_category=$11, last_date=$12, roles_responsibilities=$13, education=$14, openings=$15, application_method=$16, feature_requested_plan=$17, chatbot_questions=$18, employer_status='Pending Review' WHERE id=$19 AND employer_id=$20 RETURNING id, company`, [cleanText(body.title,300), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), applicationMethod === "manage", applicationMethod === "manage" ? null : cleanText(body.applicationValue,500), cleanText(body.jobCategory,120), cleanText(body.deadline,40), cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, applicationMethod, featureRequestedPlan, questions, req.params.id, req.user.id]);
+    const update = await db.query(`UPDATE jobs SET title=$1, location=$2, salary=$3, experience=$4, skills=$5, description=$6, type=$7, mode=$8, apply_enabled=$9, apply_link=$10, job_category=$11, last_date=$12, roles_responsibilities=$13, education=$14, openings=$15, application_method=$16, feature_requested_plan=$17, chatbot_questions=$18, employer_status='Pending Review' WHERE id=$19 AND employer_id=$20 RETURNING id, company`, [cleanText(body.title,300), `${cleanText(body.city,120)}, ${cleanText(body.state,120)}`, body.showSalary === false ? "Not disclosed" : `${cleanText(body.minSalary,40)} - ${cleanText(body.maxSalary,40)}`, `${cleanText(body.minExperience,30)} - ${cleanText(body.maxExperience,30)}`, cleanText(body.skills,1000), cleanText(body.description,8000), cleanText(body.jobType,100), cleanText(body.workplaceType,100), applicationMethod !== "url", applicationMethod === "url" ? cleanText(body.applicationValue,500) : null, cleanText(body.jobCategory,120), cleanText(body.deadline,40), cleanText(body.rolesResponsibilities,8000), cleanText(body.education,500), Number(body.openings) || 1, applicationMethod, featureRequestedPlan, questions, req.params.id, req.user.id]);
     if (!update.rows.length) return res.status(404).json({ error: "Job not found." });
     await db.query("UPDATE jobs SET job_slug=$1 WHERE id=$2", [makeJobSlug(body.title, update.rows[0].company, req.params.id), req.params.id]);
     res.json({ message: "Job updated and returned for review." });
@@ -2808,30 +2812,41 @@ app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) =>
 
     const name = cleanText(req.user.username, 120);
     const email = String(req.user.email || "").toLowerCase().trim();
+    const mobile = cleanText(req.body.mobile, 40);
     const jobId = parseInt(req.body.jobId);
 
     if (!jobId) return res.status(400).json({ error: "Job ID is missing." });
+    if (mobile.replace(/\D/g, "").length < 7) return res.status(400).json({ error: "Enter a valid mobile number." });
+    if (String(req.body.consent || "") !== "true") return res.status(400).json({ error: "Please confirm that Marketlence may share your application with this employer." });
     if (!req.file || (req.file.mimetype !== "application/pdf" && !String(req.file.originalname || "").toLowerCase().endsWith(".pdf"))) return res.status(400).json({ error: "Please upload your resume as a PDF." });
 
     const resume = req.file ? req.file.path : null;
 
-    const job = await db.query("SELECT id, title, company, apply_enabled, apply_link, employer_id, employer_status FROM jobs WHERE id=$1", [jobId]);
-    if (!job.rows.length || job.rows[0].apply_enabled === false || job.rows[0].apply_link || (job.rows[0].employer_id && job.rows[0].employer_status !== "Live")) {
+    const job = await db.query(`SELECT j.id, j.title, j.company, j.apply_enabled, j.apply_link, j.application_method, j.employer_id, j.employer_status,
+      u.email AS employer_email, u.employer_email_verified
+      FROM jobs j LEFT JOIN users u ON u.id=j.employer_id WHERE j.id=$1`, [jobId]);
+    const selectedJob = job.rows[0];
+    const marketlenceManaged = selectedJob?.application_method === "email" || selectedJob?.application_method === "manage";
+    if (!selectedJob || selectedJob.apply_enabled === false || (!marketlenceManaged && selectedJob.apply_link) || (selectedJob.employer_id && selectedJob.employer_status !== "Live")) {
       return res.status(400).json({ error: "This job is not accepting applications on Marketlence Jobs." });
+    }
+    const sendToEmployer = selectedJob.application_method === "email" && Boolean(selectedJob.employer_id);
+    if (sendToEmployer && (!selectedJob.employer_email_verified || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(selectedJob.employer_email || "")))) {
+      return res.status(409).json({ error: "This employer's verified hiring email is not ready yet. Please try again later." });
     }
 
     const previous = await db.query("SELECT id FROM applications WHERE jobid=$1 AND (candidate_user_id=$2 OR (candidate_user_id IS NULL AND email=$3)) AND status <> 'Withdrawn' LIMIT 1", [jobId, req.user.id, email]);
     if (previous.rows.length) return res.status(409).json({ error: "You have already applied for this job." });
 
     const result = await db.query(
-      `INSERT INTO applications (name, email, jobid, resume, candidate_user_id, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'Applied', NOW(), NOW())
+      `INSERT INTO applications (name, email, candidate_phone, candidate_consent, candidate_consent_at, jobid, resume, candidate_user_id, status, employer_delivery_status, created_at, updated_at)
+       VALUES ($1, $2, $3, TRUE, NOW(), $4, $5, $6, 'Applied', $7, NOW(), NOW())
        RETURNING id`,
-      [name, email, jobId, resume, req.user.id]
+      [name, email, mobile, jobId, resume, req.user.id, sendToEmployer ? "queued" : "not_required"]
     );
 
     const applicationId = result.rows[0].id;
-    await db.query("INSERT INTO application_status_history (application_id, status, note, changed_by_user_id) VALUES ($1, 'Applied', 'Application submitted', $2)", [applicationId, req.user.id]);
+    await db.query("INSERT INTO application_status_history (application_id, status, note, changed_by_user_id) VALUES ($1, 'Applied', $2, $3)", [applicationId, sendToEmployer ? "Application submitted and queued for the employer's verified hiring email." : "Application submitted", req.user.id]);
 
     // Attribute a completed application to an active featured placement without
     // storing the applicant's email in the analytics event.
@@ -2845,7 +2860,7 @@ app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) =>
 
     // ✅ SEND RESPONSE IMMEDIATELY (FAST ⚡)
     res.json({
-      message: "Application saved ✅",
+      message: sendToEmployer ? "Application submitted and sent to the employer through Marketlence ✅" : "Application saved ✅",
       applicationId
     });
 
@@ -2859,7 +2874,8 @@ app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) =>
       html: `
         <h2>Application Received ✅</h2>
         <p>Hello ${name},</p>
-        <p>Your application for <b>${cleanText(job.rows[0].title, 300)}</b> at <b>${cleanText(job.rows[0].company, 200)}</b> has been submitted successfully.</p>
+        <p>Your application for <b>${cleanText(selectedJob.title, 300)}</b> at <b>${cleanText(selectedJob.company, 200)}</b> has been submitted successfully.</p>
+        ${sendToEmployer ? "<p>Marketlence has also forwarded it to the employer's verified hiring email.</p>" : ""}
         <p>You can follow its progress from your Marketlence Jobs dashboard.</p>
         <br/>
         <p>Marketlence Team</p>
@@ -2869,6 +2885,27 @@ app.post("/api/apply", verifyToken, upload.single("resume"), async (req, res) =>
     console.log("RESEND ERROR:", err);
   }
 })();
+
+    if (sendToEmployer) {
+      // The recipient is the verified email for the employer account that owns
+      // the listing. We never forward candidate data to scraped job sources or
+      // an arbitrary address entered by an unverified third party.
+      (async () => {
+        try {
+          await sendEmailOrThrow(resend, {
+            from: "Marketlence Jobs <care@marketlence.com>",
+            to: selectedJob.employer_email,
+            reply_to: email,
+            subject: `New Marketlence application: ${cleanText(selectedJob.title, 180)}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h1 style="color:#2563eb">New candidate application</h1><p>A candidate has applied through Marketlence Jobs for your verified listing.</p><div style="border:1px solid #dbeafe;border-radius:12px;padding:16px;margin:18px 0"><h2 style="margin-top:0">${escapeEmailHtml(selectedJob.title)}</h2><p><b>Company:</b> ${escapeEmailHtml(selectedJob.company)}</p><p><b>Application ID:</b> #${applicationId}</p></div><div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px"><h2 style="margin-top:0">Candidate details</h2><p><b>Name:</b> ${escapeEmailHtml(name)}</p><p><b>Email:</b> <a href="mailto:${encodeURIComponent(email)}">${escapeEmailHtml(email)}</a></p><p><b>Mobile:</b> ${escapeEmailHtml(mobile)}</p><p><a href="${escapeEmailHtml(resume)}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 16px;border-radius:8px;text-decoration:none">View candidate resume</a></p></div><p style="font-size:12px;color:#64748b">The candidate consented to share these details with your company for this application. Replying to this message replies directly to the candidate.</p></div>`,
+          });
+          await db.query("UPDATE applications SET employer_delivery_status='sent', employer_delivered_at=NOW(), employer_delivery_error=NULL, updated_at=NOW() WHERE id=$1", [applicationId]);
+        } catch (error) {
+          console.error("Employer application delivery failed:", error.message);
+          await db.query("UPDATE applications SET employer_delivery_status='failed', employer_delivery_error=$2, updated_at=NOW() WHERE id=$1", [applicationId, cleanText(error.message, 500)]);
+        }
+      })();
+    }
 
   } catch (err) {
     console.log("APPLY ERROR:", err);

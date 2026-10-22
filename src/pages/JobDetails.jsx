@@ -94,6 +94,7 @@ function JobDetails() {
 
   const applicationsEnabled = job.apply_enabled !== false && job.applyEnabled !== false;
   const applyLink = job.applyLink || job.apply_link;
+  const appliesWithMarketlence = job.application_method === "email" && Boolean(job.employer_id);
   const isPremiumJob = Boolean(job.is_featured || job.feature_requested_plan || job.featureRequestedPlan);
   const requireCandidateLogin = () => {
     if (localStorage.getItem("token") && localStorage.getItem("role") === "user") return true;
@@ -158,13 +159,13 @@ function JobDetails() {
               <p className="whitespace-pre-line leading-8 text-gray-700">{job.description || "No description available."}</p>
             </div>
 
-            {applyLink ? (
+            {applyLink && !appliesWithMarketlence ? (
               <button onClick={handleExternalApply} className="mt-8 inline-flex items-center justify-center rounded-xl bg-green-600 px-8 py-3 font-semibold text-white transition hover:bg-green-700">
                 Apply on Company Website
               </button>
             ) : applicationsEnabled ? (
               <button onClick={() => { if (!requireCandidateLogin()) return; if (job.is_featured) axios.post(`https://humorous-fulfillment-production-1f5e.up.railway.app/api/featured-jobs/${job.id}/event`, { type: "apply", placement: "job-details", visitorKey: localStorage.getItem("mlVisitorKey") || "anonymous" }).catch(() => {}); setShowForm(true); }} className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 px-8 py-4 text-base font-bold text-white shadow-lg transition hover:-translate-y-0.5 sm:w-auto">
-                Apply Now
+                {appliesWithMarketlence ? "Apply with Marketlence" : "Apply Now"}
               </button>
             ) : (
               <div className="mt-8 inline-flex rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 font-semibold text-amber-800">Applications are currently closed for this job.</div>

@@ -12,6 +12,8 @@ function ApplyForm({ job }) {
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [consent, setConsent] = useState(false);
   
   console.log("JOB ID RECEIVED:", jobId);
 
@@ -38,6 +40,16 @@ if (!file) {
     return;
   }
 
+if (mobile.replace(/\D/g, "").length < 7) {
+    alert("Please enter a valid mobile number.");
+    return;
+  }
+
+if (!consent) {
+  alert("Please confirm that Marketlence may share your application with this employer.");
+  return;
+}
+
   setLoading(true);
 
 try {
@@ -46,6 +58,8 @@ try {
   formData.append("email", email);
   formData.append("jobId", jobId);
   formData.append("resume", file);
+  formData.append("mobile", mobile);
+  formData.append("consent", String(consent));
 
  const res = await axios.post(
   "https://humorous-fulfillment-production-1f5e.up.railway.app/api/apply",
@@ -131,6 +145,15 @@ localStorage.setItem(`app_${jobId}`, res.data.applicationId);
             className="p-3 border rounded-lg bg-gray-100"
           />
 
+          <input
+            type="tel"
+            value={mobile}
+            onChange={(event) => setMobile(event.target.value)}
+            placeholder="Mobile number *"
+            required
+            className="p-3 border rounded-lg"
+          />
+
           {/* Resume Upload */}
           <label className="cursor-pointer border p-4 rounded-xl text-center hover:bg-gray-50 transition">
             📄 {file ? file.name : "Upload Resume"}
@@ -141,6 +164,11 @@ localStorage.setItem(`app_${jobId}`, res.data.applicationId);
               onChange={(e) => setFile(e.target.files[0])}
               className="hidden"
             />
+          </label>
+
+          <label className="flex gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-slate-700">
+            <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required className="mt-1 h-4 w-4" />
+            <span>I agree that Marketlence may store this application and share my name, email, mobile number and resume with this employer for this job.</span>
           </label>
 
           {/* Submit */}
