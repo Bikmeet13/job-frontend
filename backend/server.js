@@ -681,6 +681,15 @@ const visaJobDefaultSources = [
   ["Relocate.me", "https://relocate.me/", "global"],
   ["Visa Jobs", "https://www.visajobs.com/", "global"],
   ["MyVisaJobs — H-1B Jobs", "https://www.myvisajobs.com/", "us", "job listings"],
+  ["U.S. SeasonalJobs.gov — H-2A/H-2B", "https://seasonaljobs.dol.gov/", "us", "job listings"],
+  ["Work in Austria — International Jobs", "https://www.workinaustria.com/en/jobs/", "at", "job listings"],
+  ["Work in Finland — International Jobs", "https://www.workinfinland.com/en/", "fi", "job listings"],
+  ["Work in Estonia — International Jobs", "https://www.workinestonia.com/jobs/", "ee", "job listings"],
+  ["Czech Labour Office — Jobs for Foreigners", "https://mpsv.gov.cz/en/job-for-foreigners", "cz", "job listings"],
+  ["Luxembourg ADEM JobBoard", "https://adem.public.lu/en/jobboard.html", "lu", "job listings"],
+  ["Switzerland Job-Room", "https://www.arbeit.swiss/secoalv/en/home/menue/stellensuchende/job-suche.html", "ch", "job listings"],
+  ["Slovenia Employment Service", "https://www.ess.gov.si/iskalci-zaposlitve/iskanje-zaposlitve/", "si", "job listings"],
+  ["Malta Jobsplus", "https://jobsplus.gov.mt/", "mt", "job listings"],
   ["USCIS — H-1B Specialty Occupations", "https://www.uscis.gov/working-in-the-united-states/h-1b-specialty-occupations", "us", "official guidance", false],
   ["USCIS — H-1B Electronic Registration", "https://www.uscis.gov/working-in-the-united-states/h-1b-electronic-registration-process", "us", "official guidance", false],
   ["U.S. DOL FLAG — H-1B Labor Condition Application", "https://flag.dol.gov/programs/H-1B", "us", "official guidance", false],
@@ -721,6 +730,15 @@ const visaJobDefaultSources = [
   ["Sweden — Work Permit", "https://www.migrationsverket.se/en/you-want-to-apply/work/employee-or-self-employed/employees.html", "se", "official guidance", false],
   ["Finland — Residence Permit for an Employed Person", "https://migri.fi/en/residence-permit-for-an-employed-person", "fi", "official guidance", false],
   ["Singapore — Employment Pass", "https://www.mom.gov.sg/passes-and-permits/employment-pass", "sg", "official guidance", false],
+  ["Canada — Global Skills Strategy", "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada/permit/temporary/global-skills-strategy.html", "ca", "official guidance", false],
+  ["Canada — Temporary Foreign Worker Program", "https://www.canada.ca/en/employment-social-development/services/foreign-workers.html", "ca", "official guidance", false],
+  ["United States — H-2A/H-2B Programs", "https://www.dol.gov/agencies/eta/foreign-labor/programs", "us", "official guidance", false],
+  ["Austria — Red-White-Red Card", "https://www.migration.gv.at/en/types-of-immigration/permanent-immigration/", "at", "official guidance", false],
+  ["Czechia — Employee Card", "https://frs.gov.cz/en/visa-and-residence-permits/third-country-nationals/long-term-residence-permit/employee-card/", "cz", "official guidance", false],
+  ["Luxembourg — Working in Luxembourg", "https://guichet.public.lu/en/citoyens/immigration/plus-3-mois/ressortissant-tiers/salarie.html", "lu", "official guidance", false],
+  ["Switzerland — Working in Switzerland", "https://www.sem.admin.ch/sem/en/home/overview-arbeit.html", "ch", "official guidance", false],
+  ["Slovenia — Single Residence and Work Permit", "https://www.gov.si/en/topics/entry-and-residence/residence-in-slovenia/", "si", "official guidance", false],
+  ["Malta — Single Permit", "https://identita.gov.mt/expatriates-unit-non-eu-nationals/", "mt", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
@@ -737,7 +755,9 @@ const trustedVisaListingSources = new Set([
   "Malaysia MYFutureJobs", "Portugal IEFP Online", "Italy Cliclavoro", "Norway NAV Jobs",
   "Estonia Unemployment Insurance Fund", "Croatia Employment Service", "Latvia State Employment Agency",
   "Lithuania Employment Service", "Romania National Employment Agency", "Greece Public Employment Service",
-  "Türkiye İşkur", "Spain Empléate", "Belgium Actiris",
+  "Türkiye İşkur", "Spain Empléate", "Belgium Actiris", "U.S. SeasonalJobs.gov — H-2A/H-2B",
+  "Work in Austria — International Jobs", "Work in Finland — International Jobs", "Work in Estonia — International Jobs",
+  "Czech Labour Office — Jobs for Foreigners",
 ]);
 
 async function ensureVisaJobAgentTables() {
