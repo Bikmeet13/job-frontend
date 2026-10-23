@@ -28,6 +28,7 @@ import { COUNTRIES, COUNTRY_NAMES } from "../data/countries";
 import { VISA_SPONSORSHIP_RESOURCES } from "../data/visaSponsorshipResources";
 import toast from "react-hot-toast";
 
+const VISA_PREVIEW_DURATION_MS = 5 * 60 * 1000;
 
 function Jobs() {
 
@@ -43,21 +44,6 @@ const [userLocation, setUserLocation] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
-
-  const openPremiumResources = () => {
-    if (!token) {
-      toast("Please log in to unlock Visa & sponsored job access.");
-      navigate("/login", { state: { from: "/jobs" } });
-      return;
-    }
-    if (hasPremiumResourceAccess) {
-      setModeFilter("Visa");
-      setVisaResourcesOpen(true);
-      return;
-    }
-    setShowPremiumResourceCheckout(true);
-  };
-  
 
   const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState(
@@ -86,6 +72,13 @@ const [sortFilter, setSortFilter] = useState("newest");
 const [hasPremiumResourceAccess, setHasPremiumResourceAccess] = useState(false);
 const [showPremiumResourceCheckout, setShowPremiumResourceCheckout] = useState(false);
 const [visaResourcesOpen, setVisaResourcesOpen] = useState(false);
+const [visaViewActive, setVisaViewActive] = useState(false);
+const [visaJobs, setVisaJobs] = useState([]);
+const [visaPreviewEndsAt, setVisaPreviewEndsAt] = useState(null);
+const [visaPreviewRemaining, setVisaPreviewRemaining] = useState(0);
+const [visaCountryFilter, setVisaCountryFilter] = useState("all");
+const [visaTitleFilter, setVisaTitleFilter] = useState("");
+const [visaCityFilter, setVisaCityFilter] = useState("");
 
 const [appliedJobs, setAppliedJobs] = useState([]);
   
@@ -97,6 +90,56 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [appliedMap, setAppliedMap] = useState({});
   const [locating, setLocating] = useState(false);
 const [country, setCountry] = useState("in");
+
+  const loadVisaJobs = async (isPaidAccess = hasPremiumResourceAccess) => {
+    const config = isPaidAccess ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+    const endpoint = isPaidAccess
+      ? "https://humorous-fulfillment-production-1f5e.up.railway.app/api/premium-resources/jobs"
+      : "https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-jobs/preview";
+    const { data } = await axios.get(endpoint, config);
+    setVisaJobs(data);
+  };
+
+  const startVisaJobs = async (isPaidAccess = hasPremiumResourceAccess) => {
+    if (!isPaidAccess) {
+      const storedStartedAt = Number(sessionStorage.getItem("mlVisaPreviewStartedAt") || 0);
+      const startedAt = storedStartedAt && (storedStartedAt + VISA_PREVIEW_DURATION_MS > Date.now())
+        ? storedStartedAt
+        : Date.now();
+      if (!storedStartedAt || startedAt !== storedStartedAt) sessionStorage.setItem("mlVisaPreviewStartedAt", String(startedAt));
+      setVisaPreviewEndsAt(startedAt + VISA_PREVIEW_DURATION_MS);
+    } else {
+      setVisaPreviewEndsAt(null);
+    }
+    setVisaCountryFilter("all");
+    setVisaTitleFilter("");
+    setVisaCityFilter("");
+    setVisaResourcesOpen(true);
+    setVisaViewActive(true);
+    try {
+      await loadVisaJobs(isPaidAccess);
+      setTimeout(() => document.getElementById("job-results")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    } catch (error) {
+      setVisaViewActive(false);
+      toast.error(error.response?.data?.error || "Could not load Visa Jobs.");
+    }
+  };
+
+  const openVisaJobs = () => {
+    const previewStartedAt = Number(sessionStorage.getItem("mlVisaPreviewStartedAt") || 0);
+    const previewExpired = previewStartedAt && previewStartedAt + VISA_PREVIEW_DURATION_MS <= Date.now();
+    if (hasPremiumResourceAccess) return startVisaJobs(true);
+    if (previewExpired) {
+      if (!token) {
+        toast("Your 5-minute Visa Jobs preview has ended. Sign in to choose an access plan.");
+        navigate("/login", { state: { from: "/jobs" } });
+        return;
+      }
+      setShowPremiumResourceCheckout(true);
+      return;
+    }
+    startVisaJobs(false);
+  };
 
   const shareJob = async (event, job) => {
     event.stopPropagation();
@@ -275,21 +318,20 @@ useEffect(() => {
 }, [token]);
 
 useEffect(() => {
-  if (!token || !hasPremiumResourceAccess) return;
-  let active = true;
-  axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/premium-resources/jobs", {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then(({ data }) => {
-      if (!active) return;
-      setJobs((currentJobs) => [
-        ...currentJobs.filter((job) => String(job.mode || "").toLowerCase() !== "visa"),
-        ...data,
-      ]);
-    })
-    .catch(() => toast.error("Could not load Visa & sponsored jobs."));
-  return () => { active = false; };
-}, [token, hasPremiumResourceAccess]);
+  if (!visaViewActive || hasPremiumResourceAccess || !visaPreviewEndsAt) return;
+  const tick = () => {
+    const remaining = Math.max(0, visaPreviewEndsAt - Date.now());
+    setVisaPreviewRemaining(remaining);
+    if (remaining === 0) {
+      setVisaViewActive(false);
+      if (token) setShowPremiumResourceCheckout(true);
+      else toast("Your 5-minute Visa Jobs preview has ended. Sign in to choose an access plan.");
+    }
+  };
+  tick();
+  const interval = window.setInterval(tick, 1000);
+  return () => window.clearInterval(interval);
+}, [visaViewActive, hasPremiumResourceAccess, visaPreviewEndsAt, token]);
 
 useEffect(() => {
   const savedExternalJobs = localStorage.getItem("externalJobs");
@@ -474,7 +516,7 @@ localStorage.setItem(
           ? job.mode === modeFilter
           : true
       )
-      .filter((job) => hasPremiumResourceAccess || job.mode !== "Visa")
+      .filter((job) => String(job.mode || "").toLowerCase() !== "visa")
       .filter((job) =>
         experienceFilter
           ? job.experience
@@ -525,6 +567,14 @@ localStorage.setItem(
     if (sortFilter === "deadline") return getDeadlineTime(a) - getDeadlineTime(b);
     return getPostedTime(b) - getPostedTime(a);
   });
+
+  const visaCountries = [...new Set(visaJobs.map((job) => String(job.country || "global").toLowerCase()))].sort();
+  const visibleVisaJobs = visaJobs
+    .filter((job) => visaCountryFilter === "all" || String(job.country || "global").toLowerCase() === visaCountryFilter)
+    .filter((job) => !visaTitleFilter.trim() || `${job.title || ""} ${job.company || ""}`.toLowerCase().includes(visaTitleFilter.trim().toLowerCase()))
+    .filter((job) => !visaCityFilter.trim() || String(job.location || "").toLowerCase().includes(visaCityFilter.trim().toLowerCase()))
+    .sort((a, b) => getPostedTime(b) - getPostedTime(a));
+  const visibleJobs = visaViewActive ? visibleVisaJobs : allJobs;
 
   const activeFilterLabels = [
     search && `Search: ${search}`,
@@ -611,6 +661,18 @@ if (loading) {
      
 
        {/* 🔝 Navbar */}
+{visaViewActive && (
+  <section className={`sticky top-[90px] z-40 mx-auto mb-5 w-full max-w-7xl rounded-2xl border p-3 shadow-xl backdrop-blur-xl md:top-[112px] ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-violet-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="min-w-0 lg:w-56"><p className="font-black text-violet-700">🌍 Visa Jobs</p><p className={`text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{hasPremiumResourceAccess ? "Premium access active" : `Free preview: ${Math.ceil(visaPreviewRemaining / 60000)} min left`}</p></div>
+      <select value={visaCountryFilter} onChange={(event) => setVisaCountryFilter(event.target.value)} className={`min-w-0 rounded-xl border px-3 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white" : "border-slate-200 bg-white text-black"}`} aria-label="Filter Visa Jobs by country"><option value="all">All countries</option>{visaCountries.map((code) => <option key={code} value={code}>{COUNTRIES.find((item) => item.code === code)?.name || (code === "global" ? "Global" : code.toUpperCase())}</option>)}</select>
+      <input type="search" value={visaTitleFilter} onChange={(event) => setVisaTitleFilter(event.target.value)} placeholder="Filter by job title or company" className={`min-w-0 flex-1 rounded-xl border px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder:text-slate-400" : "border-slate-200 bg-white text-black placeholder:text-slate-500"}`} />
+      <input type="search" value={visaCityFilter} onChange={(event) => setVisaCityFilter(event.target.value)} placeholder="Filter by city" className={`min-w-0 rounded-xl border px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder:text-slate-400" : "border-slate-200 bg-white text-black placeholder:text-slate-500"}`} />
+      <button type="button" onClick={() => { setVisaViewActive(false); setVisaResourcesOpen(false); }} className="rounded-xl border border-violet-300 px-4 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-50">Exit Visa Jobs</button>
+    </div>
+  </section>
+)}
+
 <div
   className={`fixed inset-x-3 top-3 z-50 flex items-center justify-between rounded-2xl border border-white/10 px-6 py-4 shadow-lg backdrop-blur-xl transition-all duration-300 sm:inset-x-6 sm:top-6 md:inset-x-10 md:top-10 ${
     darkMode
@@ -898,7 +960,7 @@ localStorage.removeItem("profilePic");
 
     </div>
 
-  </div>
+</div>
 
 )}
 
@@ -1018,10 +1080,10 @@ localStorage.removeItem("profilePic");
     </div>
     <button
       type="button"
-      onClick={openPremiumResources}
+      onClick={openVisaJobs}
       className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
     >
-      {hasPremiumResourceAccess ? "Show sponsored jobs" : "Unlock for ₹599"}
+      {visaViewActive ? "Visa Jobs open" : hasPremiumResourceAccess ? "Open Visa Jobs" : "Try Visa Jobs free"}
     </button>
   </div>
   {hasPremiumResourceAccess ? (
@@ -1037,14 +1099,14 @@ localStorage.removeItem("profilePic");
       </div>
     </details>
   ) : (
-    <button type="button" onClick={openPremiumResources} className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-white bg-white text-slate-700"}`}>
-      <span><span className="font-semibold text-indigo-700">🔒 Official visa and international-job resources</span><span className="ml-2 text-sm opacity-75">Pay ₹599 to view</span></span>
-      <span className="font-bold text-indigo-700">Unlock →</span>
+    <button type="button" onClick={openVisaJobs} className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-white bg-white text-slate-700"}`}>
+      <span><span className="font-semibold text-indigo-700">🔒 Official visa and international-job resources</span><span className="ml-2 text-sm opacity-75">5-minute preview, then ₹599 / 6 months or ₹125 / month</span></span>
+      <span className="font-bold text-indigo-700">Try now →</span>
     </button>
   )}
 </section>
 
-<div
+{!visaViewActive && (<div
   className={`mb-8 rounded-2xl border p-3 shadow-lg backdrop-blur-xl md:sticky md:top-[196px] md:z-30 ${
     darkMode
       ? "border-gray-700 bg-gray-900/95"
@@ -1081,7 +1143,6 @@ localStorage.removeItem("profilePic");
     <option value="Remote">Remote</option>
     <option value="Onsite">Onsite</option>
     <option value="Hybrid">Hybrid</option>
-    {hasPremiumResourceAccess && <option value="Visa">Visa Jobs</option>}
   </select>
 
   <select
@@ -1127,11 +1188,11 @@ localStorage.removeItem("profilePic");
   </div>
   </div>
 
-</div>
+</div>)}
 
 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-1">
-  <p className={`text-sm font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{allJobs.length} {allJobs.length === 1 ? "job" : "jobs"} found</p>
-  {activeFilterLabels.length > 0 && <div className="flex flex-wrap items-center justify-end gap-2"><span className={`text-xs font-bold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Active:</span>{activeFilterLabels.map((label) => <span key={label} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${darkMode ? "border-slate-700 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{label}</span>)}<button type="button" onClick={resetJobFilters} className="rounded-full px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50">Clear all</button></div>}
+  <p className={`text-sm font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{visibleJobs.length} {visibleJobs.length === 1 ? "job" : "jobs"} found{visaViewActive ? " in Visa Jobs" : ""}</p>
+  {!visaViewActive && activeFilterLabels.length > 0 && <div className="flex flex-wrap items-center justify-end gap-2"><span className={`text-xs font-bold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Active:</span>{activeFilterLabels.map((label) => <span key={label} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${darkMode ? "border-slate-700 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{label}</span>)}<button type="button" onClick={resetJobFilters} className="rounded-full px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50">Clear all</button></div>}
 </div>
 
       {/* 📋 Job List */}
@@ -1140,8 +1201,8 @@ localStorage.removeItem("profilePic");
 
        {new URLSearchParams(location.search).get("matched") === "1" && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-950 shadow-sm"><div><p className="font-black">Your matching jobs are ready</p><p className="mt-1 text-sm text-emerald-800">Results use your chosen role, location, and work-style preferences.</p></div><button onClick={() => navigate("/candidate/job-alerts")} className="rounded-xl bg-white px-4 py-2 text-sm font-black text-emerald-800 shadow-sm">Edit preferences</button></div>}
 
-       <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />
-       {allJobs.length === 0 ? (
+       {!visaViewActive && <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />}
+       {visibleJobs.length === 0 ? (
 
           <div className={`mx-auto max-w-xl rounded-3xl border p-8 text-center shadow-sm ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-900"}`}><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-100 text-xl">🔎</div><h2 className="mt-4 text-xl font-black">No roles match these filters</h2><p className={`mt-2 text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Try a broader role, another location, or reset the filters to view all available opportunities.</p>{activeFilterLabels.length > 0 && <button type="button" onClick={resetJobFilters} className="mt-5 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-700">Clear filters and show jobs</button>}</div>
 
@@ -1149,7 +1210,7 @@ localStorage.removeItem("profilePic");
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
 
-           {allJobs.map((job) => {
+           {visibleJobs.map((job) => {
             const appId = localStorage.getItem(`app_${job.id}`);
 
   // ✅ DEBUG HERE (clean way)
@@ -1179,7 +1240,7 @@ localStorage.removeItem("profilePic");
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-       className={`relative min-w-0 flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-5 pt-20 shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-6 sm:pt-20 ${isPremiumJob ? "border-2 border-amber-300/90 bg-gradient-to-br from-amber-50/90 via-white/80 to-violet-50/80 text-slate-900 shadow-amber-200/60" : darkMode ? "border-white/10 bg-slate-800/60 text-white shadow-slate-950/30" : "border-white/80 bg-white/65 text-slate-900 shadow-slate-300/50"}`}
+       className={`relative min-w-0 flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-5 pt-20 shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-6 sm:pt-20 ${isPremiumJob ? "border-2 border-amber-300/90 bg-gradient-to-br from-amber-50/95 via-white/95 to-violet-50/90 text-black shadow-amber-200/60" : "border-slate-200 bg-white/95 text-black shadow-slate-300/50"}`}
      >
 
       <div className="absolute left-5 top-5 -rotate-2 rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] font-bold text-amber-950 shadow-sm ring-1 ring-amber-300">
@@ -1195,38 +1256,30 @@ localStorage.removeItem("profilePic");
 
                   <div className="min-w-0 flex-1">
                     <h2
-  className={`line-clamp-2 break-words text-xl font-black leading-tight ${
-    darkMode
-      ? "text-white"
-      : "text-gray-800"
-  }`}
+  className="line-clamp-2 break-words text-xl font-black leading-tight text-black"
 >
                       {job.title}
                     </h2>
 
-                    <div className={`mt-2 flex min-w-0 items-center gap-2 text-sm font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    <div className="mt-2 flex min-w-0 items-center gap-2 text-sm font-semibold text-zinc-900">
   <Briefcase size={16} />
   <p className="min-w-0 break-words">{job.company}</p>
 </div>
 
-<div className={`mt-1 flex min-w-0 items-center gap-2 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+<div className="mt-1 flex min-w-0 items-center gap-2 text-sm text-zinc-700">
   <MapPin size={16} />
   <p className="min-w-0 break-words">{job.location}</p>
 </div>
 <p
-  className={`mt-4 break-words line-clamp-3 text-sm leading-6 ${
-    darkMode
-      ? "text-gray-300"
-      : "text-gray-500"
-  }`}
+  className="mt-4 break-words line-clamp-3 text-sm leading-6 text-neutral-700"
 >
   {job.description || "No description available"}
 </p>
 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
   <p className="rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-2 font-semibold text-slate-700 backdrop-blur"><span className="block text-[10px] uppercase tracking-wide text-slate-500">Salary</span>{job.salary || "Not disclosed"}</p>
-  <p className={`rounded-xl border px-2.5 py-2 font-semibold backdrop-blur ${darkMode ? "border-white/10 bg-slate-700/60 text-slate-200" : "border-white/70 bg-white/55 text-slate-600"}`}><span className="block text-[10px] uppercase tracking-wide text-slate-400">Experience</span>{job.experience || "Not specified"}</p>
+  <p className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 font-semibold text-zinc-800 backdrop-blur"><span className="block text-[10px] uppercase tracking-wide text-zinc-500">Experience</span>{job.experience || "Not specified"}</p>
 </div>
-{job.skills && <p className={`mt-3 line-clamp-1 text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}><span className="font-bold">Skills:</span> {job.skills}</p>}
+{job.skills && <p className="mt-3 line-clamp-1 text-xs text-zinc-800"><span className="font-bold text-black">Skills:</span> {job.skills}</p>}
 <p className="mt-3 inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">Last date: {lastDateLabel}</p>
                   </div>
 
@@ -1235,11 +1288,11 @@ localStorage.removeItem("profilePic");
                 {/* 🏷️ Tags */}
                 <div className="mt-5 flex flex-wrap gap-2">
 
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-zinc-900">
                     {job.type || "Full-time"}
                   </span>
 
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-indigo-50 font-bold text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-indigo-50 font-bold text-indigo-950" : "bg-slate-100 text-zinc-800"}`}>
                     {job.mode || "Onsite"}
                   </span>
 
@@ -1559,8 +1612,7 @@ const data = await res.json();
     onUnlocked={() => {
       setHasPremiumResourceAccess(true);
       setShowPremiumResourceCheckout(false);
-      setModeFilter("Visa");
-      setVisaResourcesOpen(true);
+      startVisaJobs(true);
     }}
   />
 )}
