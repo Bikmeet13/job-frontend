@@ -662,7 +662,8 @@ if (loading) {
 
        {/* 🔝 Navbar */}
 {visaViewActive && (
-  <section className={`sticky top-[90px] z-40 mx-auto mb-5 w-full max-w-7xl rounded-2xl border p-3 shadow-xl backdrop-blur-xl md:top-[112px] ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-violet-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
+  <>
+  <section className={`fixed left-1/2 top-[88px] z-[60] w-[calc(100%-1.5rem)] max-w-7xl -translate-x-1/2 rounded-2xl border p-3 shadow-xl backdrop-blur-xl md:top-[112px] ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-violet-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
       <div className="min-w-0 lg:w-56"><p className="font-black text-violet-700">🌍 Visa Jobs</p><p className={`text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{hasPremiumResourceAccess ? "Premium access active" : `Free preview: ${Math.ceil(visaPreviewRemaining / 60000)} min left`}</p></div>
       <select value={visaCountryFilter} onChange={(event) => setVisaCountryFilter(event.target.value)} className={`min-w-0 rounded-xl border px-3 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white" : "border-slate-200 bg-white text-black"}`} aria-label="Filter Visa Jobs by country"><option value="all">All countries</option>{visaCountries.map((code) => <option key={code} value={code}>{COUNTRIES.find((item) => item.code === code)?.name || (code === "global" ? "Global" : code.toUpperCase())}</option>)}</select>
@@ -671,6 +672,8 @@ if (loading) {
       <button type="button" onClick={() => { setVisaViewActive(false); setVisaResourcesOpen(false); }} className="rounded-xl border border-violet-300 px-4 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-50">Exit Visa Jobs</button>
     </div>
   </section>
+  <div className="h-[264px] sm:h-[220px] lg:h-[96px]" aria-hidden="true" />
+  </>
 )}
 
 <div
