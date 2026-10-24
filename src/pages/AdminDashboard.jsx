@@ -17,6 +17,13 @@ const readEditingJobDraft = () => {
   }
 };
 
+const persistEditingJobDraft = (draft) => {
+  if (!draft) return;
+  const serializedDraft = JSON.stringify(draft);
+  try { sessionStorage.setItem(EDITING_JOB_SESSION_KEY, serializedDraft); } catch {}
+  try { localStorage.setItem(EDITING_JOB_DRAFT_KEY, serializedDraft); } catch {}
+};
+
 function AdminDashboard() {
 
   const [shortlisted, setShortlisted] = useState([]);
@@ -100,17 +107,12 @@ const filteredVisaDrafts = visaDrafts.filter((draft) => (visaCountryFilter === "
 
 useEffect(() => {
   try {
-    if (editingJob) sessionStorage.setItem(EDITING_JOB_SESSION_KEY, JSON.stringify(editingJob));
+    if (editingJob) persistEditingJobDraft(editingJob);
     else sessionStorage.removeItem(EDITING_JOB_SESSION_KEY);
   } catch {
     // The editor remains available during the current render if session storage is unavailable.
   }
-  try {
-    if (editingJob) localStorage.setItem(EDITING_JOB_DRAFT_KEY, JSON.stringify(editingJob));
-    else localStorage.removeItem(EDITING_JOB_DRAFT_KEY);
-  } catch {
-    // Some browsers may have a full localStorage quota; session storage above is the primary draft store.
-  }
+  if (!editingJob) { try { localStorage.removeItem(EDITING_JOB_DRAFT_KEY); } catch {} }
 }, [editingJob]);
 
 useEffect(() => {
@@ -127,10 +129,31 @@ useEffect(() => {
   };
 }, []);
 
+useEffect(() => {
+  const saveBeforeBackgrounding = () => {
+    if (editingJob) persistEditingJobDraft(editingJob);
+  };
+  document.addEventListener("visibilitychange", saveBeforeBackgrounding);
+  window.addEventListener("pagehide", saveBeforeBackgrounding);
+  return () => {
+    document.removeEventListener("visibilitychange", saveBeforeBackgrounding);
+    window.removeEventListener("pagehide", saveBeforeBackgrounding);
+  };
+}, [editingJob]);
+
 const closeEditingJob = () => {
   try { sessionStorage.removeItem(EDITING_JOB_SESSION_KEY); } catch {}
   try { localStorage.removeItem(EDITING_JOB_DRAFT_KEY); } catch {}
   setEditingJob(null);
+};
+
+const updateEditingJob = (changes) => {
+  setEditingJob((currentDraft) => {
+    if (!currentDraft) return currentDraft;
+    const nextDraft = { ...currentDraft, ...changes };
+    persistEditingJobDraft(nextDraft);
+    return nextDraft;
+  });
 };
 
 const loadEmployerModeration = async () => {
@@ -380,13 +403,14 @@ const deleteJob = async (id) => {
 };
 
 const startEditingJob = (job) => {
-  setEditingJob({
+  const draft = {
     ...job,
     applyEnabled: job.apply_enabled !== false,
     applyLink: job.apply_link || job.applyLink || "",
     jobCategory: job.job_category || job.jobCategory || "",
-  });
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  persistEditingJobDraft(draft);
+  setEditingJob(draft);
 };
 
 const saveEditedJob = async (e) => {
@@ -1310,31 +1334,31 @@ const filteredJobs = (jobs || []).filter((job) => {
           </div>
           <form onSubmit={saveEditedJob} className="space-y-3">
             {[['title', 'Job Title'], ['company', 'Company'], ['location', 'Location'], ['salary', 'Salary'], ['experience', 'Experience'], ['skills', 'Skills'], ['type', 'Job Type']].map(([field, label]) => (
-              <input key={field} type="text" placeholder={label} value={editingJob[field] || ""} onChange={(e) => setEditingJob({ ...editingJob, [field]: e.target.value })} className="w-full rounded border p-2" />
+              <input key={field} type="text" placeholder={label} value={editingJob[field] || ""} onChange={(e) => updateEditingJob({ [field]: e.target.value })} className="w-full rounded border p-2" />
             ))}
-            <select value={editingJob.mode || ""} onChange={(e) => setEditingJob({ ...editingJob, mode: e.target.value })} className="w-full rounded border p-2">
+            <select value={editingJob.mode || ""} onChange={(e) => updateEditingJob({ mode: e.target.value })} className="w-full rounded border p-2">
               <option value="">Work mode: Not set</option>
               <option value="Onsite">Onsite</option>
               <option value="Remote">Remote</option>
               <option value="Hybrid">Hybrid</option>
               <option value="Visa">Visa Jobs</option>
             </select>
-            <select value={editingJob.jobCategory || ""} onChange={(e) => setEditingJob({ ...editingJob, jobCategory: e.target.value })} className="w-full rounded border p-2">
+            <select value={editingJob.jobCategory || ""} onChange={(e) => updateEditingJob({ jobCategory: e.target.value })} className="w-full rounded border p-2">
               <option value="">Job sector: Not set</option>
               <option value="Private">Private job</option>
               <option value="Government">Government job</option>
             </select>
             <label className="block text-sm font-semibold text-gray-700">
               Last date to apply
-              <input type="date" value={editingJob.last_date || editingJob.lastDate || ""} onChange={(e) => setEditingJob({ ...editingJob, lastDate: e.target.value, last_date: e.target.value })} className="mt-1 w-full rounded border p-2" />
+              <input type="date" value={editingJob.last_date || editingJob.lastDate || ""} onChange={(e) => updateEditingJob({ lastDate: e.target.value, last_date: e.target.value })} className="mt-1 w-full rounded border p-2" />
             </label>
-            <textarea placeholder="Job Description" value={editingJob.description || ""} maxLength={3000} rows="7" onChange={(e) => setEditingJob({ ...editingJob, description: e.target.value })} className="w-full rounded border p-2" />
+            <textarea placeholder="Job Description" value={editingJob.description || ""} maxLength={3000} rows="7" onChange={(e) => updateEditingJob({ description: e.target.value })} className="w-full rounded border p-2" />
             <p className="text-right text-xs text-gray-500">{(editingJob.description || "").length}/3000 characters</p>
             <label className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
-              <input type="checkbox" checked={editingJob.applyEnabled} onChange={(e) => setEditingJob({ ...editingJob, applyEnabled: e.target.checked })} className="h-4 w-4 accent-blue-600" />
+              <input type="checkbox" checked={editingJob.applyEnabled} onChange={(e) => updateEditingJob({ applyEnabled: e.target.checked })} className="h-4 w-4 accent-blue-600" />
               Enable internal Apply button for this job
             </label>
-            {!editingJob.applyEnabled && <input type="url" placeholder="Company application link (https://...)" value={editingJob.applyLink || ""} onChange={(e) => setEditingJob({ ...editingJob, applyLink: e.target.value })} className="w-full rounded border p-2" />}
+            {!editingJob.applyEnabled && <input type="url" placeholder="Company application link (https://...)" value={editingJob.applyLink || ""} onChange={(e) => updateEditingJob({ applyLink: e.target.value })} className="w-full rounded border p-2" />}
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" onClick={closeEditingJob} className="rounded-xl border border-slate-200 px-5 py-2.5 font-bold text-slate-700 hover:bg-slate-100">Cancel</button><button type="submit" className="rounded-xl bg-green-600 px-6 py-2.5 font-semibold text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Save Changes</button></div>
           </form>
         </section>
