@@ -5,6 +5,16 @@ import toast from "react-hot-toast";
 import { COUNTRIES } from "../data/countries";
 
 const EDITING_JOB_DRAFT_KEY = "marketlence_admin_editing_job";
+const EDITING_JOB_SESSION_KEY = "marketlence_admin_editing_job_session";
+
+const readEditingJobDraft = () => {
+  try {
+    const savedDraft = sessionStorage.getItem(EDITING_JOB_SESSION_KEY) || localStorage.getItem(EDITING_JOB_DRAFT_KEY);
+    return savedDraft ? JSON.parse(savedDraft) : null;
+  } catch {
+    return null;
+  }
+};
 
 function AdminDashboard() {
 
@@ -35,14 +45,7 @@ const [applyEnabled, setApplyEnabled] = useState(true);
 const [applyLink, setApplyLink] = useState("");
 const [jobSearch, setJobSearch] = useState("");
 const [jobFilter, setJobFilter] = useState("all");
-const [editingJob, setEditingJob] = useState(() => {
-  try {
-    const savedDraft = localStorage.getItem(EDITING_JOB_DRAFT_KEY);
-    return savedDraft ? JSON.parse(savedDraft) : null;
-  } catch {
-    return null;
-  }
-});
+const [editingJob, setEditingJob] = useState(readEditingJobDraft);
 const [adminRequests, setAdminRequests] = useState([]);
 const [governmentSources, setGovernmentSources] = useState([]);
 const [governmentDrafts, setGovernmentDrafts] = useState([]);
@@ -96,14 +99,38 @@ const filteredVisaDrafts = visaDrafts.filter((draft) => (visaCountryFilter === "
 
 useEffect(() => {
   try {
+    if (editingJob) sessionStorage.setItem(EDITING_JOB_SESSION_KEY, JSON.stringify(editingJob));
+    else sessionStorage.removeItem(EDITING_JOB_SESSION_KEY);
+  } catch {
+    // The editor remains available during the current render if session storage is unavailable.
+  }
+  try {
     if (editingJob) localStorage.setItem(EDITING_JOB_DRAFT_KEY, JSON.stringify(editingJob));
     else localStorage.removeItem(EDITING_JOB_DRAFT_KEY);
   } catch {
-    // The editor still works if browser storage is unavailable.
+    // Some browsers may have a full localStorage quota; session storage above is the primary draft store.
   }
 }, [editingJob]);
 
-const closeEditingJob = () => setEditingJob(null);
+useEffect(() => {
+  const restoreEditingJob = () => {
+    if (document.visibilityState === "visible") {
+      setEditingJob((currentDraft) => currentDraft || readEditingJobDraft());
+    }
+  };
+  document.addEventListener("visibilitychange", restoreEditingJob);
+  window.addEventListener("focus", restoreEditingJob);
+  return () => {
+    document.removeEventListener("visibilitychange", restoreEditingJob);
+    window.removeEventListener("focus", restoreEditingJob);
+  };
+}, []);
+
+const closeEditingJob = () => {
+  try { sessionStorage.removeItem(EDITING_JOB_SESSION_KEY); } catch {}
+  try { localStorage.removeItem(EDITING_JOB_DRAFT_KEY); } catch {}
+  setEditingJob(null);
+};
 
 const loadEmployerModeration = async () => {
   setEmployerModerationLoading(true);
