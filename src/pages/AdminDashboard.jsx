@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { COUNTRIES } from "../data/countries";
 
+const EDITING_JOB_DRAFT_KEY = "marketlence_admin_editing_job";
+
 function AdminDashboard() {
 
   const [shortlisted, setShortlisted] = useState([]);
@@ -33,7 +35,14 @@ const [applyEnabled, setApplyEnabled] = useState(true);
 const [applyLink, setApplyLink] = useState("");
 const [jobSearch, setJobSearch] = useState("");
 const [jobFilter, setJobFilter] = useState("all");
-const [editingJob, setEditingJob] = useState(null);
+const [editingJob, setEditingJob] = useState(() => {
+  try {
+    const savedDraft = localStorage.getItem(EDITING_JOB_DRAFT_KEY);
+    return savedDraft ? JSON.parse(savedDraft) : null;
+  } catch {
+    return null;
+  }
+});
 const [adminRequests, setAdminRequests] = useState([]);
 const [governmentSources, setGovernmentSources] = useState([]);
 const [governmentDrafts, setGovernmentDrafts] = useState([]);
@@ -84,6 +93,17 @@ const filteredCompanyDrafts = companyDrafts.filter((draft) => String(draft.title
 const filteredVisaSources = visaSources.filter((source) => (visaCountryFilter === "all" || source.country === visaCountryFilter) && (visaResourceType === "all" || (source.source_type || "job listings") === visaResourceType));
 const visaCountries = [...new Set(visaSources.map((source) => source.country).filter(Boolean))].sort();
 const filteredVisaDrafts = visaDrafts.filter((draft) => (visaCountryFilter === "all" || draft.country === visaCountryFilter) && String(draft.title || "").toLowerCase().includes(visaDraftSearch.trim().toLowerCase()));
+
+useEffect(() => {
+  try {
+    if (editingJob) localStorage.setItem(EDITING_JOB_DRAFT_KEY, JSON.stringify(editingJob));
+    else localStorage.removeItem(EDITING_JOB_DRAFT_KEY);
+  } catch {
+    // The editor still works if browser storage is unavailable.
+  }
+}, [editingJob]);
+
+const closeEditingJob = () => setEditingJob(null);
 
 const loadEmployerModeration = async () => {
   setEmployerModerationLoading(true);
@@ -367,7 +387,7 @@ const saveEditedJob = async (e) => {
     );
 
     setJobs(jobs.map((job) => job.id === editingJob.id ? res.data.job : job));
-    setEditingJob(null);
+    closeEditingJob();
     toast.success("Job updated successfully");
   } catch (err) {
     console.log(err);
@@ -1254,10 +1274,11 @@ const filteredJobs = (jobs || []).filter((job) => {
       </section>
 
       {editingJob && (
-        <section className="mb-8 rounded-lg bg-white p-6 shadow">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-xl font-bold">Edit Job: {editingJob.title}</h2>
-            <button type="button" onClick={() => setEditingJob(null)} className="text-sm font-medium text-gray-600 hover:text-gray-900">Cancel</button>
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" aria-labelledby="edit-job-title">
+          <section className="mx-auto my-4 w-full max-w-3xl rounded-3xl border border-white/80 bg-white p-5 shadow-2xl sm:my-8 sm:p-7">
+          <div className="mb-5 flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div><p className="text-xs font-black tracking-[.15em] text-blue-600">JOB EDITOR</p><h2 id="edit-job-title" className="mt-1 text-xl font-black text-slate-950">Edit Job: {editingJob.title}</h2><p className="mt-1 text-sm text-slate-500">Your changes stay saved here if you switch tabs or refresh this page.</p></div>
+            <button type="button" onClick={closeEditingJob} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100">Cancel</button>
           </div>
           <form onSubmit={saveEditedJob} className="space-y-3">
             {[['title', 'Job Title'], ['company', 'Company'], ['location', 'Location'], ['salary', 'Salary'], ['experience', 'Experience'], ['skills', 'Skills'], ['type', 'Job Type']].map(([field, label]) => (
@@ -1286,9 +1307,10 @@ const filteredJobs = (jobs || []).filter((job) => {
               Enable internal Apply button for this job
             </label>
             {!editingJob.applyEnabled && <input type="url" placeholder="Company application link (https://...)" value={editingJob.applyLink || ""} onChange={(e) => setEditingJob({ ...editingJob, applyLink: e.target.value })} className="w-full rounded border p-2" />}
-            <button type="submit" className="rounded-lg bg-green-600 px-6 py-2 font-semibold text-white hover:bg-green-700">Save Changes</button>
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4"><button type="button" onClick={closeEditingJob} className="rounded-xl border border-slate-200 px-5 py-2.5 font-bold text-slate-700 hover:bg-slate-100">Cancel</button><button type="submit" className="rounded-xl bg-green-600 px-6 py-2.5 font-semibold text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Save Changes</button></div>
           </form>
         </section>
+        </div>
       )}
 
       
