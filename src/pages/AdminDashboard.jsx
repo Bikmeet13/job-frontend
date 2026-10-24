@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -1300,7 +1301,7 @@ const filteredJobs = (jobs || []).filter((job) => {
         )}
       </section>
 
-      {editingJob && (
+      {editingJob && createPortal(
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" aria-labelledby="edit-job-title">
           <section className="mx-auto my-4 w-full max-w-3xl rounded-3xl border border-white/80 bg-white p-5 shadow-2xl sm:my-8 sm:p-7">
           <div className="mb-5 flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
@@ -1338,7 +1339,7 @@ const filteredJobs = (jobs || []).filter((job) => {
           </form>
         </section>
         </div>
-      )}
+      , document.body)}
 
       
 
