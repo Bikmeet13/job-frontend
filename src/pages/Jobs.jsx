@@ -1246,11 +1246,11 @@ localStorage.removeItem("profilePic");
        className={`relative min-w-0 flex min-h-[510px] flex-col justify-between overflow-hidden rounded-3xl border p-5 pt-20 shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-6 sm:pt-20 ${isPremiumJob ? "border-2 border-amber-300/90 bg-gradient-to-br from-amber-50/95 via-white/95 to-violet-50/90 text-black shadow-amber-200/60" : "border-slate-200 bg-white/95 text-black shadow-slate-300/50"}`}
      >
 
-      <div className="absolute left-5 top-5 -rotate-2 rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] font-bold text-amber-950 shadow-sm ring-1 ring-amber-300">
-        <span className="block text-[9px] uppercase tracking-wider">Posted</span>
+      <div className="absolute left-5 top-5 -rotate-2 rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] font-bold text-slate-950 shadow-sm ring-1 ring-amber-300">
+        <span className="block text-[9px] uppercase tracking-wider text-slate-700">Posted</span>
         {postedDate}
       </div>
-      {isPremiumJob && <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 px-3 py-1.5 text-xs font-black tracking-wide text-amber-950 shadow-lg shadow-amber-300/80">✦ PREMIUM FEATURED</span>}
+      {isPremiumJob && <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 px-3 py-1.5 text-xs font-black tracking-wide text-slate-950 shadow-lg shadow-amber-300/80">✦ PREMIUM FEATURED</span>}
 
                 {/* 🖼️ Logo + Info */}
                 <div className="flex min-w-0 items-start gap-3 sm:gap-4">
@@ -1283,7 +1283,7 @@ localStorage.removeItem("profilePic");
   <p className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 font-semibold text-zinc-800 backdrop-blur"><span className="block text-[10px] uppercase tracking-wide text-zinc-500">Experience</span>{job.experience || "Not specified"}</p>
 </div>
 {job.skills && <p className="mt-3 line-clamp-1 text-xs text-zinc-800"><span className="font-bold text-black">Skills:</span> {job.skills}</p>}
-<p className="mt-3 inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">Last date: {lastDateLabel}</p>
+<p className="mt-3 inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-zinc-800 ring-1 ring-amber-200">Last date: {lastDateLabel}</p>
                   </div>
 
                 </div>
@@ -1295,7 +1295,7 @@ localStorage.removeItem("profilePic");
                     {job.type || "Full-time"}
                   </span>
 
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-indigo-50 font-bold text-indigo-950" : "bg-slate-100 text-zinc-800"}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${job.mode === "Visa" ? "bg-indigo-50 font-bold text-slate-900" : "bg-slate-100 text-zinc-800"}`}>
                     {job.mode || "Onsite"}
                   </span>
 
