@@ -1494,6 +1494,27 @@ async function getActivePremiumResourceAccess(userId) {
   );
   return result.rows[0] || null;
 }
+
+// Owner-granted access is stored in the same access table as a purchased plan,
+// but is explicitly marked complimentary and carries no payment amount or ID.
+// This keeps entitlement checks consistent without creating a Razorpay order.
+async function grantComplimentaryOwnerVisaAccess() {
+  const ownerEmail = "bikramjeets66@gmail.com";
+  await db.query(
+    `INSERT INTO premium_resource_payments
+      (user_id, access_type, amount_paise, plan_id, access_expires_at, payment_status, paid_at)
+     SELECT id, $1, 0, 'complimentary_owner', NOW() + INTERVAL '10 years', 'paid', NOW()
+     FROM users
+     WHERE LOWER(email) = $2
+       AND NOT EXISTS (
+         SELECT 1 FROM premium_resource_payments
+         WHERE user_id = users.id
+           AND access_type = $1
+           AND plan_id = 'complimentary_owner'
+       )`,
+    [premiumResourceAccessType, ownerEmail]
+  );
+}
 function employerPostingRateLimit(req, res, next) {
   const previous = employerPostAttempts.get(req.user.id) || 0;
   const remaining = 60 * 1000 - (Date.now() - previous);
@@ -4531,6 +4552,7 @@ async function initializeBackgroundServices() {
     ]);
 
     await telephony.ensureSchema();
+    await grantComplimentaryOwnerVisaAccess();
     await deactivateExpiredFeaturedJobs();
     await classifyExistingGovernmentJobs();
 
