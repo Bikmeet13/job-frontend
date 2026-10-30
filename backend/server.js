@@ -618,6 +618,11 @@ async function ensureCompanyJobAgentTables() {
     ["GMR Group Careers — Delhi and Andhra Pradesh", "https://www.gmrgroup.in/careers", "in"],
     ["Arvind Careers — Gujarat", "https://www.arvind.com/careers", "in"],
     ["Nuvoco Vistas Careers — Chhattisgarh", "https://www.nuvoco.com/careers", "in"],
+    // Verified direct vacancy pages with broad regional footprints.
+    ["ITC Current Openings — West Bengal and India", "https://recruitment.itcportal.com/jobs/Careers", "in"],
+    ["Shree Cement Careers — Rajasthan", "https://www.shreecement.com/careers", "in"],
+    ["Dalmia Bharat Current Openings — Odisha and India", "https://www.dalmiabharat.com/current-openings/", "in"],
+    ["Bharat Forge Careers — Maharashtra", "https://www.bharatforge.com/careers/careers", "in"],
     // Public ATS board APIs expose the employer's own published roles as JSON.
     // They are substantially more reliable than browser-rendered careers pages.
     ["Anthropic Careers", "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs", "us"],
