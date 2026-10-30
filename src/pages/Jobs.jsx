@@ -10,7 +10,14 @@ import {
   Sparkles,
   Rocket,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  BadgeCheck,
+  Compass,
+  Crown,
+  Globe2,
+  Landmark,
+  SlidersHorizontal,
+  Timer
 } from "lucide-react";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
@@ -29,6 +36,18 @@ import { VISA_SPONSORSHIP_RESOURCES } from "../data/visaSponsorshipResources";
 import toast from "react-hot-toast";
 
 const VISA_PREVIEW_DURATION_MS = 5 * 60 * 1000;
+const VISA_DESTINATIONS = [
+  { code: "us", label: "United States", flag: "🇺🇸", detail: "H-1B, H-2 and employer pathways" },
+  { code: "ca", label: "Canada", flag: "🇨🇦", detail: "Foreign candidate and employer routes" },
+  { code: "gb", label: "United Kingdom", flag: "🇬🇧", detail: "Skilled Worker and Health & Care" },
+  { code: "au", label: "Australia", flag: "🇦🇺", detail: "Skilled and sponsored opportunities" },
+  { code: "de", label: "Germany", flag: "🇩🇪", detail: "EU Blue Card and international roles" },
+  { code: "nl", label: "Netherlands", flag: "🇳🇱", detail: "Recognised sponsor pathways" },
+  { code: "ie", label: "Ireland", flag: "🇮🇪", detail: "Critical Skills employment permits" },
+  { code: "ch", label: "Switzerland", flag: "🇨🇭", detail: "International professional roles" },
+  { code: "sg", label: "Singapore", flag: "🇸🇬", detail: "Employment Pass opportunities" },
+  { code: "nz", label: "New Zealand", flag: "🇳🇿", detail: "Accredited employer roles" },
+];
 
 function Jobs() {
 
@@ -100,7 +119,7 @@ const [country, setCountry] = useState("in");
     setVisaJobs(data);
   };
 
-  const startVisaJobs = async (isPaidAccess = hasPremiumResourceAccess) => {
+  const startVisaJobs = async (isPaidAccess = hasPremiumResourceAccess, destinationCode = "all") => {
     if (!isPaidAccess) {
       const storedStartedAt = Number(sessionStorage.getItem("mlVisaPreviewStartedAt") || 0);
       const startedAt = storedStartedAt && (storedStartedAt + VISA_PREVIEW_DURATION_MS > Date.now())
@@ -111,7 +130,7 @@ const [country, setCountry] = useState("in");
     } else {
       setVisaPreviewEndsAt(null);
     }
-    setVisaCountryFilter("all");
+    setVisaCountryFilter(destinationCode);
     setVisaTitleFilter("");
     setVisaCityFilter("");
     setVisaResourcesOpen(true);
@@ -125,10 +144,10 @@ const [country, setCountry] = useState("in");
     }
   };
 
-  const openVisaJobs = () => {
+  const openVisaJobs = (destinationCode = "all") => {
     const previewStartedAt = Number(sessionStorage.getItem("mlVisaPreviewStartedAt") || 0);
     const previewExpired = previewStartedAt && previewStartedAt + VISA_PREVIEW_DURATION_MS <= Date.now();
-    if (hasPremiumResourceAccess) return startVisaJobs(true);
+    if (hasPremiumResourceAccess) return startVisaJobs(true, destinationCode);
     if (previewExpired) {
       if (!token) {
         toast("Your 5-minute Visa Jobs preview has ended. Sign in to choose an access plan.");
@@ -138,7 +157,7 @@ const [country, setCountry] = useState("in");
       setShowPremiumResourceCheckout(true);
       return;
     }
-    startVisaJobs(false);
+    startVisaJobs(false, destinationCode);
   };
 
   const shareJob = async (event, job) => {
@@ -663,16 +682,19 @@ if (loading) {
        {/* 🔝 Navbar */}
 {visaViewActive && (
   <>
-  <section className={`fixed left-1/2 top-[88px] z-[60] w-[calc(100%-1.5rem)] max-w-7xl -translate-x-1/2 rounded-2xl border p-3 shadow-xl backdrop-blur-xl md:top-[112px] ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-violet-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-      <div className="min-w-0 lg:w-56"><p className="font-black text-violet-700">🌍 Visa Jobs</p><p className={`text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{hasPremiumResourceAccess ? "Premium access active" : `Free preview: ${Math.ceil(visaPreviewRemaining / 60000)} min left`}</p></div>
+  <section className={`fixed left-1/2 top-[88px] z-[60] w-[calc(100%-1.5rem)] max-w-7xl -translate-x-1/2 overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl md:top-[112px] ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-indigo-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
+    <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 ${darkMode ? "border-white/10" : "border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-cyan-50"}`}>
+      <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-200"><Globe2 size={20}/></span><div><p className="font-black tracking-tight text-indigo-700">Global Visa Jobs</p><p className={`text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{hasPremiumResourceAccess ? "Premium access active · verified routes and openings" : `Explorer preview · ${Math.max(0, Math.ceil(visaPreviewRemaining / 60000))} min left`}</p></div></div>
+      <div className="flex items-center gap-2"><span className="hidden rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 sm:inline-flex"><BadgeCheck size={14} className="mr-1"/> Official pathways</span><button type="button" onClick={() => { setVisaCountryFilter("all"); setVisaTitleFilter(""); setVisaCityFilter(""); }} className="rounded-lg px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100">Clear filters</button></div>
+    </div>
+    <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
       <select value={visaCountryFilter} onChange={(event) => setVisaCountryFilter(event.target.value)} className={`min-w-0 rounded-xl border px-3 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white" : "border-slate-200 bg-white text-black"}`} aria-label="Filter Visa Jobs by country"><option value="all">All countries</option>{visaCountries.map((code) => <option key={code} value={code}>{COUNTRIES.find((item) => item.code === code)?.name || (code === "global" ? "Global" : code.toUpperCase())}</option>)}</select>
       <input type="search" value={visaTitleFilter} onChange={(event) => setVisaTitleFilter(event.target.value)} placeholder="Filter by job title or company" className={`min-w-0 flex-1 rounded-xl border px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder:text-slate-400" : "border-slate-200 bg-white text-black placeholder:text-slate-500"}`} />
       <input type="search" value={visaCityFilter} onChange={(event) => setVisaCityFilter(event.target.value)} placeholder="Filter by city" className={`min-w-0 rounded-xl border px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder:text-slate-400" : "border-slate-200 bg-white text-black placeholder:text-slate-500"}`} />
       <button type="button" onClick={() => { setVisaViewActive(false); setVisaResourcesOpen(false); }} className="rounded-xl border border-violet-300 px-4 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-50">Exit Visa Jobs</button>
     </div>
   </section>
-  <div className="h-[264px] sm:h-[220px] lg:h-[96px]" aria-hidden="true" />
+  <div className="h-[312px] sm:h-[246px] lg:h-[142px]" aria-hidden="true" />
   </>
 )}
 
@@ -1075,38 +1097,15 @@ localStorage.removeItem("profilePic");
       </form>
 <EmploymentNews darkMode={darkMode} />
 
-<section className={`mx-auto mb-8 max-w-5xl rounded-2xl border p-4 shadow-sm ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-indigo-50/70"}`}>
-  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <h2 className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>🌍 Visa Jobs</h2>
-      <p className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Find roles tagged for visa support, then check official work-visa guidance for your destination.</p>
-    </div>
-    <button
-      type="button"
-      onClick={openVisaJobs}
-      className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
-    >
-      {visaViewActive ? "Visa Jobs open" : hasPremiumResourceAccess ? "Open Visa Jobs" : "Try Visa Jobs free"}
-    </button>
+<section className={`mx-auto mb-8 max-w-6xl overflow-hidden rounded-[2rem] border shadow-xl shadow-indigo-100/40 ${darkMode ? "border-indigo-900 bg-slate-900" : "border-indigo-100 bg-white"}`} aria-label="Global Visa Jobs">
+  <div className={`relative overflow-hidden px-5 py-6 sm:px-8 sm:py-8 ${darkMode ? "bg-slate-950" : "bg-gradient-to-br from-indigo-50 via-white to-cyan-50"}`}>
+    <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-300/30 blur-3xl"/><div className="absolute bottom-0 right-1/3 h-32 w-32 rounded-full bg-cyan-200/45 blur-3xl"/>
+    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div className="max-w-2xl"><p className="flex items-center gap-2 text-xs font-black tracking-[.18em] text-indigo-600"><Compass size={15}/> INTERNATIONAL CAREER DESK</p><h2 className={`mt-3 text-3xl font-black tracking-tight sm:text-4xl ${darkMode ? "text-white" : "text-slate-950"}`}>Find work beyond borders.</h2><p className={`mt-3 max-w-xl text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Discover published visa-support roles for leading global destinations. Use official visa guidance and sponsor research alongside every job search—never as a substitute for an employer's listing.</p></div><div className="flex flex-wrap gap-3"><button type="button" onClick={openVisaJobs} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-black text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:bg-indigo-700"><Globe2 size={18}/>{visaViewActive ? "Visa Jobs open" : hasPremiumResourceAccess ? "Open global jobs" : "Explore free for 5 min"}</button><button type="button" onClick={() => setVisaResourcesOpen((current) => !current)} className={`inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-black transition ${darkMode ? "border-slate-700 text-white hover:bg-slate-800" : "border-indigo-200 bg-white/80 text-indigo-700 hover:bg-indigo-50"}`}><Landmark size={18}/> Official pathways</button></div></div>
+    <div className="relative mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{VISA_DESTINATIONS.slice(0, 5).map((destination) => <button key={destination.code} type="button" onClick={() => openVisaJobs(destination.code)} className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md ${darkMode ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-white bg-white/80 hover:border-indigo-200"}`}><span className="text-xl">{destination.flag}</span><b className={`mt-2 block text-sm ${darkMode ? "text-white" : "text-slate-900"}`}>{destination.label}</b><span className={`mt-1 block text-xs leading-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{destination.detail}</span></button>)}</div>
   </div>
-  {hasPremiumResourceAccess ? (
-    <details open={visaResourcesOpen} onToggle={(event) => setVisaResourcesOpen(event.currentTarget.open)} className={`mt-4 rounded-xl border px-4 py-3 ${darkMode ? "border-slate-700 bg-slate-800" : "border-white bg-white"}`}>
-      <summary className="cursor-pointer font-semibold text-indigo-700">Official work-visa and international-job resources ({VISA_SPONSORSHIP_RESOURCES.length})</summary>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {VISA_SPONSORSHIP_RESOURCES.map((resource) => (
-          <a key={resource.country} href={resource.url} target="_blank" rel="noreferrer" className={`rounded-lg border px-3 py-2 text-sm transition hover:border-indigo-400 hover:text-indigo-700 ${darkMode ? "border-slate-700 text-slate-200" : "border-slate-200 text-slate-700"}`}>
-            <span className="block font-semibold">{resource.country}</span>
-            <span className="block truncate text-xs opacity-80">{resource.name} ↗</span>
-          </a>
-        ))}
-      </div>
-    </details>
-  ) : (
-    <button type="button" onClick={openVisaJobs} className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-white bg-white text-slate-700"}`}>
-      <span><span className="font-semibold text-indigo-700">🔒 Official visa and international-job resources</span><span className="ml-2 text-sm opacity-75">5-minute preview, then ₹599 / 6 months or ₹125 / month</span></span>
-      <span className="font-bold text-indigo-700">Try now →</span>
-    </button>
-  )}
+  <div className={`border-t px-5 py-4 sm:px-8 ${darkMode ? "border-white/10 bg-slate-900" : "border-indigo-100 bg-white"}`}><div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-slate-600"><span className="inline-flex items-center gap-1.5 text-emerald-700"><BadgeCheck size={15}/> Published visa-mode roles</span><span className="inline-flex items-center gap-1.5"><Timer size={15} className="text-indigo-600"/>{hasPremiumResourceAccess ? "Premium access active" : "5-minute discovery preview"}</span><span className="inline-flex items-center gap-1.5"><Crown size={15} className="text-amber-500"/> ₹599 / 6 months · ₹125 monthly</span></div></div>
+  {hasPremiumResourceAccess && visaResourcesOpen && <div className={`border-t px-5 py-5 sm:px-8 ${darkMode ? "border-white/10 bg-slate-900" : "border-indigo-100 bg-indigo-50/40"}`}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className={`font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Official work-visa and sponsor resources</h3><p className={`mt-1 text-xs ${darkMode ? "text-slate-300" : "text-slate-500"}`}>Use these destination links to check requirements and approved employer pathways.</p></div><span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700">{VISA_SPONSORSHIP_RESOURCES.length} resources</span></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{VISA_SPONSORSHIP_RESOURCES.map((resource) => <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer" className={`rounded-xl border px-3 py-3 text-sm transition hover:-translate-y-0.5 hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-200" : "border-white bg-white text-slate-700 shadow-sm"}`}><span className="block font-bold text-indigo-700">{resource.country}</span><span className="mt-1 block truncate text-xs opacity-80">{resource.name} ↗</span></a>)}</div></div>}
+  {!hasPremiumResourceAccess && <button type="button" onClick={openVisaJobs} className={`flex w-full items-center justify-between border-t px-5 py-4 text-left text-sm transition sm:px-8 ${darkMode ? "border-white/10 bg-slate-900 text-slate-100 hover:bg-slate-800" : "border-indigo-100 bg-white text-slate-700 hover:bg-indigo-50"}`}><span><b className="text-indigo-700">Unlock official pathways and unlimited Visa Jobs</b><span className="ml-2 hidden opacity-75 sm:inline">Start with the free 5-minute explorer.</span></span><span className="font-black text-indigo-700">Explore →</span></button>}
 </section>
 
 {!visaViewActive && (<div
