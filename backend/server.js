@@ -1309,7 +1309,7 @@ app.get("/api/premium-resources/jobs", verifyToken, async (req, res) => {
   try {
     const access = await getActivePremiumResourceAccess(req.user.id);
     if (!access) return res.status(403).json({ error: "Premium Visa & sponsored jobs access is required." });
-    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) AND LOWER(COALESCE(j.mode, '')) = 'visa' ORDER BY j.is_featured DESC, j.posted_at DESC NULLS LAST, j.id DESC");
+    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) AND LOWER(COALESCE(j.mode, '')) = 'visa' ORDER BY j.is_featured DESC, CASE WHEN LOWER(COALESCE(j.country, '')) IN ('us','ca','gb','au','de','nl','ie','ch','sg','nz','no','se','dk','fi','at','lu') THEN 0 ELSE 1 END, j.posted_at DESC NULLS LAST, j.id DESC LIMIT 300");
     res.json(result.rows.map((job) => ({
       ...job,
       applyLink: job.apply_link || null,
@@ -1322,7 +1322,7 @@ app.get("/api/premium-resources/jobs", verifyToken, async (req, res) => {
 });
 app.get("/api/visa-jobs/preview", async (req, res) => {
   try {
-    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) AND LOWER(COALESCE(j.mode, '')) = 'visa' ORDER BY j.is_featured DESC, j.posted_at DESC NULLS LAST, j.id DESC");
+    const result = await db.query("SELECT j.*, p.logo_url AS company_logo, p.website AS company_website FROM jobs j LEFT JOIN employer_profiles p ON p.user_id=j.employer_id WHERE (j.employer_id IS NULL OR j.employer_status = 'Live') AND (j.employer_id IS NULL OR COALESCE(j.feature_requested_plan, '') = '' OR j.is_featured = TRUE) AND LOWER(COALESCE(j.mode, '')) = 'visa' ORDER BY j.is_featured DESC, CASE WHEN LOWER(COALESCE(j.country, '')) IN ('us','ca','gb','au','de','nl','ie','ch','sg','nz','no','se','dk','fi','at','lu') THEN 0 ELSE 1 END, j.posted_at DESC NULLS LAST, j.id DESC LIMIT 300");
     res.json(result.rows.map((job) => ({ ...job, applyLink: job.apply_link || null, chatbot_questions: Array.isArray(job.chatbot_questions) ? job.chatbot_questions : JSON.parse(job.chatbot_questions || "[]") })));
   } catch (error) {
     console.error("Could not fetch Visa jobs preview:", error.message);

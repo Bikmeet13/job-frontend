@@ -93,6 +93,7 @@ const [showPremiumResourceCheckout, setShowPremiumResourceCheckout] = useState(f
 const [visaResourcesOpen, setVisaResourcesOpen] = useState(false);
 const [visaViewActive, setVisaViewActive] = useState(false);
 const [visaJobs, setVisaJobs] = useState([]);
+const [visaLoading, setVisaLoading] = useState(false);
 const [visaPreviewEndsAt, setVisaPreviewEndsAt] = useState(null);
 const [visaPreviewRemaining, setVisaPreviewRemaining] = useState(0);
 const [visaCountryFilter, setVisaCountryFilter] = useState("all");
@@ -115,8 +116,18 @@ const [country, setCountry] = useState("in");
     const endpoint = isPaidAccess
       ? "https://humorous-fulfillment-production-1f5e.up.railway.app/api/premium-resources/jobs"
       : "https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-jobs/preview";
-    const { data } = await axios.get(endpoint, config);
-    setVisaJobs(data);
+    setVisaLoading(true);
+    try {
+      const { data } = await axios.get(endpoint, config);
+      setVisaJobs(Array.isArray(data) ? data : []);
+    } catch (error) {
+      // A newly granted plan can briefly be ahead of a stale browser token.
+      // The public preview is still safe to show and avoids an empty experience.
+      if (!isPaidAccess) throw error;
+      const { data } = await axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-jobs/preview");
+      setVisaJobs(Array.isArray(data) ? data : []);
+      setHasPremiumResourceAccess(false);
+    } finally { setVisaLoading(false); }
   };
 
   const startVisaJobs = async (isPaidAccess = hasPremiumResourceAccess, destinationCode = "all") => {
@@ -1204,7 +1215,9 @@ localStorage.removeItem("profilePic");
        {new URLSearchParams(location.search).get("matched") === "1" && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-950 shadow-sm"><div><p className="font-black">Your matching jobs are ready</p><p className="mt-1 text-sm text-emerald-800">Results use your chosen role, location, and work-style preferences.</p></div><button onClick={() => navigate("/candidate/job-alerts")} className="rounded-xl bg-white px-4 py-2 text-sm font-black text-emerald-800 shadow-sm">Edit preferences</button></div>}
 
        {!visaViewActive && <FeaturedJobsSection placement="homepage" limit={8} location={locationFilter} country={country} countryName={countryNames[country]} category={jobCategoryFilter} query={search} />}
-       {visibleJobs.length === 0 ? (
+       {visaViewActive && visaLoading ? (
+          <div className={`mx-auto max-w-xl rounded-3xl border p-8 text-center shadow-sm ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-indigo-100 bg-white text-slate-900"}`}><div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"/><h2 className="text-xl font-black">Loading global visa jobs</h2><p className={`mt-2 text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Finding the latest published international opportunities…</p></div>
+       ) : visibleJobs.length === 0 ? (
 
           <div className={`mx-auto max-w-xl rounded-3xl border p-8 text-center shadow-sm ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-900"}`}><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-100 text-xl">🔎</div><h2 className="mt-4 text-xl font-black">No roles match these filters</h2><p className={`mt-2 text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Try a broader role, another location, or reset the filters to view all available opportunities.</p>{activeFilterLabels.length > 0 && <button type="button" onClick={resetJobFilters} className="mt-5 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:bg-blue-700">Clear filters and show jobs</button>}</div>
 
