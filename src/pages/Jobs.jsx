@@ -92,6 +92,7 @@ const [hasPremiumResourceAccess, setHasPremiumResourceAccess] = useState(false);
 const [showPremiumResourceCheckout, setShowPremiumResourceCheckout] = useState(false);
 const [visaResourcesOpen, setVisaResourcesOpen] = useState(false);
 const [visaViewActive, setVisaViewActive] = useState(false);
+const [visaFilterOpen, setVisaFilterOpen] = useState(false);
 const [visaJobs, setVisaJobs] = useState([]);
 const [visaLoading, setVisaLoading] = useState(false);
 const [visaPreviewEndsAt, setVisaPreviewEndsAt] = useState(null);
@@ -145,6 +146,7 @@ const [country, setCountry] = useState("in");
     setVisaTitleFilter("");
     setVisaCityFilter("");
     setVisaResourcesOpen(true);
+    setVisaFilterOpen(false);
     setVisaViewActive(true);
     try {
       await loadVisaJobs(isPaidAccess);
@@ -702,7 +704,7 @@ if (loading) {
        {/* 🔝 Navbar */}
 {visaViewActive && (
   <>
-  <section className={`fixed left-1/2 top-[88px] z-[60] w-[calc(100%-1.5rem)] max-w-7xl -translate-x-1/2 overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl md:top-[112px] ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-indigo-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
+  <section className={`fixed left-1/2 top-[112px] z-[60] hidden w-[calc(100%-1.5rem)] max-w-7xl -translate-x-1/2 overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl md:block ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-indigo-200 bg-white/95 text-slate-950"}`} aria-label="Visa Jobs filters">
     <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 ${darkMode ? "border-white/10" : "border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-cyan-50"}`}>
       <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-200"><Globe2 size={20}/></span><div><p className="font-black tracking-tight text-indigo-700">Global Visa Jobs</p><p className={`text-xs ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{hasPremiumResourceAccess ? "Premium access active · verified routes and openings" : `Explorer preview · ${Math.max(0, Math.ceil(visaPreviewRemaining / 60000))} min left`}</p></div></div>
       <div className="flex items-center gap-2"><span className="hidden rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 sm:inline-flex"><BadgeCheck size={14} className="mr-1"/> Official pathways</span><button type="button" onClick={() => { setVisaCountryFilter("all"); setVisaTitleFilter(""); setVisaCityFilter(""); }} className="rounded-lg px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100">Clear filters</button></div>
@@ -714,7 +716,14 @@ if (loading) {
       <button type="button" onClick={() => { setVisaViewActive(false); setVisaResourcesOpen(false); }} className="rounded-xl border border-violet-300 px-4 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-50">Exit Visa Jobs</button>
     </div>
   </section>
-  <div className="h-[312px] sm:h-[246px] lg:h-[142px]" aria-hidden="true" />
+  <div className="h-0 md:h-[190px] lg:h-[142px]" aria-hidden="true" />
+  <div className="fixed bottom-24 right-4 z-[70] md:hidden">
+    {visaFilterOpen && <section className={`absolute bottom-16 right-0 w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border p-3 shadow-2xl backdrop-blur-xl ${darkMode ? "border-violet-500/40 bg-slate-950/95 text-white" : "border-indigo-200 bg-white/95 text-slate-950"}`} aria-label="Visa job filters">
+      <div className="mb-3 flex items-center justify-between gap-3"><div><p className="font-black text-indigo-700">Visa filters</p><p className={`text-xs ${darkMode ? "text-slate-300" : "text-slate-500"}`}>{hasPremiumResourceAccess ? "Premium access active" : `${Math.max(0, Math.ceil(visaPreviewRemaining / 60000))} min preview left`}</p></div><button type="button" onClick={() => setVisaFilterOpen(false)} className="rounded-lg px-2 py-1 text-lg font-black text-indigo-700" aria-label="Close Visa filters">×</button></div>
+      <div className="space-y-2"><select value={visaCountryFilter} onChange={(event) => setVisaCountryFilter(event.target.value)} className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white" : "border-slate-200 bg-white text-black"}`} aria-label="Filter Visa Jobs by country"><option value="all">All countries</option>{visaCountries.map((code) => <option key={code} value={code}>{COUNTRIES.find((item) => item.code === code)?.name || (code === "global" ? "Global" : code.toUpperCase())}</option>)}</select><input type="search" value={visaTitleFilter} onChange={(event) => setVisaTitleFilter(event.target.value)} placeholder="Job title or company" className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder:text-slate-400" : "border-slate-200 bg-white text-black placeholder:text-slate-500"}`}/><input type="search" value={visaCityFilter} onChange={(event) => setVisaCityFilter(event.target.value)} placeholder="City" className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-500 ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder:text-slate-400" : "border-slate-200 bg-white text-black placeholder:text-slate-500"}`}/><div className="flex gap-2"><button type="button" onClick={() => { setVisaCountryFilter("all"); setVisaTitleFilter(""); setVisaCityFilter(""); }} className="flex-1 rounded-xl bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-700">Clear</button><button type="button" onClick={() => { setVisaViewActive(false); setVisaResourcesOpen(false); setVisaFilterOpen(false); }} className="flex-1 rounded-xl border border-indigo-200 px-3 py-2.5 text-xs font-black text-indigo-700">Exit Visa</button></div></div>
+    </section>}
+    <button type="button" onClick={() => setVisaFilterOpen((current) => !current)} className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-xl shadow-indigo-300 transition hover:bg-indigo-700"><SlidersHorizontal size={18}/>{visaFilterOpen ? "Close filters" : "Visa filters"}</button>
+  </div>
   </>
 )}
 
