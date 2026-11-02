@@ -781,9 +781,13 @@ const visaJobDefaultSources = [
   ["UK — Register of Licensed Sponsors", "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers", "gb", "sponsor research", false],
   ["Germany — EU Blue Card", "https://www.make-it-in-germany.com/en/visa-residence/types/eu-blue-card", "de", "official guidance", false],
   ["Australia — Employing Overseas Workers", "https://immi.homeaffairs.gov.au/employing-overseas-workers", "au", "official guidance", false],
+  ["Australia — Work Visa Finder", "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-finder/work", "au", "official guidance", false],
   ["Ireland — Employment Permits", "https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/", "ie", "official guidance", false],
+  ["Ireland — Critical Skills Eligible Occupations", "https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/employment-permit-eligibility/highly-skilled-eligible-occupations-list/", "ie", "official guidance", false],
   ["Netherlands — Recognised Sponsor Register", "https://ind.nl/en/public-register-recognised-sponsors", "nl", "sponsor research", false],
+  ["Denmark — Positive List for Skilled Work", "https://www.nyidanmark.dk/en-GB/You-want-to-apply/Work/The-Positive-List", "dk", "official guidance", false],
   ["New Zealand — Accredited Employer Work Visa", "https://www.immigration.govt.nz/visas/accredited-employer-work-visa/", "nz", "official guidance", false],
+  ["New Zealand — Green List Roles", "https://www.immigration.govt.nz/work/requirements-for-work-visas/green-list-occupations-qualifications-and-skills/", "nz", "official guidance", false],
   ["Sweden — Work Permit", "https://www.migrationsverket.se/en/you-want-to-apply/work/employee-or-self-employed/employees.html", "se", "official guidance", false],
   ["Finland — Residence Permit for an Employed Person", "https://migri.fi/en/residence-permit-for-an-employed-person", "fi", "official guidance", false],
   ["Singapore — Employment Pass", "https://www.mom.gov.sg/passes-and-permits/employment-pass", "sg", "official guidance", false],
@@ -796,6 +800,8 @@ const visaJobDefaultSources = [
   ["Switzerland — Working in Switzerland", "https://www.sem.admin.ch/sem/en/home/overview-arbeit.html", "ch", "official guidance", false],
   ["Slovenia — Single Residence and Work Permit", "https://www.gov.si/en/topics/entry-and-residence/residence-in-slovenia/", "si", "official guidance", false],
   ["Malta — Single Permit", "https://identita.gov.mt/expatriates-unit-non-eu-nationals/", "mt", "official guidance", false],
+  ["Japan — Work or Long-Term Stay Visa", "https://www.mofa.go.jp/j_info/visit/visa/long/visa1.html", "jp", "official guidance", false],
+  ["Norway — Skilled Workers", "https://www.udi.no/en/want-to-apply/work-immigration/skilled-workers/", "no", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
