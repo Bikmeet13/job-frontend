@@ -961,6 +961,8 @@ localStorage.removeItem("profilePic");
     {/* Hamburger */}
     <button
       onClick={() => setMenuOpen(!menuOpen)}
+      aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+      aria-expanded={menuOpen}
           className="px-4 py-2 rounded-xl font-medium transition-all duration-300 
   hover:bg-blue-600 hover:text-white hover:scale-105 
   hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]"
@@ -979,7 +981,11 @@ localStorage.removeItem("profilePic");
 {menuOpen && (
 
   <div
-    className={`xl:hidden rounded-2xl p-6 mb-6 shadow-lg ${
+    className="fixed inset-0 z-40 flex justify-end bg-slate-950/20 pt-24 backdrop-blur-[1px] xl:hidden"
+  >
+  <aside
+    aria-label="Mobile navigation"
+    className={`mr-3 h-[calc(100dvh-7rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl p-5 shadow-2xl ${
       darkMode
         ? "bg-gray-800 text-white"
         : "bg-white text-black"
@@ -1057,6 +1063,7 @@ localStorage.removeItem("profilePic");
 
     </div>
 
+</aside>
 </div>
 
 )}
