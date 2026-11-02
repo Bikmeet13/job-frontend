@@ -119,6 +119,7 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [headerSearchOpen, setHeaderSearchOpen] = useState(false);
   const [appliedMap, setAppliedMap] = useState({});
   const [locating, setLocating] = useState(false);
 const [country, setCountry] = useState("in");
@@ -792,16 +793,25 @@ if (loading) {
   </div>
 
   <div className="hidden min-w-0 flex-1 items-center gap-2 px-5 xl:flex">
-    <div className="relative min-w-0 flex-1">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-      <input
-        type="search"
-        aria-label="Search jobs"
-        placeholder="Search jobs..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className={`w-full rounded-xl border py-2.5 pl-10 pr-3 text-sm outline-none transition focus:ring-2 focus:ring-blue-500 ${darkMode ? "border-white/10 bg-slate-800/70 text-white placeholder:text-slate-400" : "border-white/70 bg-white/75 text-slate-900 placeholder:text-slate-400"}`}
-      />
+    <div className="relative min-w-0 flex-1" onMouseEnter={() => setHeaderSearchOpen(true)} onMouseLeave={() => setHeaderSearchOpen(false)}>
+      <div className={`flex items-center rounded-xl border transition-all duration-300 ${headerSearchOpen ? "border-blue-300 bg-white shadow-lg shadow-blue-100" : darkMode ? "border-white/10 bg-slate-800/70" : "border-white/70 bg-white/75"}`}>
+        <Search className="ml-3 shrink-0 text-slate-400" size={16} />
+        <input
+          type="search"
+          aria-label="Search jobs"
+          placeholder="Search jobs..."
+          value={search}
+          onFocus={() => setHeaderSearchOpen(true)}
+          onChange={(e) => setSearch(e.target.value)}
+          className={`min-w-0 flex-1 bg-transparent py-2.5 pl-2 pr-3 text-sm outline-none focus:ring-0 ${darkMode ? "text-white placeholder:text-slate-400" : "text-slate-900 placeholder:text-slate-400"}`}
+        />
+      </div>
+      {headerSearchOpen && <form role="search" aria-label="Quick job search" onSubmit={(event) => { event.preventDefault(); setHeaderSearchOpen(false); document.getElementById("job-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`absolute left-0 top-[calc(100%+0.7rem)] z-[70] grid w-[min(46rem,calc(100vw-3rem))] grid-cols-[1.25fr_1fr_.85fr_auto] items-center gap-1 rounded-2xl border p-2 shadow-2xl backdrop-blur-xl ${darkMode ? "border-slate-700 bg-slate-900/95" : "border-slate-200 bg-white/95"}`}>
+        <label className={`flex min-w-0 items-center gap-2 border-r px-3 py-2 ${darkMode ? "border-slate-700" : "border-slate-200"}`}><Search size={16} className="shrink-0 text-blue-600"/><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Skills, designation or company" className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${darkMode ? "text-white placeholder:text-slate-400" : "text-slate-900 placeholder:text-slate-500"}`}/></label>
+        <label className={`flex min-w-0 items-center gap-2 border-r px-3 py-2 ${darkMode ? "border-slate-700" : "border-slate-200"}`}><MapPin size={16} className="shrink-0 text-blue-600"/><input type="search" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} placeholder="Location" className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${darkMode ? "text-white placeholder:text-slate-400" : "text-slate-900 placeholder:text-slate-500"}`}/></label>
+        <label className="min-w-0 px-2 py-2"><select value={experienceFilter} onChange={(event) => setExperienceFilter(event.target.value)} aria-label="Experience" className={`w-full cursor-pointer bg-transparent text-sm outline-none ${darkMode ? "text-white" : "text-slate-700"}`}><option value="">Experience</option><option value="Fresher">Fresher</option><option value="1">1+ years</option><option value="2">2+ years</option><option value="3">3+ years</option><option value="5">5+ years</option><option value="10">10+ years</option></select></label>
+        <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">Search</button>
+      </form>}
     </div>
     <button
       type="button"
@@ -809,7 +819,7 @@ if (loading) {
       disabled={locating}
       className="shrink-0 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
     >
-      {locating ? "Locating..." : "📍 Locate me"}
+      {locating ? "Finding..." : "📍 Local Jobs"}
     </button>
   </div>
 
@@ -995,7 +1005,7 @@ localStorage.removeItem("profilePic");
           disabled={locating}
           className="shrink-0 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:bg-slate-400"
         >
-          {locating ? "..." : "📍 Locate me"}
+          {locating ? "..." : "📍 Local Jobs"}
         </button>
       </div>
       {token && (
