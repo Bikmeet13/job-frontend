@@ -49,6 +49,17 @@ const VISA_DESTINATIONS = [
   { code: "nz", label: "New Zealand", flag: "🇳🇿", detail: "Accredited employer roles" },
 ];
 
+// Visa sources and older approved jobs may store a full country name while
+// destination buttons use ISO country codes. Keep both paths compatible.
+const normaliseVisaCountry = (value) => {
+  const raw = String(value || "global").trim().toLowerCase();
+  if (!raw || raw === "all" || raw === "global" || raw === "worldwide") return raw || "global";
+  if (/^[a-z]{2}$/.test(raw)) return raw;
+  const country = COUNTRIES.find((item) => item.name.toLowerCase() === raw);
+  const aliases = { usa: "us", "united states of america": "us", uk: "gb", england: "gb", "south korea": "kr", "viet nam": "vn", turkey: "tr" };
+  return country?.code || aliases[raw] || raw;
+};
+
 function Jobs() {
 
 const role = localStorage.getItem("role");
@@ -120,14 +131,18 @@ const [country, setCountry] = useState("in");
     setVisaLoading(true);
     try {
       const { data } = await axios.get(endpoint, config);
-      setVisaJobs(Array.isArray(data) ? data : []);
+      const jobs = Array.isArray(data) ? data : [];
+      setVisaJobs(jobs);
+      return jobs;
     } catch (error) {
       // A newly granted plan can briefly be ahead of a stale browser token.
       // The public preview is still safe to show and avoids an empty experience.
       if (!isPaidAccess) throw error;
       const { data } = await axios.get("https://humorous-fulfillment-production-1f5e.up.railway.app/api/visa-jobs/preview");
-      setVisaJobs(Array.isArray(data) ? data : []);
+      const jobs = Array.isArray(data) ? data : [];
+      setVisaJobs(jobs);
       setHasPremiumResourceAccess(false);
+      return jobs;
     } finally { setVisaLoading(false); }
   };
 
@@ -149,7 +164,12 @@ const [country, setCountry] = useState("in");
     setVisaFilterOpen(false);
     setVisaViewActive(true);
     try {
-      await loadVisaJobs(isPaidAccess);
+      const loadedJobs = await loadVisaJobs(isPaidAccess);
+      const destination = normaliseVisaCountry(destinationCode);
+      if (destination !== "all" && !loadedJobs.some((job) => normaliseVisaCountry(job.country) === destination)) {
+        const destinationName = COUNTRIES.find((item) => item.code === destination)?.name || destination.toUpperCase();
+        toast(`No ${destinationName}-only roles are live right now. Showing worldwide visa openings instead.`);
+      }
       setTimeout(() => document.getElementById("job-results")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
     } catch (error) {
       setVisaViewActive(false);
@@ -609,9 +629,22 @@ localStorage.setItem(
     return getPostedTime(b) - getPostedTime(a);
   });
 
-  const visaCountries = [...new Set(visaJobs.map((job) => String(job.country || "global").toLowerCase()))].sort();
-  const visibleVisaJobs = visaJobs
-    .filter((job) => visaCountryFilter === "all" || String(job.country || "global").toLowerCase() === visaCountryFilter)
+  const visaCountries = [...new Set([
+    ...visaJobs.map((job) => normaliseVisaCountry(job.country)),
+    ...(visaCountryFilter !== "all" ? [normaliseVisaCountry(visaCountryFilter)] : []),
+  ])].sort();
+  const selectedVisaCountry = normaliseVisaCountry(visaCountryFilter);
+  const destinationVisaJobs = selectedVisaCountry === "all"
+    ? visaJobs
+    : visaJobs.filter((job) => normaliseVisaCountry(job.country) === selectedVisaCountry);
+  // Some destinations have no destination-tagged opening at a given moment.
+  // Global listings are still useful visa opportunities, so never leave the
+  // explorer blank simply because one country's scan is temporarily empty.
+  const visaJobsForSelectedCountry = selectedVisaCountry === "all" || destinationVisaJobs.length
+    ? destinationVisaJobs
+    : visaJobs.filter((job) => normaliseVisaCountry(job.country) === "global");
+  const visaShowingGlobalFallback = selectedVisaCountry !== "all" && !destinationVisaJobs.length && visaJobsForSelectedCountry.length > 0;
+  const visibleVisaJobs = visaJobsForSelectedCountry
     .filter((job) => !visaTitleFilter.trim() || `${job.title || ""} ${job.company || ""}`.toLowerCase().includes(visaTitleFilter.trim().toLowerCase()))
     .filter((job) => !visaCityFilter.trim() || String(job.location || "").toLowerCase().includes(visaCityFilter.trim().toLowerCase()))
     .sort((a, b) => getPostedTime(b) - getPostedTime(a));
@@ -1222,7 +1255,7 @@ localStorage.removeItem("profilePic");
 </div>)}
 
 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-1">
-  <p className={`text-sm font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{visibleJobs.length} {visibleJobs.length === 1 ? "job" : "jobs"} found{visaViewActive ? " in Visa Jobs" : ""}</p>
+  <p className={`text-sm font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{visibleJobs.length} {visibleJobs.length === 1 ? "job" : "jobs"} found{visaViewActive ? " in Visa Jobs" : ""}{visaShowingGlobalFallback ? " · worldwide opportunities shown while this destination refreshes" : ""}</p>
   {!visaViewActive && activeFilterLabels.length > 0 && <div className="flex flex-wrap items-center justify-end gap-2"><span className={`text-xs font-bold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Active:</span>{activeFilterLabels.map((label) => <span key={label} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${darkMode ? "border-slate-700 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{label}</span>)}<button type="button" onClick={resetJobFilters} className="rounded-full px-2.5 py-1 text-xs font-black text-blue-700 hover:bg-blue-50">Clear all</button></div>}
 </div>
 
