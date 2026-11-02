@@ -715,6 +715,9 @@ function inferSourceCountry(...values) {
 
 const visaJobDefaultSources = [
   ["Canada Job Bank", "https://www.jobbank.gc.ca/findajob/foreign-candidates", "ca"],
+  ["Canada Job Bank — Temporary Foreign Workers", "https://www.jobbank.gc.ca/landing-tfw-international.xhtml?wbdisable=false", "ca", "job listings"],
+  ["Canada Job Bank — LMIA requested openings", "https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring=lmia", "ca", "job listings"],
+  ["Canada Job Bank — Recognized Employer openings", "https://www.jobbank.gc.ca/jobsearch/jobsearch?fsrc=32", "ca", "job listings"],
   ["Make it in Germany", "https://www.make-it-in-germany.com/en/working-in-germany/job-listings", "de"],
   ["UK Find a Job", "https://findajob.dwp.gov.uk/", "gb"],
   ["UK Find a Job — Visa Sponsorship", "https://findajob.dwp.gov.uk/search?loc=86383&pp=50&q=Visa+sponsorship", "gb"],
@@ -771,6 +774,10 @@ const visaJobDefaultSources = [
   ["Spain Empléate", "https://empleate.gob.es/empleo/", "es"],
   ["Belgium Actiris", "https://www.actiris.brussels/en/citizens/jobseekers/", "be"],
   ["Canada — Work in Canada", "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada.html", "ca", "official guidance", false],
+  ["Canada — Employer-specific work permits", "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada/employer-specific.html", "ca", "official guidance", false],
+  ["Canada — International Mobility Program", "https://www.canada.ca/en/employment-social-development/services/foreign-workers/exemption-labour-market-impact.html", "ca", "official guidance", false],
+  ["Canada — Global Talent Stream", "https://www.canada.ca/en/employment-social-development/services/foreign-workers/global-talent.html", "ca", "official guidance", false],
+  ["Canada — Atlantic Immigration Program", "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/atlantic-immigration.html", "ca", "official guidance", false],
   ["UK — Register of Licensed Sponsors", "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers", "gb", "sponsor research", false],
   ["Germany — EU Blue Card", "https://www.make-it-in-germany.com/en/visa-residence/types/eu-blue-card", "de", "official guidance", false],
   ["Australia — Employing Overseas Workers", "https://immi.homeaffairs.gov.au/employing-overseas-workers", "au", "official guidance", false],
