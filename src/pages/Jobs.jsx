@@ -15,6 +15,7 @@ import {
   Compass,
   Crown,
   Globe2,
+  Gift,
   Landmark,
   SlidersHorizontal,
   Timer
@@ -101,6 +102,7 @@ const [jobCategoryFilter, setJobCategoryFilter] = useState(
 const [sortFilter, setSortFilter] = useState("newest");
 const [hasPremiumResourceAccess, setHasPremiumResourceAccess] = useState(false);
 const [showPremiumResourceCheckout, setShowPremiumResourceCheckout] = useState(false);
+const [premiumReferralMode, setPremiumReferralMode] = useState(false);
 const [visaResourcesOpen, setVisaResourcesOpen] = useState(false);
 const [visaViewActive, setVisaViewActive] = useState(false);
 const [visaFilterOpen, setVisaFilterOpen] = useState(false);
@@ -188,7 +190,8 @@ const [country, setCountry] = useState("in");
         navigate("/login", { state: { from: "/jobs" } });
         return;
       }
-      setShowPremiumResourceCheckout(true);
+    setPremiumReferralMode(false);
+    setShowPremiumResourceCheckout(true);
       return;
     }
     startVisaJobs(false, destinationCode);
@@ -1182,7 +1185,7 @@ localStorage.removeItem("profilePic");
     <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div className="max-w-2xl"><p className="flex items-center gap-2 text-xs font-black tracking-[.18em] text-indigo-600"><Compass size={15}/> INTERNATIONAL CAREER DESK</p><h2 className={`mt-3 text-3xl font-black tracking-tight sm:text-4xl ${darkMode ? "text-white" : "text-slate-950"}`}>Find work beyond borders.</h2><p className={`mt-3 max-w-xl text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Discover published visa-support roles for leading global destinations. Use official visa guidance and sponsor research alongside every job search—never as a substitute for an employer's listing.</p></div><div className="flex flex-wrap gap-3"><button type="button" onClick={openTopVisaJobs} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-black text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:bg-indigo-700"><Globe2 size={18}/>{visaViewActive ? "Top Visa Jobs open" : "Explore Visa Jobs"}</button><button type="button" onClick={() => setVisaResourcesOpen((current) => !current)} className={`inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-black transition ${darkMode ? "border-slate-700 text-white hover:bg-slate-800" : "border-indigo-200 bg-white/80 text-indigo-700 hover:bg-indigo-50"}`}><Landmark size={18}/> Official pathways</button></div></div>
     <div className="relative mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{VISA_DESTINATIONS.slice(0, 5).map((destination) => <button key={destination.code} type="button" onClick={() => openVisaJobs(destination.code)} className={`rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md ${darkMode ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-white bg-white/80 hover:border-indigo-200"}`}><span className="text-xl">{destination.flag}</span><b className={`mt-2 block text-sm ${darkMode ? "text-white" : "text-slate-900"}`}>{destination.label}</b><span className={`mt-1 block text-xs leading-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{destination.detail}</span></button>)}</div>
   </div>
-  <div className={`border-t px-5 py-4 sm:px-8 ${darkMode ? "border-white/10 bg-slate-900" : "border-indigo-100 bg-white"}`}><div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-slate-600"><span className="inline-flex items-center gap-1.5 text-emerald-700"><BadgeCheck size={15}/> Published visa-mode roles</span><span className="inline-flex items-center gap-1.5"><Timer size={15} className="text-indigo-600"/>{hasPremiumResourceAccess ? "Premium access active" : "1-minute discovery preview"}</span><span className="inline-flex items-center gap-1.5"><Crown size={15} className="text-amber-500"/> ₹599 / 6 months · ₹125 monthly</span></div></div>
+  <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 sm:px-8 ${darkMode ? "border-white/10 bg-slate-900" : "border-indigo-100 bg-white"}`}><div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-slate-600"><span className="inline-flex items-center gap-1.5 text-emerald-700"><BadgeCheck size={15}/> Published visa-mode roles</span><span className="inline-flex items-center gap-1.5"><Timer size={15} className="text-indigo-600"/>{hasPremiumResourceAccess ? "Premium access active" : "1-minute discovery preview"}</span><span className="inline-flex items-center gap-1.5"><Crown size={15} className="text-amber-500"/> ₹599 / 6 months · ₹125 monthly</span></div><button type="button" onClick={() => { if (!token) { toast("Create or sign in to your candidate account first."); navigate("/signup", { state: { from: "/jobs" } }); return; } setPremiumReferralMode(true); setShowPremiumResourceCheckout(true); }} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"><Gift size={17}/> Earn per referral</button></div>
   {hasPremiumResourceAccess && visaResourcesOpen && <div className={`border-t px-5 py-5 sm:px-8 ${darkMode ? "border-white/10 bg-slate-900" : "border-indigo-100 bg-indigo-50/40"}`}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className={`font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Official work-visa and sponsor resources</h3><p className={`mt-1 text-xs ${darkMode ? "text-slate-300" : "text-slate-500"}`}>Use these destination links to check requirements and approved employer pathways.</p></div><span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700">{VISA_SPONSORSHIP_RESOURCES.length} resources</span></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{VISA_SPONSORSHIP_RESOURCES.map((resource) => <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer" className={`rounded-xl border px-3 py-3 text-sm transition hover:-translate-y-0.5 hover:border-indigo-400 ${darkMode ? "border-slate-700 bg-slate-800 text-slate-200" : "border-white bg-white text-slate-700 shadow-sm"}`}><span className="block font-bold text-indigo-700">{resource.country}</span><span className="mt-1 block truncate text-xs opacity-80">{resource.name} ↗</span></a>)}</div></div>}
   {!hasPremiumResourceAccess && <button type="button" onClick={openTopVisaJobs} className={`flex w-full items-center justify-between border-t px-5 py-4 text-left text-sm transition sm:px-8 ${darkMode ? "border-white/10 bg-slate-900 text-slate-100 hover:bg-slate-800" : "border-indigo-100 bg-white text-slate-700 hover:bg-indigo-50"}`}><span><b className="text-indigo-700">Unlock official pathways and unlimited Visa Jobs</b><span className="ml-2 hidden opacity-75 sm:inline">Top worldwide openings appear first.</span></span><span className="font-black text-indigo-700">Explore Visa Jobs →</span></button>}
 </section>
@@ -1691,7 +1694,8 @@ const data = await res.json();
 
 {showPremiumResourceCheckout && (
   <PremiumResourceAccess
-    onClose={() => setShowPremiumResourceCheckout(false)}
+    startWithReferral={premiumReferralMode}
+    onClose={() => { setShowPremiumResourceCheckout(false); setPremiumReferralMode(false); }}
     onUnlocked={() => {
       setHasPremiumResourceAccess(true);
       setShowPremiumResourceCheckout(false);

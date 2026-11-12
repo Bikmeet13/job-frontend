@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Jobs from "./pages/Jobs";
 import GlexaAssistant from "./components/GlexaAssistant";
@@ -42,6 +42,13 @@ const FreelanceHire = lazy(() => import("./pages/FreelanceHire"));
 const FreelanceWork = lazy(() => import("./pages/FreelanceWork"));
 
 function App() {
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase();
+    if (code && /^MLV[A-Z0-9]{6,13}$/.test(code)) {
+      localStorage.setItem("visaReferral", JSON.stringify({ code, capturedAt: Date.now() }));
+    }
+  }, []);
+
   return (<>
       <Toaster position="top-right" />
 

@@ -47,6 +47,13 @@ const {
 
 const { Resend } = require("resend");
 const { sendEmailOrThrow } = require("./services/emailDelivery");
+const {
+  createReferralCode,
+  isValidUpiId,
+  normalizeReferralCode,
+  normalizeUpiId,
+  rewardForPlan,
+} = require("./services/visaReferral");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -244,13 +251,23 @@ app.post("/api/resume-builder/import", resumeTextUpload.single("document"), asyn
   }
 });
 
-app.post("/api/document-generator/convert", documentConvertUpload.single("file"), async (req, res) => {
+app.post("/api/document-generator/convert", documentConvertUpload.fields([
+  { name: "files", maxCount: 20 },
+  { name: "file", maxCount: 1 },
+]), async (req, res) => {
   try {
-    const file = req.file;
+    const files = [...(req.files?.files || []), ...(req.files?.file || [])];
+    const file = files[0];
     const outputFormat = String(req.body?.outputFormat || "pdf").toLowerCase();
-    if (!file) return res.status(400).json({ error: "Choose a file first." });
+    if (!file) return res.status(400).json({ error: "Choose a file or images first." });
+    if (files.length > 1 && files.some((item) => !(item.mimetype.startsWith("image/") || /\.(png|jpe?g)$/i.test(item.originalname)))) {
+      return res.status(400).json({ error: "Multiple files can only be combined when every file is a JPG or PNG image." });
+    }
+    if (files.length > 1 && outputFormat !== "pdf") {
+      return res.status(400).json({ error: "Multiple images can only be converted to PDF." });
+    }
     const inputName = String(file.originalname || "document");
-    const baseName = inputName.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9-_ ]/gi, "").slice(0, 80) || "document";
+    const baseName = files.length > 1 ? "marketlence-images" : (inputName.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9-_ ]/gi, "").slice(0, 80) || "document");
     const isImage = file.mimetype.startsWith("image/") || /\.(png|jpe?g)$/i.test(inputName);
 
     if (outputFormat === "pdf") {
@@ -261,9 +278,13 @@ app.post("/api/document-generator/convert", documentConvertUpload.single("file")
       }
       if (isImage) {
         const pdf = await new Promise((resolve, reject) => {
-          const doc = new PDFDocument({ margin: 35 }); const chunks = [];
+          const doc = new PDFDocument({ autoFirstPage: false, margin: 35 }); const chunks = [];
           doc.on("data", (chunk) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject);
-          doc.image(file.buffer, 35, 35, { fit: [540, 720], align: "center", valign: "center" }); doc.end();
+          files.forEach((imageFile) => {
+            doc.addPage({ size: "A4", margin: 35 });
+            doc.image(imageFile.buffer, 35, 35, { fit: [525, 772], align: "center", valign: "center" });
+          });
+          doc.end();
         });
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
@@ -1546,6 +1567,30 @@ const premiumResourcePlans = {
   visa_six_month: { id: "visa_six_month", name: "Visa Jobs — 6 months", amount: 59900, days: 183, currency: "INR" },
   visa_monthly: { id: "visa_monthly", name: "Visa Jobs — 30 days", amount: 12500, days: 30, currency: "INR" },
 };
+const referralAdminEmail = process.env.REFERRAL_ADMIN_EMAIL || "bikramjeets66@gmail.com";
+const referralLinkFor = (code) => "https://jobs.marketlence.com/?ref=" + encodeURIComponent(code);
+const emailSafe = (value) => String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+
+async function sendVisaReferralQualifiedEmails(payout) {
+  if (!process.env.RESEND_API_KEY) return;
+  const rewardRupees = payout.reward_paise / 100;
+  const planName = premiumResourcePlans[payout.plan_id]?.name || payout.plan_id;
+  const referrerName = emailSafe(payout.referrer_name || "there");
+  const sharedStyle = "font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#172033";
+  const referrerEmail = sendEmailOrThrow(resend, {
+    from: "Marketlence Jobs <care@marketlence.com>",
+    to: payout.referrer_email,
+    subject: "You earned ₹" + rewardRupees + " from a Visa Jobs referral",
+    html: '<div style="' + sharedStyle + '"><h1 style="color:#4f46e5">MarketLence Jobs</h1><p>Hi ' + referrerName + ',</p><h2>Your referral subscribed successfully</h2><p>You earned <b>₹' + rewardRupees + '</b> after your referral purchased <b>' + emailSafe(planName) + '</b>.</p><p>The reward is now pending and will be credited to your registered UPI ID shortly.</p><p style="font-size:12px;color:#64748b">Referral code: ' + emailSafe(payout.referral_code) + ' · Reward reference: ' + payout.id + '</p></div>',
+  });
+  const ownerEmail = sendEmailOrThrow(resend, {
+    from: "Marketlence Jobs <care@marketlence.com>",
+    to: referralAdminEmail,
+    subject: "Referral payout pending — ₹" + rewardRupees + " to " + payout.referrer_email,
+    html: '<div style="' + sharedStyle + '"><h1 style="color:#4f46e5">MarketLence Jobs</h1><h2>Visa referral payout pending</h2><p><b>Reward:</b> ₹' + rewardRupees + '</p><p><b>Plan:</b> ' + emailSafe(planName) + '</p><p><b>Referrer:</b> ' + referrerName + ' (' + emailSafe(payout.referrer_email) + ')</p><p><b>UPI ID:</b> ' + emailSafe(payout.upi_id) + '</p><p><b>Subscriber:</b> ' + emailSafe(payout.subscriber_email) + '</p><p><b>Referral code:</b> ' + emailSafe(payout.referral_code) + '</p><p><b>Razorpay payment:</b> ' + emailSafe(payout.razorpay_payment_id) + '</p><p><b>Payout reference:</b> ' + payout.id + '</p><p>Status: pending manual credit.</p></div>',
+  });
+  await Promise.allSettled([referrerEmail, ownerEmail]);
+}
 async function getActivePremiumResourceAccess(userId) {
   const result = await db.query(
     `SELECT id, plan_id, paid_at, access_expires_at
@@ -1611,6 +1656,8 @@ async function ensureEmployerPostingTables() {
     db.query("CREATE TABLE IF NOT EXISTS employer_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, visitor_key TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE TABLE IF NOT EXISTS employer_feature_payments (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER NOT NULL, plan_id TEXT NOT NULL, amount_paise INTEGER NOT NULL, duration_days INTEGER NOT NULL, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS premium_resource_payments (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, access_type TEXT NOT NULL, amount_paise INTEGER NOT NULL, plan_id TEXT, access_expires_at TIMESTAMPTZ, razorpay_order_id TEXT UNIQUE, razorpay_payment_id TEXT UNIQUE, payment_status TEXT NOT NULL DEFAULT 'created', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
+    db.query("CREATE TABLE IF NOT EXISTS visa_referrers (user_id INTEGER PRIMARY KEY, referral_code VARCHAR(16) UNIQUE NOT NULL, upi_id VARCHAR(320) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'active', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
+    db.query("CREATE TABLE IF NOT EXISTS visa_referral_payouts (id SERIAL PRIMARY KEY, payment_id INTEGER UNIQUE NOT NULL, referrer_user_id INTEGER NOT NULL, referred_user_id INTEGER NOT NULL, referral_code VARCHAR(16) NOT NULL, plan_id TEXT NOT NULL, reward_paise INTEGER NOT NULL, payout_status VARCHAR(30) NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), qualified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), paid_at TIMESTAMPTZ)"),
     db.query("CREATE TABLE IF NOT EXISTS employer_notifications (id SERIAL PRIMARY KEY, employer_id INTEGER NOT NULL, job_id INTEGER, notification_type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, action_url TEXT, read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(employer_id, job_id, notification_type))"),
     db.query("CREATE TABLE IF NOT EXISTS featured_job_events (id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL, event_type TEXT NOT NULL, placement TEXT NOT NULL, visitor_key TEXT, candidate_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"),
     db.query("CREATE INDEX IF NOT EXISTS featured_jobs_active_idx ON jobs (is_featured, featured_start_date, featured_end_date, employer_status)"),
@@ -1618,6 +1665,9 @@ async function ensureEmployerPostingTables() {
   ]);
   await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS plan_id TEXT");
   await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS access_expires_at TIMESTAMPTZ");
+  await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS referral_code VARCHAR(16)");
+  await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS referrer_user_id INTEGER");
+  await db.query("CREATE INDEX IF NOT EXISTS visa_referral_payouts_referrer_idx ON visa_referral_payouts (referrer_user_id, created_at DESC)");
   // Preserve access fairly for customers who purchased the previous ₹599 plan.
   await db.query(`UPDATE premium_resource_payments
     SET plan_id='visa_six_month', access_expires_at=COALESCE(paid_at, created_at) + INTERVAL '183 days'
@@ -2451,6 +2501,60 @@ app.post("/api/employer/featured-payment/verify", verifyToken, isEmployer, async
     res.json({ message: `Your job is featured for ${payment.duration_days} days.` });
   } catch (error) { console.error("Featured payment verification failed:", error.message); res.status(500).json({ error: "Could not activate the featured job." }); }
 });
+app.get("/api/visa-referrals/me", verifyToken, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT vr.referral_code, vr.upi_id, vr.status, vr.created_at, COUNT(vrp.id)::int AS successful_referrals, COALESCE(SUM(vrp.reward_paise), 0)::int AS total_reward_paise, COALESCE(SUM(vrp.reward_paise) FILTER (WHERE vrp.payout_status='pending'), 0)::int AS pending_reward_paise FROM visa_referrers vr LEFT JOIN visa_referral_payouts vrp ON vrp.referrer_user_id=vr.user_id WHERE vr.user_id=$1 GROUP BY vr.user_id",
+      [req.user.id]
+    );
+    const profile = result.rows[0];
+    if (!profile) return res.json({ registered: false });
+    res.json({
+      registered: true,
+      code: profile.referral_code,
+      referralLink: referralLinkFor(profile.referral_code),
+      upiId: profile.upi_id,
+      successfulReferrals: profile.successful_referrals,
+      totalReward: profile.total_reward_paise / 100,
+      pendingReward: profile.pending_reward_paise / 100,
+    });
+  } catch (error) {
+    console.error("Could not load Visa referral profile:", error.message);
+    res.status(500).json({ error: "Could not load your referral details." });
+  }
+});
+
+app.post("/api/visa-referrals/register", verifyToken, async (req, res) => {
+  try {
+    const upiId = normalizeUpiId(req.body?.upiId);
+    if (!isValidUpiId(upiId)) return res.status(400).json({ error: "Enter a valid UPI ID, for example name@bank." });
+    const user = (await db.query("SELECT id, role FROM users WHERE id=$1", [req.user.id])).rows[0];
+    if (!user || user.role !== "user") return res.status(403).json({ error: "Sign in with a candidate account to earn through referrals." });
+    const existing = (await db.query("SELECT referral_code FROM visa_referrers WHERE user_id=$1", [req.user.id])).rows[0];
+    if (existing) {
+      await db.query("UPDATE visa_referrers SET upi_id=$1, status='active', updated_at=NOW() WHERE user_id=$2", [upiId, req.user.id]);
+      return res.json({ registered: true, code: existing.referral_code, referralLink: referralLinkFor(existing.referral_code), upiId });
+    }
+    let created;
+    for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
+      const code = createReferralCode();
+      try {
+        created = (await db.query(
+          "INSERT INTO visa_referrers (user_id, referral_code, upi_id) VALUES ($1,$2,$3) RETURNING referral_code, upi_id",
+          [req.user.id, code, upiId]
+        )).rows[0];
+      } catch (error) {
+        if (error.code !== "23505") throw error;
+      }
+    }
+    if (!created) throw new Error("Could not allocate a unique referral code.");
+    res.status(201).json({ registered: true, code: created.referral_code, referralLink: referralLinkFor(created.referral_code), upiId: created.upi_id });
+  } catch (error) {
+    console.error("Could not register Visa referrer:", error.message);
+    res.status(500).json({ error: "Could not create your referral account. Please try again." });
+  }
+});
+
 app.get("/api/premium-resources/access", verifyToken, async (req, res) => {
   try {
     const payment = await getActivePremiumResourceAccess(req.user.id);
@@ -2469,9 +2573,14 @@ app.post("/api/premium-resources/order", verifyToken, async (req, res) => {
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return res.status(503).json({ error: "Payments are not configured yet. Please contact MarketLence support." });
     }
+    const referralCode = normalizeReferralCode(req.body?.referralCode);
+    const referrer = referralCode ? (await db.query(
+      "SELECT user_id, referral_code FROM visa_referrers WHERE referral_code=$1 AND status='active' AND user_id<>$2",
+      [referralCode, req.user.id]
+    )).rows[0] : null;
     const payment = (await db.query(
-      "INSERT INTO premium_resource_payments (user_id, access_type, amount_paise, plan_id) VALUES ($1,$2,$3,$4) RETURNING *",
-      [req.user.id, premiumResourceAccessType, plan.amount, plan.id]
+      "INSERT INTO premium_resource_payments (user_id, access_type, amount_paise, plan_id, referral_code, referrer_user_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
+      [req.user.id, premiumResourceAccessType, plan.amount, plan.id, referrer?.referral_code || null, referrer?.user_id || null]
     )).rows[0];
     const orderResponse = await axios.post("https://api.razorpay.com/v1/orders", {
       amount: plan.amount,
@@ -2509,6 +2618,24 @@ app.post("/api/premium-resources/verify", verifyToken, async (req, res) => {
     const plan = premiumResourcePlans[payment.plan_id];
     if (!plan) return res.status(400).json({ error: "This payment has an invalid access plan." });
     const updated = await db.query("UPDATE premium_resource_payments SET razorpay_payment_id=$1, payment_status='paid', paid_at=COALESCE(paid_at, NOW()), access_expires_at=NOW() + ($2::int * INTERVAL '1 day') WHERE id=$3 RETURNING access_expires_at", [razorpay_payment_id, plan.days, payment.id]);
+    if (payment.referrer_user_id && payment.referrer_user_id !== req.user.id) {
+      try {
+        const rewardPaise = rewardForPlan(payment.plan_id);
+        const payout = rewardPaise ? (await db.query(
+          "INSERT INTO visa_referral_payouts (payment_id, referrer_user_id, referred_user_id, referral_code, plan_id, reward_paise) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (payment_id) DO NOTHING RETURNING id",
+          [payment.id, payment.referrer_user_id, req.user.id, payment.referral_code, payment.plan_id, rewardPaise]
+        )).rows[0] : null;
+        if (payout) {
+          const details = (await db.query(
+            "SELECT vrp.*, vr.upi_id, referrer.email AS referrer_email, referrer.username AS referrer_name, subscriber.email AS subscriber_email, prp.razorpay_payment_id FROM visa_referral_payouts vrp JOIN visa_referrers vr ON vr.user_id=vrp.referrer_user_id JOIN users referrer ON referrer.id=vrp.referrer_user_id JOIN users subscriber ON subscriber.id=vrp.referred_user_id JOIN premium_resource_payments prp ON prp.id=vrp.payment_id WHERE vrp.id=$1",
+            [payout.id]
+          )).rows[0];
+          if (details) await sendVisaReferralQualifiedEmails(details);
+        }
+      } catch (referralError) {
+        console.error("Visa referral payout recording failed:", referralError.message);
+      }
+    }
     res.json({ message: `Payment confirmed. Visa Jobs are unlocked for ${plan.days} days.`, hasAccess: true, expiresAt: updated.rows[0]?.access_expires_at || null });
   } catch (error) {
     console.error("Premium resource payment verification failed:", error.message);
