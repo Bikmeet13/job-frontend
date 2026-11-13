@@ -29,3 +29,34 @@ export function peopleCsv(employees) {
   ]);
   return [headings, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
 }
+
+export function attendanceHours(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return "—";
+  const milliseconds = new Date(checkOut).getTime() - new Date(checkIn).getTime();
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) return "—";
+  return `${(milliseconds / 3600000).toFixed(2)} hrs`;
+}
+
+export function filterAttendance(rows, query = "", workDate = "") {
+  const needle = text(query).trim();
+  return rows.filter((row) => {
+    const matchesDate = !workDate || String(row.work_date || "").slice(0, 10) === workDate;
+    const haystack = [row.full_name, row.department, row.shift_name, row.status].map(text).join(" ");
+    return matchesDate && (!needle || haystack.includes(needle));
+  });
+}
+
+export function attendanceCsv(rows) {
+  const headings = ["Employee", "Department", "Date", "Shift", "Status", "Check in", "Check out", "Hours worked"];
+  const rowsForCsv = rows.map((row) => [
+    row.full_name,
+    row.department,
+    String(row.work_date || "").slice(0, 10),
+    row.shift_name || "No shift",
+    row.status,
+    row.check_in ? new Date(row.check_in).toLocaleString("en-IN") : "",
+    row.check_out ? new Date(row.check_out).toLocaleString("en-IN") : "",
+    attendanceHours(row.check_in, row.check_out),
+  ]);
+  return [headings, ...rowsForCsv].map((row) => row.map(csvCell).join(",")).join("\n");
+}
