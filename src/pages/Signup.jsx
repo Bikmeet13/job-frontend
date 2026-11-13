@@ -19,6 +19,7 @@ export default function Signup() {
   const navigate = useNavigate();
   const location = useLocation();
   const destination = location.state?.from || "/";
+  const isVisaSubscriptionSignup = destination.includes("subscribe=visa");
   const isJobAlertsSignup = location.state?.source === "job-alerts";
   const isAdsSignup = new URLSearchParams(location.search).get("utm_source") === "google";
   const signupSurface = isAdsSignup ? "google_ads" : isJobAlertsSignup ? "job_alerts" : "site";
@@ -48,7 +49,7 @@ export default function Signup() {
       saveSession(data);
       trackSignup(data, { accountType: "candidate", method: "google", surface: signupSurface });
       toast.success(data.isNewUser ? "Your account is ready" : "Welcome back");
-      navigate(data.isNewUser ? "/candidate/welcome" : destination, { replace: true });
+      navigate(data.isNewUser && !isVisaSubscriptionSignup ? "/candidate/welcome" : destination, { replace: true });
     } catch (error) {
       trackSignupFunnel("signup_google_failed", { account_type: "candidate", signup_surface: signupSurface });
       toast.error(error.response?.data?.error || "Google sign-in failed. Please try again.");
@@ -83,7 +84,7 @@ export default function Signup() {
       trackSignupFunnel("signup_otp_verified", { account_type: "candidate", signup_surface: signupSurface });
       trackSignup(data, { accountType: "candidate", method: "email", surface: signupSurface });
       toast.success("Your account is ready");
-      navigate("/candidate/welcome", { replace: true });
+      navigate(isVisaSubscriptionSignup ? destination : "/candidate/welcome", { replace: true });
     } catch (error) {
       trackSignupFunnel("signup_otp_failed", { account_type: "candidate", signup_surface: signupSurface, stage: "verify" });
       toast.error(error.response?.data?.error || "That code could not be verified.");

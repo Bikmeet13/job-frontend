@@ -1568,7 +1568,7 @@ const premiumResourcePlans = {
   visa_monthly: { id: "visa_monthly", name: "Visa Jobs — 30 days", amount: 12500, days: 30, currency: "INR" },
 };
 const referralAdminEmail = process.env.REFERRAL_ADMIN_EMAIL || "bikramjeets66@gmail.com";
-const referralLinkFor = (code) => "https://jobs.marketlence.com/?ref=" + encodeURIComponent(code);
+const referralLinkFor = (code) => "https://jobs.marketlence.com/?ref=" + encodeURIComponent(code) + "&subscribe=visa";
 const emailSafe = (value) => String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
 
 async function sendVisaReferralQualifiedEmails(payout) {

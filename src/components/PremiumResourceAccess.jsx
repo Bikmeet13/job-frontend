@@ -26,7 +26,8 @@ const activeReferralCode = () => {
   }
 };
 
-export default function PremiumResourceAccess({ onUnlocked, onClose, startWithReferral = false }) {
+export default function PremiumResourceAccess({ onUnlocked, onClose, onRequireLogin, startWithReferral = false }) {
+  const signedIn = Boolean(localStorage.getItem("token"));
   const [busy, setBusy] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("visa_six_month");
   const [referralOpen, setReferralOpen] = useState(startWithReferral);
@@ -96,6 +97,10 @@ export default function PremiumResourceAccess({ onUnlocked, onClose, startWithRe
   };
 
   const purchase = async () => {
+    if (!signedIn) {
+      onRequireLogin?.();
+      return;
+    }
     setBusy(true);
     try {
       const { data } = await axios.post(`${API}/premium-resources/order`, { planId: selectedPlan, referralCode: activeReferralCode() }, auth());
@@ -176,7 +181,7 @@ export default function PremiumResourceAccess({ onUnlocked, onClose, startWithRe
             </>}
           </section>}
           <button type="button" disabled={busy} onClick={purchase} className="mt-6 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3.5 font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-violet-700 disabled:cursor-wait disabled:opacity-70">
-            {busy ? "Opening secure checkout…" : `Pay ${activePlan.amount} & unlock access`}
+            {busy ? "Opening secure checkout…" : signedIn ? `Pay ${activePlan.amount} & unlock access` : "Create account to subscribe"}
           </button>
           <p className="mt-3 text-center text-xs text-slate-500">Access is linked to this MarketLence account and ends after the selected duration.</p>
         </div>

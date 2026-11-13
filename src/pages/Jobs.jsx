@@ -126,6 +126,14 @@ const [appliedJobs, setAppliedJobs] = useState([]);
   const [locating, setLocating] = useState(false);
 const [country, setCountry] = useState("in");
 
+  useEffect(() => {
+    const referralParams = new URLSearchParams(location.search);
+    if (referralParams.get("subscribe") === "visa" || referralParams.get("ref")) {
+      setPremiumReferralMode(false);
+      setShowPremiumResourceCheckout(true);
+    }
+  }, [location.search]);
+
   const loadVisaJobs = async (isPaidAccess = hasPremiumResourceAccess) => {
     const config = isPaidAccess ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
     const endpoint = isPaidAccess
@@ -1695,6 +1703,10 @@ const data = await res.json();
 {showPremiumResourceCheckout && (
   <PremiumResourceAccess
     startWithReferral={premiumReferralMode}
+    onRequireLogin={() => {
+      setShowPremiumResourceCheckout(false);
+      navigate("/signup", { state: { from: "/jobs?subscribe=visa" } });
+    }}
     onClose={() => { setShowPremiumResourceCheckout(false); setPremiumReferralMode(false); }}
     onUnlocked={() => {
       setHasPremiumResourceAccess(true);
