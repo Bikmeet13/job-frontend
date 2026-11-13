@@ -2374,10 +2374,19 @@ app.patch("/api/employer/hr/employees/:id/default-shift", verifyToken, isEmploye
 app.get("/api/employer/hr/attendance", verifyToken, isEmployer, async (req, res) => {
   const result = await db.query("SELECT a.*, e.full_name, e.department, s.name AS shift_name FROM hr_attendance a JOIN hr_employees e ON e.id=a.employee_id LEFT JOIN hr_shifts s ON s.id=a.shift_id WHERE a.employer_id=$1 AND a.work_date >= CURRENT_DATE - INTERVAL '31 days' ORDER BY a.work_date DESC, e.full_name", [req.user.id]); res.json(result.rows);
 });
+app.get("/api/employer/hr/leave-balances/:employeeId", verifyToken, isEmployer, async (req, res) => {
+  const employee = (await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [req.params.employeeId, req.user.id])).rows[0];
+  if (!employee) return res.status(404).json({ error: "Employee not found." });
+  await ensureEmployeeLeaveBalances(req.user.id, employee.id);
+  const result = await db.query("SELECT b.leave_type,b.allocated,COALESCE(SUM(CASE WHEN l.status='Approved' AND EXTRACT(YEAR FROM l.start_date)=EXTRACT(YEAR FROM CURRENT_DATE) THEN (l.end_date-l.start_date+1) ELSE 0 END),0)::int AS used FROM hr_leave_balances b LEFT JOIN hr_leave_requests l ON l.employee_id=b.employee_id AND l.leave_type=b.leave_type WHERE b.employer_id=$1 AND b.employee_id=$2 GROUP BY b.id,b.leave_type,b.allocated ORDER BY b.leave_type", [req.user.id, employee.id]);
+  res.json(result.rows);
+});
 app.put("/api/employer/hr/leave-balances/:employeeId", verifyToken, isEmployer, async (req, res) => {
   const employee = (await db.query("SELECT id FROM hr_employees WHERE id=$1 AND employer_id=$2", [req.params.employeeId, req.user.id])).rows[0]; if (!employee) return res.status(404).json({ error: "Employee not found." });
-  const balances = Array.isArray(req.body?.balances) ? req.body.balances : [];
-  await Promise.all(balances.slice(0, 8).map((item) => db.query("INSERT INTO hr_leave_balances (employer_id,employee_id,leave_type,allocated) VALUES ($1,$2,$3,$4) ON CONFLICT (employer_id,employee_id,leave_type) DO UPDATE SET allocated=EXCLUDED.allocated", [req.user.id, employee.id, cleanText(item.leaveType,80), Math.max(0, Math.min(Number(item.allocated) || 0, 365))])));
+  const balances = (Array.isArray(req.body?.balances) ? req.body.balances : []).slice(0, 8).map((item) => ({ leaveType: cleanText(item.leaveType,80), allocated: Number(item.allocated) })).filter((item) => item.leaveType && Number.isFinite(item.allocated) && item.allocated >= 0 && item.allocated <= 365);
+  if (!balances.length) return res.status(400).json({ error: "Add at least one valid leave balance between 0 and 365 days." });
+  if (new Set(balances.map((item) => item.leaveType.toLowerCase())).size !== balances.length) return res.status(400).json({ error: "Leave types must be unique." });
+  await Promise.all(balances.map((item) => db.query("INSERT INTO hr_leave_balances (employer_id,employee_id,leave_type,allocated) VALUES ($1,$2,$3,$4) ON CONFLICT (employer_id,employee_id,leave_type) DO UPDATE SET allocated=EXCLUDED.allocated", [req.user.id, employee.id, item.leaveType, item.allocated])));
   res.json({ message: "Leave balances updated." });
 });
 app.post("/api/employer/hr/communications", verifyToken, isEmployer, async (req, res) => {
