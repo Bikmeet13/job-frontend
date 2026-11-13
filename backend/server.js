@@ -823,6 +823,18 @@ const visaJobDefaultSources = [
   ["Malta — Single Permit", "https://identita.gov.mt/expatriates-unit-non-eu-nationals/", "mt", "official guidance", false],
   ["Japan — Work or Long-Term Stay Visa", "https://www.mofa.go.jp/j_info/visit/visa/long/visa1.html", "jp", "official guidance", false],
   ["Norway — Skilled Workers", "https://www.udi.no/en/want-to-apply/work-immigration/skilled-workers/", "no", "official guidance", false],
+  ["Iceland — Available Jobs", "https://island.is/en/see-jobs", "is", "job listings"],
+  ["Iceland — Work Permit", "https://island.is/en/apply-for-a-work-permit", "is", "official guidance", false],
+  ["Cyprus — Third-Country Employment", "https://www.gov.cy/en/service/application-for-employment-of-third-country-nationals/", "cy", "official guidance", false],
+  ["Cyprus — Single Work Permit", "https://www.gov.cy/mip-md/en/documents/remunerated-employment-single-permit-gen/", "cy", "official guidance", false],
+  ["Slovakia — Employment of Foreigners", "https://www.employment.gov.sk/en/labour-employment/employment-support/employment-foreigners.html", "sk", "official guidance", false],
+  ["Oman — Work Visa", "https://gov.om/en/w/get-a-work-visa", "om", "official guidance", false],
+  ["Qatar — Residence and Work Permits", "https://portal.www.gov.qa/wps/wcm/connect/hukoomi%2Bweb%2Bcontent/hukoomi/topics/visas%2Band%2Bofficial%2Bdocuments/residenceandworkpermits", "qa", "official guidance", false],
+  ["Thailand — Work and Business e-Visa", "https://www.thaievisa.go.th/", "th", "official guidance", false],
+  ["Israel — Foreign Expert Work Permit", "https://www.gov.il/en/service/working_permit_for_foreign_workers/", "il", "official guidance", false],
+  ["Mauritius — Work Permit Unit", "https://empment-labour.govmu.org/Pages/Work%20Permit/AboutWP.aspx", "mu", "official guidance", false],
+  ["Mauritius — Occupation Permit", "https://passport.govmu.org/passport/?page_id=626", "mu", "official guidance", false],
+  ["Liechtenstein — Employment Residence Permits", "https://www.llv.li/en/national-administration/migration-and-passport-office/residing-in-liechtenstein", "li", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
