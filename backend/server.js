@@ -2252,7 +2252,7 @@ app.get("/api/employer/hr/overview", verifyToken, isEmployer, async (req, res) =
   res.json({ employees: employees.rows[0], leave: leaves.rows[0], documents: documents.rows[0] });
 });
 app.get("/api/employer/hr/employees", verifyToken, isEmployer, async (req, res) => {
-  const result = await db.query("SELECT * FROM hr_employees WHERE employer_id=$1 ORDER BY employment_status='Active' DESC, full_name ASC", [req.user.id]);
+  const result = await db.query("SELECT e.*, a.invited_at, a.last_login_at FROM hr_employees e LEFT JOIN hr_employee_accounts a ON a.employee_id=e.id WHERE e.employer_id=$1 ORDER BY e.employment_status='Active' DESC, e.full_name ASC", [req.user.id]);
   res.json(result.rows);
 });
 app.post("/api/employer/hr/employees", verifyToken, isEmployer, async (req, res) => {
