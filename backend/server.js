@@ -835,6 +835,15 @@ const visaJobDefaultSources = [
   ["Mauritius — Work Permit Unit", "https://empment-labour.govmu.org/Pages/Work%20Permit/AboutWP.aspx", "mu", "official guidance", false],
   ["Mauritius — Occupation Permit", "https://passport.govmu.org/passport/?page_id=626", "mu", "official guidance", false],
   ["Liechtenstein — Employment Residence Permits", "https://www.llv.li/en/national-administration/migration-and-passport-office/residing-in-liechtenstein", "li", "official guidance", false],
+  ["Azerbaijan — Foreign Worker Permits", "https://www.asan.gov.az/en/service/asan-xidmetler/miqrasiya-xidmetleri/ecnebilere-ve-vetendasligi-olmayan-sexslere-haqqi-oedenilen-emek-fealiyyeti-ile-mesgul-olmalari-uecuen-is-icazelerin-verilmesi", "az", "official guidance", false],
+  ["Azerbaijan — Migration E-Services", "https://eservice.migration.gov.az/?lang=en", "az", "official guidance", false],
+  ["Brunei — Employing Workers", "https://www.business.gov.bn/employing-workers/", "bn", "official guidance", false],
+  ["Brunei — Employment Visa Guidance", "https://www.mfa.gov.bn/Pages/faq.aspx", "bn", "official guidance", false],
+  ["Georgia — Work Residence Permits", "https://sda.gov.ge/en/products/migration-residence-permits/", "ge", "official guidance", false],
+  ["Georgia — Work and Immigration Updates", "https://www.geoconsul.gov.ge/en/news", "ge", "official guidance", false],
+  ["Jordan — Non-Jordanian Workers", "https://mol.gov.jo/EN/Pages/NonJordanian_workers", "jo", "official guidance", false],
+  ["Kazakhstan — Employment Visas", "https://www.gov.kz/org/mfa-toronto/activities/52809?lang=en", "kz", "official guidance", false],
+  ["Kazakhstan — Visa Invitation Service", "https://www.gov.kz/services/3895?lang=en", "kz", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
