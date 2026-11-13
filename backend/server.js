@@ -844,6 +844,18 @@ const visaJobDefaultSources = [
   ["Jordan — Non-Jordanian Workers", "https://mol.gov.jo/EN/Pages/NonJordanian_workers", "jo", "official guidance", false],
   ["Kazakhstan — Employment Visas", "https://www.gov.kz/org/mfa-toronto/activities/52809?lang=en", "kz", "official guidance", false],
   ["Kazakhstan — Visa Invitation Service", "https://www.gov.kz/services/3895?lang=en", "kz", "official guidance", false],
+  ["Albania — Migrant Worker Rights and Permits", "https://inspektoriatipunes.gov.al/wp-content/uploads/2025/02/KNOW-YOUR-RIGHTS-A-Guide-for-Migrant-Workers-in-Albania_English_compressed.pdf", "al", "official guidance", false],
+  ["Armenia — Employment-based Residence", "https://migration.mia.gov.am/en/acquiring-employment-based-residence-status", "am", "official guidance", false],
+  ["Armenia — e-Work Vacancies", "https://e-work.am/", "am", "official guidance", false],
+  ["Bosnia and Herzegovina — Foreign-worker Permits", "https://www.mcp.gov.ba/en/faq-in-the-sector-for-work-employment-social-protection-and-pensions", "ba", "official guidance", false],
+  ["Bosnia and Herzegovina — Information for Foreign Workers", "https://msb.gov.ba/en/information-for-foreigners", "ba", "official guidance", false],
+  ["Kosovo — Foreign-worker Permit Requirements", "https://cps.rks-gov.net/wp-content/uploads/2020/09/LAW_NO._04_L-219_ON_FOREIGNERS.pdf", "xk", "official guidance", false],
+  ["Moldova — Legal Employment for Foreigners", "https://inimi.igm.gov.md/en/legal-employment-in-the-republic-of-moldova", "md", "official guidance", false],
+  ["Moldova — Provisional Stay for Work", "https://igm.gov.md/en/services/right-to-stay/provisional-stay-for-work-purposes", "md", "official guidance", false],
+  ["Montenegro — Labour and Employment", "https://www.gov.me/en/article/labour-and-employment", "me", "official guidance", false],
+  ["Montenegro — Work Visa Guidance", "https://www.gov.me/en/article/what-is-a-visa-2", "me", "official guidance", false],
+  ["North Macedonia — Work Visas and Permits", "https://investnorthmacedonia.gov.mk/work-visas-and-permits/", "mk", "official guidance", false],
+  ["Uzbekistan — Services for Foreign Workers", "https://my.gov.uz/en/for-foreigners", "uz", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
