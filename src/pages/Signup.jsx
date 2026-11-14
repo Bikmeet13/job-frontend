@@ -4,15 +4,16 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { trackSignup, trackSignupFunnel } from "../utils/signupTracking";
+import { isInAppBrowser, safeStorageSet } from "../utils/browserCompatibility";
 
 const API = "https://humorous-fulfillment-production-1f5e.up.railway.app/api";
 
 function saveSession(data) {
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("role", data.role);
-  localStorage.setItem("userId", data.userId);
-  localStorage.setItem("username", data.username || "");
-  localStorage.setItem("email", data.email || "");
+  try {
+    const storage = globalThis.localStorage;
+    return [["token", data.token], ["role", data.role], ["userId", data.userId], ["username", data.username || ""], ["email", data.email || ""]]
+      .map(([key, value]) => safeStorageSet(storage, key, value)).every(Boolean);
+  } catch { return false; }
 }
 
 export default function Signup() {
@@ -28,6 +29,7 @@ export default function Signup() {
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState("");
+  const inAppBrowser = isInAppBrowser();
 
   useEffect(() => {
     trackSignupFunnel("signup_view", { account_type: "candidate", signup_surface: signupSurface });
@@ -46,7 +48,7 @@ export default function Signup() {
     try {
       trackSignupFunnel("signup_google_started", { account_type: "candidate", signup_surface: signupSurface });
       const { data } = await axios.post(`${API}/google-login`, { credential: credentialResponse.credential, accountType: "candidate" });
-      saveSession(data);
+      if (!saveSession(data)) return toast.error("This browser blocks sign-in storage. Open this page in Chrome or Safari.");
       trackSignup(data, { accountType: "candidate", method: "google", surface: signupSurface });
       toast.success(data.isNewUser ? "Your account is ready" : "Welcome back");
       navigate(data.isNewUser && !isVisaSubscriptionSignup ? "/candidate/welcome" : destination, { replace: true });
@@ -80,7 +82,7 @@ export default function Signup() {
         username: form.username.trim(), email: form.email.trim(), password: form.password,
         otp: otp.trim(), jobAlertsEnabled,
       });
-      saveSession(data);
+      if (!saveSession(data)) return toast.error("This browser blocks sign-in storage. Open this page in Chrome or Safari.");
       trackSignupFunnel("signup_otp_verified", { account_type: "candidate", signup_surface: signupSurface });
       trackSignup(data, { accountType: "candidate", method: "email", surface: signupSurface });
       toast.success("Your account is ready");
@@ -98,7 +100,8 @@ export default function Signup() {
       <h1 className={`text-center text-3xl font-bold ${isAdsSignup ? "text-slate-950 sm:text-left" : ""}`}>{isAdsSignup ? "Create your free account" : "Create your free account"}</h1>
       <p className={`mt-2 text-center text-sm text-slate-500 ${isAdsSignup ? "sm:text-left" : ""}`}>{isAdsSignup ? "Continue with Google or verify your email to start applying." : "Start applying in under a minute."}</p>
       {isJobAlertsSignup && <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-center text-sm font-medium leading-6 text-blue-800">Create your account to save jobs, build your resume, and get relevant job alerts.</p>}
-      <div className="mt-6 flex justify-center"><GoogleLogin onSuccess={googleSignIn} onError={() => { trackSignupFunnel("signup_google_failed", { account_type: "candidate", signup_surface: signupSurface }); toast.error("Google sign-in was cancelled or unavailable."); }} text="signup_with" shape="rectangular" width="300" /></div>
+      {inAppBrowser && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"><b>Opening from Instagram?</b><br/>Email signup works here. For Google signup, use Instagram’s menu and choose <b>Open in external browser</b>.</div>}
+      {!inAppBrowser && <div className="mt-6 flex justify-center"><GoogleLogin onSuccess={googleSignIn} onError={() => { trackSignupFunnel("signup_google_failed", { account_type: "candidate", signup_surface: signupSurface }); toast.error("Google sign-in was cancelled or unavailable."); }} text="signup_with" shape="rectangular" width="300" /></div>}
       {busy === "google" && <p className="mt-2 text-center text-sm text-slate-500">Signing you in…</p>}
       <div className="my-5 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-gray-400"><span className="h-px flex-1 bg-gray-200" />or use email<span className="h-px flex-1 bg-gray-200" /></div>
       <form onSubmit={verifyOtp} noValidate>

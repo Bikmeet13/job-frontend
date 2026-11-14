@@ -4,6 +4,7 @@ import Jobs from "./pages/Jobs";
 import GlexaAssistant from "./components/GlexaAssistant";
 import { Toaster } from "react-hot-toast";
 import { Routes, Route } from "react-router-dom";
+import Signup from "./pages/Signup";
 
 // Only the public Jobs screen is part of the initial download. The remaining
 // dashboards and tools load only when a visitor opens their route.
@@ -16,7 +17,6 @@ const JobDetails = lazy(() => import("./pages/JobDetails"));
 const ChatbotForm = lazy(() => import("./components/ChatbotForm"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Login = lazy(() => import("./pages/Login"));
-const Signup = lazy(() => import("./pages/Signup"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminCandidates = lazy(() => import("./pages/AdminCandidates"));
@@ -45,14 +45,14 @@ function App() {
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase();
     if (code && /^MLV[A-Z0-9]{6,13}$/.test(code)) {
-      localStorage.setItem("visaReferral", JSON.stringify({ code, capturedAt: Date.now() }));
+      try { localStorage.setItem("visaReferral", JSON.stringify({ code, capturedAt: Date.now() })); } catch { /* Restricted in-app browser storage must not block rendering. */ }
     }
   }, []);
 
   return (<>
       <Toaster position="top-right" />
 
-    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+    <Suspense fallback={<main className="grid min-h-screen place-items-center bg-slate-50 p-5"><div className="text-center"><span className="mx-auto block h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600"/><p className="mt-4 text-sm font-bold text-slate-600">Loading MarketLence Jobs…</p><button onClick={() => window.location.reload()} className="mt-4 text-sm font-black text-blue-700">Taking too long? Reload</button></div></main>}>
     <Routes>
 
       <Route path="/apply/:jobId" element={<ProtectedRoute><ApplyForm /></ProtectedRoute>} />
