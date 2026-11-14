@@ -2353,16 +2353,27 @@ app.post("/api/employer/hr/employees/:id/invite", verifyToken, isEmployer, async
 });
 
 app.get("/api/employer/hr/shifts", verifyToken, isEmployer, async (req, res) => {
-  res.json((await db.query("SELECT * FROM hr_shifts WHERE employer_id=$1 ORDER BY name", [req.user.id])).rows);
+  res.json((await db.query("SELECT s.*, COUNT(e.id)::int AS assignment_count FROM hr_shifts s LEFT JOIN hr_employees e ON e.default_shift_id=s.id AND e.employer_id=s.employer_id WHERE s.employer_id=$1 GROUP BY s.id ORDER BY s.name", [req.user.id])).rows);
 });
 app.post("/api/employer/hr/shifts", verifyToken, isEmployer, async (req, res) => {
   const body = req.body || {}; const name = cleanText(body.name, 100); const days = Array.isArray(body.workDays) ? body.workDays.filter((day) => ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].includes(day)) : [];
-  if (!name || !/^\d{2}:\d{2}$/.test(String(body.startTime || "")) || !/^\d{2}:\d{2}$/.test(String(body.endTime || ""))) return res.status(400).json({ error: "Enter a shift name, start time, and end time." });
-  const result = await db.query("INSERT INTO hr_shifts (employer_id,name,start_time,end_time,work_days) VALUES ($1,$2,$3,$4,$5) RETURNING *", [req.user.id, name, body.startTime, body.endTime, JSON.stringify(days.length ? days : ["Mon","Tue","Wed","Thu","Fri"])]);
+  if (!name || !/^\d{2}:\d{2}$/.test(String(body.startTime || "")) || !/^\d{2}:\d{2}$/.test(String(body.endTime || "")) || body.startTime === body.endTime || !days.length) return res.status(400).json({ error: "Enter a shift name, different start and end times, and at least one workday." });
+  const result = await db.query("INSERT INTO hr_shifts (employer_id,name,start_time,end_time,work_days) VALUES ($1,$2,$3,$4,$5) RETURNING *", [req.user.id, name, body.startTime, body.endTime, JSON.stringify(days)]);
   res.status(201).json(result.rows[0]);
 });
+app.patch("/api/employer/hr/shifts/:id", verifyToken, isEmployer, async (req, res) => {
+  const body = req.body || {}; const name = cleanText(body.name, 100); const days = Array.isArray(body.workDays) ? body.workDays.filter((day) => ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].includes(day)) : [];
+  if (!name || !/^\d{2}:\d{2}$/.test(String(body.startTime || "")) || !/^\d{2}:\d{2}$/.test(String(body.endTime || "")) || body.startTime === body.endTime || !days.length) return res.status(400).json({ error: "Enter a shift name, different start and end times, and at least one workday." });
+  const result = await db.query("UPDATE hr_shifts SET name=$1,start_time=$2,end_time=$3,work_days=$4 WHERE id=$5 AND employer_id=$6 RETURNING *", [name, body.startTime, body.endTime, JSON.stringify(days), req.params.id, req.user.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Shift not found." });
+  res.json(result.rows[0]);
+});
 app.delete("/api/employer/hr/shifts/:id", verifyToken, isEmployer, async (req, res) => {
-  await db.query("DELETE FROM hr_shifts WHERE id=$1 AND employer_id=$2", [req.params.id, req.user.id]); res.json({ message: "Shift removed." });
+  const assigned = Number((await db.query("SELECT COUNT(*)::int AS count FROM hr_employees WHERE employer_id=$1 AND default_shift_id=$2", [req.user.id, req.params.id])).rows[0]?.count || 0);
+  if (assigned) return res.status(409).json({ error: `Reassign ${assigned} employee${assigned === 1 ? "" : "s"} before deleting this shift.` });
+  const result = await db.query("DELETE FROM hr_shifts WHERE id=$1 AND employer_id=$2 RETURNING id", [req.params.id, req.user.id]);
+  if (!result.rows.length) return res.status(404).json({ error: "Shift not found." });
+  res.json({ message: "Shift removed." });
 });
 app.patch("/api/employer/hr/employees/:id/default-shift", verifyToken, isEmployer, async (req, res) => {
   const shiftId = Number(req.body?.shiftId) || null;
