@@ -3170,6 +3170,36 @@ app.post("/api/visa-job-agent/scan", verifyToken, isAdmin, (req, res) => {
   scanVisaJobSources().catch((error) => console.log("Visa sponsorship scan failed:", error.message));
   res.status(202).json({ started: true, message: "Visa sponsorship scan started in the background" });
 });
+app.post("/api/visa-job-agent/drafts/bulk-approve", verifyToken, isAdmin, async (req, res) => {
+  const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 500);
+  if (!ids.length) return res.status(400).json({ error: "Choose at least one pending visa opening." });
+  const client = await db.connect(); const published = [];
+  try {
+    await client.query("BEGIN");
+    const drafts = (await client.query("SELECT * FROM visa_job_drafts WHERE id = ANY($1::int[]) AND status='pending' ORDER BY created_at ASC FOR UPDATE", [ids])).rows;
+    for (const draft of drafts) {
+      const result = await client.query(`INSERT INTO jobs
+        (title, company, location, salary, experience, skills, description, type, mode, chatbot_questions, apply_enabled, apply_link, job_category, country, last_date)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`, [
+        draft.title.slice(0, 300), draft.source_name, "See official job listing", "Not disclosed", "See official job listing", "See official job listing",
+        `Visa sponsorship opening collected from ${draft.source_name}. Please confirm eligibility and visa support on the official listing before applying.`,
+        "Company recruitment", "Visa", [], false, draft.apply_link, "Private", draft.country || "global", "Check official job listing"
+      ]);
+      await client.query("UPDATE visa_job_drafts SET status='approved', reviewed_at=NOW() WHERE id=$1", [draft.id]);
+      published.push({ id: result.rows[0].id, title: draft.title, company: draft.source_name });
+    }
+    await client.query("COMMIT");
+    for (const job of published) {
+      void sendNewJobNotification({ ...job, location: "Visa sponsorship" });
+      void postApprovedJobToFacebook({ ...job, location: "Visa sponsorship", salary: "Not disclosed", lastDate: "Check official job listing" });
+    }
+    const skipped = ids.length - published.length;
+    res.json({ message: `${published.length} visa opening(s) published${skipped ? `; ${skipped} were already reviewed` : ""}.`, approved: published.length, skipped });
+  } catch (error) {
+    await client.query("ROLLBACK"); console.error("Bulk visa approval failed:", error.message);
+    res.status(500).json({ error: "Could not approve the visa openings. Nothing was published." });
+  } finally { client.release(); }
+});
 app.post("/api/visa-job-agent/drafts/:id/approve", verifyToken, isAdmin, async (req, res) => {
   try {
     const draft = (await db.query("SELECT * FROM visa_job_drafts WHERE id = $1 AND status = 'pending'", [req.params.id])).rows[0];
