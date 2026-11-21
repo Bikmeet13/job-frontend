@@ -856,6 +856,22 @@ const visaJobDefaultSources = [
   ["Montenegro — Work Visa Guidance", "https://www.gov.me/en/article/what-is-a-visa-2", "me", "official guidance", false],
   ["North Macedonia — Work Visas and Permits", "https://investnorthmacedonia.gov.mk/work-visas-and-permits/", "mk", "official guidance", false],
   ["Uzbekistan — Services for Foreign Workers", "https://my.gov.uz/en/for-foreigners", "uz", "official guidance", false],
+  ["Colombia — Work Visa Categories", "https://www.cancilleria.gov.co/atencion-y-servicio-al-ciudadano/tramites-y-servicios/visa/tipos-de-visa", "co", "official guidance", false],
+  ["Colombia — Hiring Foreign Workers", "https://vui.gov.co/es/portafolio-de-tramites/migracion", "co", "official guidance", false],
+  ["Costa Rica — Foreign-worker Guidance", "https://www.mtss.go.cr/temas-laborales/", "cr", "official guidance", false],
+  ["Dominican Republic — Temporary Employment Residence", "https://migracion.gob.do/servicio/residencia-temporal-laboral-rt-3/", "do", "official guidance", false],
+  ["Ecuador — Temporary Work Residence Visas", "https://www.cancilleria.gob.ec/2020/06/16/visa-residencia-temporal/", "ec", "official guidance", false],
+  ["Ecuador — Migrant Employment Guidance", "https://encuentraempleo.trabajo.gob.ec/socioEmpleo-war/paginas/oit/refugiadoMigrante.jsf", "ec", "official guidance", false],
+  ["Egypt — Foreign-worker Permits", "https://www.labour.gov.eg/ar/%D8%B9%D9%86-%D8%A7%D9%84%D9%88%D8%B2%D8%A7%D8%B1%D8%A9/%D8%A7%D9%84%D8%A5%D8%AF%D8%A7%D8%B1%D8%A7%D8%AA-%D8%A7%D9%84%D9%85%D8%B1%D9%83%D8%B2%D9%8A%D8%A9/%D8%A7%D9%84%D8%AA%D8%B4%D8%BA%D9%8A%D9%84-%D9%88%D9%85%D8%B9%D9%84%D9%88%D9%85%D8%A7%D8%AA-%D8%B3%D9%88%D9%82-%D8%A7%D9%84%D8%B9%D9%85%D9%84/%D8%A5%D9%84%D8%A5%D8%AF%D8%A7%D8%B1%D8%A9-%D8%A7%D9%84%D8%B9%D8%A7%D9%85%D8%A9-%D9%84%D8%AA%D8%B1%D8%A7%D8%AE%D9%8A%D8%B5-%D8%B9%D9%85%D9%84-%D8%A7%D9%84%D8%A3%D8%AC%D8%A7%D9%86%D8%A8/", "eg", "official guidance", false],
+  ["Ghana — Work Permits", "https://mint.gov.gh/services/work-permit", "gh", "official guidance", false],
+  ["Morocco — Foreign-worker Labour Code", "https://adala.justice.gov.ma/api/uploads/2024/04/30/code%20du%20travail-1714463246806.pdf", "ma", "official guidance", false],
+  ["Nigeria — Expatriate Employment Visa", "https://immigration.gov.ng/info-center/employment-visa-expatriate-r2a/", "ng", "official guidance", false],
+  ["Nigeria — e-CERPAC Work Residence", "https://cerpac.immigration.gov.ng/about-us", "ng", "official guidance", false],
+  ["Panama — Labour Migration Permits", "https://www.mitradel.gob.pa/empleo/migracion-laboral/", "pa", "official guidance", false],
+  ["Panama — Foreign-worker Authorization", "https://panamadigital.gob.pa/InformacionTramite/autorizacion-para-contratar-trabajadores-extranjeros", "pa", "official guidance", false],
+  ["Ukraine — Foreign-worker Permits", "https://dcz.gov.ua/employer/foreign", "ua", "official guidance", false],
+  ["Ukraine — Employment Residence Permits", "https://dmsu.gov.ua/en-home/services/documenting-foreigners/issuance-of-temporary-residence-permit.html?sfns=0", "ua", "official guidance", false],
+  ["Uruguay — Employing Foreign Workers", "https://www.gub.uy/ministerio-trabajo-seguridad-social/politicas-y-gestion/contratacion-trabajadores-extranjeros-bajo-regimen-dependencia-laboral", "uy", "official guidance", false],
 ];
 
 // These are official national or public job boards expressly intended to help
