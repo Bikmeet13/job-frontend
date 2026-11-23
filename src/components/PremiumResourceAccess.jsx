@@ -5,6 +5,11 @@ import toast from "react-hot-toast";
 
 const API = "https://humorous-fulfillment-production-1f5e.up.railway.app/api";
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+const fallbackPlans = [
+  { id: "visa_six_month", amount: 599, originalAmount: 599, duration: "6 months", caption: "Best value · about ₹100/month", promotion: null },
+  { id: "visa_monthly", amount: 125, originalAmount: 125, duration: "30 days", caption: "Flexible monthly access", promotion: null },
+];
+const formatRupees = (amount) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: Number(amount) % 1 ? 2 : 0 }).format(amount);
 
 function loadRazorpay() {
   if (window.Razorpay) return Promise.resolve(true);
@@ -34,11 +39,24 @@ export default function PremiumResourceAccess({ onUnlocked, onClose, onRequireLo
   const [referralBusy, setReferralBusy] = useState(startWithReferral);
   const [referral, setReferral] = useState(null);
   const [upiId, setUpiId] = useState("");
-  const plans = [
-    { id: "visa_six_month", amount: "₹599", duration: "6 months", caption: "Best value · about ₹100/month" },
-    { id: "visa_monthly", amount: "₹125", duration: "30 days", caption: "Flexible monthly access" },
-  ];
+  const [plans, setPlans] = useState(fallbackPlans);
   const activePlan = plans.find((plan) => plan.id === selectedPlan) || plans[0];
+  const activePromotion = plans.find((plan) => plan.promotion)?.promotion || null;
+
+  useEffect(() => {
+    let active = true;
+    axios.get(API + "/premium-resources/plans")
+      .then(({ data }) => {
+        if (!active || !Array.isArray(data.plans) || !data.plans.length) return;
+        setPlans(data.plans.map((plan) => ({
+          ...plan,
+          duration: plan.id === "visa_six_month" ? "6 months" : "30 days",
+          caption: plan.id === "visa_six_month" ? "Best value · full 6-month access" : "Flexible monthly access",
+        })));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const openReferral = async () => {
     setReferralOpen(true);
@@ -153,8 +171,12 @@ export default function PremiumResourceAccess({ onUnlocked, onClose, onRequireLo
           <p className="mt-3 text-sm leading-6 text-indigo-100">Unlock the sponsored-jobs view and official international work-visa resources.</p>
         </div>
         <div className="p-6">
+          {activePromotion && <div className="mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-4 text-center">
+            <p className="text-sm font-black uppercase tracking-wide text-orange-700">Guru Parab Special · {activePromotion.discountPercent}% off</p>
+            <p className="mt-1 text-xs font-bold text-amber-900">Only till 24 November, 11:59 PM IST</p>
+          </div>}
           <div className="grid gap-3 sm:grid-cols-2">
-            {plans.map((plan) => <button key={plan.id} type="button" onClick={() => setSelectedPlan(plan.id)} className={`rounded-2xl border p-4 text-left transition ${selectedPlan === plan.id ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200" : "border-slate-200 bg-white hover:border-indigo-300"}`}><span className="block text-2xl font-black text-indigo-950">{plan.amount}</span><span className="mt-1 block font-bold text-slate-900">{plan.duration}</span><span className="mt-1 block text-xs text-slate-600">{plan.caption}</span></button>)}
+            {plans.map((plan) => <button key={plan.id} type="button" onClick={() => setSelectedPlan(plan.id)} className={`rounded-2xl border p-4 text-left transition ${selectedPlan === plan.id ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200" : "border-slate-200 bg-white hover:border-indigo-300"}`}>{plan.promotion && <span className="mr-2 text-sm font-bold text-slate-400 line-through">{formatRupees(plan.originalAmount)}</span>}<span className="block text-2xl font-black text-indigo-950">{formatRupees(plan.amount)}</span><span className="mt-1 block font-bold text-slate-900">{plan.duration}</span><span className="mt-1 block text-xs text-slate-600">{plan.caption}</span></button>)}
           </div>
           <ul className="mt-5 space-y-3 text-sm text-slate-700">
             <li className="flex gap-3"><CheckCircle2 className="shrink-0 text-emerald-600" size={19} />Sponsored and visa-support job listings</li>
@@ -178,10 +200,11 @@ export default function PremiumResourceAccess({ onUnlocked, onClose, onRequireLo
                 <div className="mt-2 flex gap-2"><input readOnly value={referral.referralLink || ""} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" /><button type="button" onClick={copyReferralLink} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white"><Copy size={15} /> Copy</button></div>
               </div>}
               <p className="mt-3 text-[11px] leading-4 text-slate-500">Rewards become pending only after verified payment. Self-referrals do not qualify. Payouts are credited manually to your registered UPI ID.</p>
+              {activePromotion && <p className="mt-2 text-[11px] font-bold leading-4 text-amber-700">Referral rewards do not apply to Guru Parab promotional purchases.</p>}
             </>}
           </section>}
           <button type="button" disabled={busy} onClick={purchase} className="mt-6 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3.5 font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-violet-700 disabled:cursor-wait disabled:opacity-70">
-            {busy ? "Opening secure checkout…" : signedIn ? `Pay ${activePlan.amount} & unlock access` : "Create account to subscribe"}
+            {busy ? "Opening secure checkout…" : signedIn ? `Pay ${formatRupees(activePlan.amount)} & unlock access` : "Create account to subscribe"}
           </button>
           <p className="mt-3 text-center text-xs text-slate-500">Access is linked to this MarketLence account and ends after the selected duration.</p>
         </div>

@@ -54,6 +54,7 @@ const {
   normalizeUpiId,
   rewardForPlan,
 } = require("./services/visaReferral");
+const { priceVisaPlan } = require("./services/visaPromotion");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -1616,6 +1617,20 @@ const premiumResourcePlans = {
   visa_six_month: { id: "visa_six_month", name: "Visa Jobs — 6 months", amount: 59900, days: 183, currency: "INR" },
   visa_monthly: { id: "visa_monthly", name: "Visa Jobs — 30 days", amount: 12500, days: 30, currency: "INR" },
 };
+const publicPremiumResourcePlans = (now = Date.now()) => Object.values(premiumResourcePlans).map((basePlan) => {
+  const plan = priceVisaPlan(basePlan, now);
+  return {
+    id: plan.id,
+    name: plan.name,
+    amount: plan.amount / 100,
+    amountPaise: plan.amount,
+    originalAmount: plan.originalAmount / 100,
+    originalAmountPaise: plan.originalAmount,
+    days: plan.days,
+    currency: plan.currency,
+    promotion: plan.promotion,
+  };
+});
 const referralAdminEmail = process.env.REFERRAL_ADMIN_EMAIL || "bikramjeets66@gmail.com";
 const referralLinkFor = (code) => "https://jobs.marketlence.com/?ref=" + encodeURIComponent(code) + "&subscribe=visa";
 const emailSafe = (value) => String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
@@ -1716,6 +1731,7 @@ async function ensureEmployerPostingTables() {
   await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS access_expires_at TIMESTAMPTZ");
   await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS referral_code VARCHAR(16)");
   await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS referrer_user_id INTEGER");
+  await db.query("ALTER TABLE premium_resource_payments ADD COLUMN IF NOT EXISTS promotion_code VARCHAR(80)");
   await db.query("CREATE INDEX IF NOT EXISTS visa_referral_payouts_referrer_idx ON visa_referral_payouts (referrer_user_id, created_at DESC)");
   // Preserve access fairly for customers who purchased the previous ₹599 plan.
   await db.query(`UPDATE premium_resource_payments
@@ -2624,10 +2640,13 @@ app.post("/api/visa-referrals/register", verifyToken, async (req, res) => {
   }
 });
 
+app.get("/api/premium-resources/plans", (req, res) => {
+  res.json({ plans: publicPremiumResourcePlans() });
+});
 app.get("/api/premium-resources/access", verifyToken, async (req, res) => {
   try {
     const payment = await getActivePremiumResourceAccess(req.user.id);
-    res.json({ hasAccess: Boolean(payment), paidAt: payment?.paid_at || null, expiresAt: payment?.access_expires_at || null, plans: Object.values(premiumResourcePlans).map(({ id, name, amount, days, currency }) => ({ id, name, amount: amount / 100, days, currency })) });
+    res.json({ hasAccess: Boolean(payment), paidAt: payment?.paid_at || null, expiresAt: payment?.access_expires_at || null, plans: publicPremiumResourcePlans() });
   } catch (error) {
     console.error("Could not check premium resource access:", error.message);
     res.status(500).json({ error: "Could not check your access right now." });
@@ -2635,27 +2654,28 @@ app.get("/api/premium-resources/access", verifyToken, async (req, res) => {
 });
 app.post("/api/premium-resources/order", verifyToken, async (req, res) => {
   try {
-    const plan = premiumResourcePlans[String(req.body?.planId || "")];
-    if (!plan) return res.status(400).json({ error: "Choose a valid Visa Jobs access plan." });
+    const basePlan = premiumResourcePlans[String(req.body?.planId || "")];
+    if (!basePlan) return res.status(400).json({ error: "Choose a valid Visa Jobs access plan." });
+    const plan = priceVisaPlan(basePlan);
     const existing = await getActivePremiumResourceAccess(req.user.id);
     if (existing) return res.json({ hasAccess: true });
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return res.status(503).json({ error: "Payments are not configured yet. Please contact MarketLence support." });
     }
     const referralCode = normalizeReferralCode(req.body?.referralCode);
-    const referrer = referralCode ? (await db.query(
+    const referrer = !plan.promotion && referralCode ? (await db.query(
       "SELECT user_id, referral_code FROM visa_referrers WHERE referral_code=$1 AND status='active' AND user_id<>$2",
       [referralCode, req.user.id]
     )).rows[0] : null;
     const payment = (await db.query(
-      "INSERT INTO premium_resource_payments (user_id, access_type, amount_paise, plan_id, referral_code, referrer_user_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
-      [req.user.id, premiumResourceAccessType, plan.amount, plan.id, referrer?.referral_code || null, referrer?.user_id || null]
+      "INSERT INTO premium_resource_payments (user_id, access_type, amount_paise, plan_id, referral_code, referrer_user_id, promotion_code) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
+      [req.user.id, premiumResourceAccessType, plan.amount, plan.id, referrer?.referral_code || null, referrer?.user_id || null, plan.promotion?.code || null]
     )).rows[0];
     const orderResponse = await axios.post("https://api.razorpay.com/v1/orders", {
       amount: plan.amount,
       currency: plan.currency,
       receipt: `mlr_${payment.id}`,
-      notes: { payment_id: String(payment.id), user_id: String(req.user.id), access_type: premiumResourceAccessType, plan_id: plan.id },
+      notes: { payment_id: String(payment.id), user_id: String(req.user.id), access_type: premiumResourceAccessType, plan_id: plan.id, promotion_code: plan.promotion?.code || "" },
     }, {
       auth: { username: process.env.RAZORPAY_KEY_ID, password: process.env.RAZORPAY_KEY_SECRET },
       timeout: 15000,
@@ -2687,7 +2707,7 @@ app.post("/api/premium-resources/verify", verifyToken, async (req, res) => {
     const plan = premiumResourcePlans[payment.plan_id];
     if (!plan) return res.status(400).json({ error: "This payment has an invalid access plan." });
     const updated = await db.query("UPDATE premium_resource_payments SET razorpay_payment_id=$1, payment_status='paid', paid_at=COALESCE(paid_at, NOW()), access_expires_at=NOW() + ($2::int * INTERVAL '1 day') WHERE id=$3 RETURNING access_expires_at", [razorpay_payment_id, plan.days, payment.id]);
-    if (payment.referrer_user_id && payment.referrer_user_id !== req.user.id) {
+    if (!payment.promotion_code && payment.referrer_user_id && payment.referrer_user_id !== req.user.id) {
       try {
         const rewardPaise = rewardForPlan(payment.plan_id);
         const payout = rewardPaise ? (await db.query(
