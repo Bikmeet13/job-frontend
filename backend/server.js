@@ -55,6 +55,7 @@ const {
   rewardForPlan,
 } = require("./services/visaReferral");
 const { priceVisaPlan } = require("./services/visaPromotion");
+const { getCandidateDashboardStats } = require("./services/candidateDashboard");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -3878,30 +3879,8 @@ app.delete("/api/shortlist/:id", async (req, res) => {
 });
 
 app.get("/api/dashboard-stats/:userId", verifyToken, async (req, res) => {
-
-  // ✅ correct way
- const userId = req.user.id;
-  const userEmail = req.user.email;
-
-  console.log("USER ID:", userId);
-  console.log("TYPE:", typeof userId);
-
   try {
-    const savedJobs = await db.query(
-      "SELECT COUNT(*) FROM saved_jobs WHERE user_id = $1",
-      [userId]
-    );
-
-    const applications = await db.query(
-  "SELECT COUNT(*) FROM applications WHERE email = $1",
-  [req.user.email]
-);
-
-    res.json({
-      saved: savedJobs.rows[0].count,
-      applied: applications.rows[0].count
-    });
-
+    res.json(await getCandidateDashboardStats(db, req.user));
   } catch (err) {
     console.log("DASHBOARD ERROR:", err);
     res.status(500).json({ error: "Dashboard error ❌" });
