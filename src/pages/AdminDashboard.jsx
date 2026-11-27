@@ -1665,6 +1665,16 @@ const filteredJobs = (jobs || []).filter((job) => {
       key={app.id}
       className="bg-white shadow-md rounded-lg p-5 mb-4 border"
     >
+            <div className="mb-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">Applied for</p>
+              <h3 className="mt-1 text-lg font-black text-slate-950">{app.title || "Deleted Job"}</h3>
+              <p className="mt-1 text-sm font-semibold text-slate-600">
+                {app.company || "Unknown Company"} · Job #{app.jobid || app.job_id || app.jobId || "—"}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Application #{app.id}{app.created_at ? ` · Submitted ${new Date(app.created_at).toLocaleString()}` : ""}
+              </p>
+            </div>
             <p><b>Name:</b> {app.name}</p>
             {(shortlisted || []).find(item => item.id === app.id) && (
   <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
@@ -1672,8 +1682,6 @@ const filteredJobs = (jobs || []).filter((job) => {
 </span>
 )}
             <p><b>Email:</b> {app.email}</p>
-            <p><b>Job ID:</b> {app.jobId}</p>
-
            <p className="mb-2">
   <b>Status:</b>{" "}
   <span
