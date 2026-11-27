@@ -56,6 +56,7 @@ const {
 } = require("./services/visaReferral");
 const { priceVisaPlan } = require("./services/visaPromotion");
 const { getCandidateDashboardStats } = require("./services/candidateDashboard");
+const { getVisibleApplications } = require("./services/applicationVisibility");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -4385,24 +4386,7 @@ if (userCheck.rows.length === 0) {
 
 app.get("/api/applications", verifyToken, async (req, res) => {
   try {
-    const result = await db.query(
-      `
-      SELECT
-        applications.*,
-        COALESCE(jobs.title, 'Deleted Job') AS title,
-        COALESCE(jobs.company, 'Unknown Company') AS company,
-        COALESCE(applications.created_at, NOW()) AS created_at,
-        COALESCE(applications.updated_at, applications.created_at, NOW()) AS updated_at
-      FROM applications
-      LEFT JOIN jobs
-      ON applications.jobid = jobs.id
-      WHERE applications.candidate_user_id = $1 OR (applications.candidate_user_id IS NULL AND applications.email = $2)
-      ORDER BY applications.updated_at DESC NULLS LAST, applications.id DESC
-      `,
-      [req.user.id, req.user.email]
-    );
-
-    res.json(result.rows);
+    res.json(await getVisibleApplications(db, req.user));
   } catch (err) {
     console.log(err);
     res.status(500).send("Error fetching applications");
